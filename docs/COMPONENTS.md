@@ -52,11 +52,13 @@ Replaces `<v-list>` on MessageBoardView. Vertical stack with divider option, hov
 Props (List): `variant` (default | divided | interactive), `spacing`.
 Props (Item): `icon`, `label`, `meta`, `active`, `disabled`.
 
-### 7. `AspChart`
+### 7. `AspChart` — ✅ shipped
 
-Chart.js wrapper — pre-configures colors from the (to-be-added) chart palette tokens, sensible defaults for tooltips/legends/grid, and a dark-mode swap. Not a full charting library, just a themed shell.
+Chart.js v4 wrapper — pre-configures series colors from the `--chart-series-1..10` palette tokens, axes from `--text-muted`, grid from `--border-subtle`, a dark-card tooltip, and a `data-theme` dark swap (re-themes via a `MutationObserver` on the root, no prop toggle). Not a full charting library, just a themed shell. `chart.js` is an **optional peer dependency** — the consuming app installs it.
 
-Props: `type` (line | bar | pie | scatter), `data`, `options` (deep-merged over defaults), `height`.
+Props: `type` (line | bar | pie | doughnut | scatter), `data`, `options` (deep-merged over defaults), `height` (number px or CSS length), `ariaLabel` (canvas `role="img"` text alternative).
+
+Datasets that omit their own colors are auto-assigned from the palette (by dataset for cartesian charts, by slice for pie/doughnut). Respects `prefers-reduced-motion`.
 
 Reference: `aspirant-client/src/components/RangeChart.vue` for the current shape.
 

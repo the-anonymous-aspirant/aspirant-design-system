@@ -16,9 +16,9 @@ export default defineConfig({
       fileName: 'aspirant-design-system',
     },
     rollupOptions: {
-      external: ['vue'],
+      external: ['vue', 'chart.js', 'chart.js/auto'],
       output: {
-        globals: { vue: 'Vue' },
+        globals: { vue: 'Vue', 'chart.js': 'Chart', 'chart.js/auto': 'Chart' },
       },
     },
   },

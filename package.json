@@ -10,6 +10,7 @@
       "import": "./dist/aspirant-design-system.js",
       "require": "./dist/aspirant-design-system.umd.cjs"
     },
+    "./styles.css": "./dist/style.css",
     "./tokens.css": "./build/tokens.css",
     "./tokens": "./build/tokens.js"
   },

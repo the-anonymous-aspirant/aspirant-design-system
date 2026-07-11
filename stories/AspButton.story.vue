@@ -20,7 +20,7 @@ const runAsync = async () => {
       <p><strong>When not to use:</strong> for navigation to a route — use <code>AspSidebarLink</code> or a plain <code>router-link</code>.</p>
     </template>
 
-    <Variant title="Variants">
+    <Variant title="Style variants">
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <AspButton variant="primary">Primary</AspButton>
         <AspButton variant="secondary">Secondary</AspButton>

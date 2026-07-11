@@ -55,7 +55,15 @@
       "series-10": { "value": "#82b1ff", "comment": "Brand accent (soft blue) — for continuity with links" }
     },
     "feedback": {
-      "warning":    { "value": "#ff8f00", "comment": "Gap 8 — amber-orange warning, distinct from brand.primary (#ffb300) so warning is unambiguously alarming rather than branded" }
+      "warning":    { "value": "#ff8f00", "comment": "Gap 8 — amber-orange warning, distinct from brand.primary (#ffb300) so warning is unambiguously alarming rather than branded" },
+      "dark": {
+        "$comment": "Task-#1970 audit — dark-mode overrides for the -text variants defined in base.json under color.feedback.*-text. Alpha-tinted -bg values are mode-agnostic and do not need dark overrides. Emitted under [data-theme='dark'] by the css/variables-with-dark-theme format's generalized isDarkOverride (any color.<category>.dark.*).",
+        "error-text":    { "value": "#ff7a7c", "comment": "Lighter red for WCAG AA on tinted error-bg + dark page (#1a1a1a)." },
+        "success-text":  { "value": "#4de292", "comment": "Lighter green for WCAG AA on tinted success-bg + dark page." },
+        "info-text":     { "value": "#6be3f2", "comment": "Lighter cyan for WCAG AA on tinted info-bg + dark page." },
+        "warning-text":  { "value": "#ffb75f", "comment": "Lighter amber for WCAG AA on tinted warning-bg + dark page." },
+        "neutral-text":  { "value": "#b8bec5", "comment": "Lighter neutral for WCAG AA on tinted neutral-bg + dark page." }
+      }
     },
     "focus-ring": {
       "$comment": "Gap 8 — focus-ring color + width. WCAG 2.4.7 focus-visible target; contrast ratio vs both light and dark surfaces >= 3:1.",

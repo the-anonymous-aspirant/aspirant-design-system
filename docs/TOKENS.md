@@ -38,13 +38,27 @@ The palette follows a 60/30/10 rule: neutral surfaces dominate, brand accent car
 
 ### Feedback
 
-| Token | Value |
-|---|---|
-| `--feedback-error` | `#ff3739` |
-| `--feedback-success` | `#00b74a` |
-| `--feedback-info` | `#00d3ee` |
+Solid anchors, tinted-bg variants, and text-on-tinted-bg variants:
 
-Warning is missing (only error / success / info exist). Add `--feedback-warning` in v0.
+| Token | Light value | Dark value | Origin | Usage |
+|---|---|---|---|---|
+| `--feedback-error` | `#ff3739` | — | aspirant-client | Solid error red — icons, borders, badges |
+| `--feedback-success` | `#00b74a` | — | aspirant-client | Solid success green |
+| `--feedback-info` | `#00d3ee` | — | aspirant-client | Solid info cyan |
+| `--feedback-warning` | `#ff8f00` | — | v0 gap 8 | Solid warning amber-orange (distinct from brand amber) |
+| `--feedback-neutral` | `#6c757d` | — | #1970 audit | Solid neutral grey — n/a / disabled / no-data status |
+| `--feedback-error-bg` | `rgba(255, 55, 57, 0.10)` | — | #1970 audit | Tinted alert bg (mode-agnostic) |
+| `--feedback-success-bg` | `rgba(0, 183, 74, 0.10)` | — | #1970 audit | Tinted alert bg |
+| `--feedback-info-bg` | `rgba(0, 211, 238, 0.10)` | — | #1970 audit | Tinted alert bg |
+| `--feedback-warning-bg` | `rgba(255, 143, 0, 0.10)` | — | #1970 audit | Tinted alert bg |
+| `--feedback-neutral-bg` | `rgba(108, 117, 125, 0.10)` | — | #1970 audit | Tinted alert bg for neutral status |
+| `--feedback-error-text` | `#8b0f10` | `#ff7a7c` | #1970 audit | Text on tinted `error-bg` (WCAG AA) |
+| `--feedback-success-text` | `#005d26` | `#4de292` | #1970 audit | Text on tinted `success-bg` |
+| `--feedback-info-text` | `#005566` | `#6be3f2` | #1970 audit | Text on tinted `info-bg` |
+| `--feedback-warning-text` | `#703e00` | `#ffb75f` | #1970 audit | Text on tinted `warning-bg` |
+| `--feedback-neutral-text` | `#4a5057` | `#b8bec5` | #1970 audit | Text on tinted `neutral-bg` |
+
+`-bg` variants use `rgba` alpha so a single value works on both light and dark surfaces; `-text` variants need a per-mode override to keep WCAG AA contrast on tinted regions.
 
 ### Borders
 
@@ -150,3 +164,21 @@ Ease curve is uniform `ease` — v0 should decide whether to split into `--ease-
 - [ ] Style Dictionary build → `build/tokens.css`, `build/tokens.js`, `build/tokens.penpot.json`
 - [ ] Import `build/tokens.css` at Vite entry; components consume via `var(--token)`
 - [ ] Prove Penpot round-trip on 1 token (change amber in Penpot → export → git commit → CSS regenerates)
+
+## Source coverage
+
+Every token in `tokens/base.json` + `tokens/aspirant.json` traces back to one of three sources. The audit under system_3 task #1970 added the last row after diffing the DS against `system_3/frontend/static/system3.css`; entries classified `SKIP-artificial`, `SKIP-app-specific`, or `DEFER` in that audit are intentionally absent here.
+
+| Source | What it covers | Where |
+|---|---|---|
+| `aspirant-client :root` (verbatim) | Surface, brand, text (4-tier), solid feedback anchors (error / success / info), border, base font-size scale, radius scale, spacing scale, transitions, shadows | `tokens/base.json` |
+| aspirant-client gap-fill (v0 gaps 1–8) | Dark-mode surface + text inversions, brand semantic ramps (`primary-50..900`, `accent-50..900`), chart palette (Okabe-Ito + brand amber), motion ease curves, breakpoints, z-index scale, font weights / line-heights / letter-spacing / mono family, warning solid + focus ring | `tokens/aspirant.json` |
+| system_3 frontend (task #1970 audit) | Tinted feedback backgrounds (`error-bg` / `success-bg` / `info-bg` / `warning-bg` / `neutral-bg`), text-on-tinted-bg per mode (`{error,success,info,warning,neutral}-text` in `:root` and under `color.feedback.dark.*`), neutral status anchor | `tokens/base.json` + `tokens/aspirant.json` |
+
+Values under the third row are **not** verbatim from system_3. system_3's semantic status tokens (`--color-success`, `--color-warn`, ...) are HSL-derived and part of the "artificial" aesthetic the DS explicitly rejects (task #1955 decisions). The `-bg` and `-text` shapes are the genuinely-useful patterns that got ported; values are re-derived from aspirant's own `feedback.*` anchors so the aspirant identity carries through.
+
+Audit classifications the DS declined to import:
+
+- `SKIP-artificial`: `--color-warn-bg-fill`, `--color-neutral-bg-fill` (85%-lightness solid, redundant with alpha `-bg`); `--color-strong-warn`, `--color-strong-warn-bg` (over-differentiation on top of `feedback.warning`).
+- `SKIP-app-specific`: `--color-live-waiting-{bg,text}` (agent-status-badge mapping — belongs in s3's app-shell); `--color-accent-border` (aspirant `brand.accent` + `focus-ring.color` already cover blue-accent surfaces).
+- `DEFER`: `--color-text-tertiary` — a 3rd low-emphasis text tier beyond `muted` + `hint`. No aspirant consumer demands it yet; file as follow-up if one does.

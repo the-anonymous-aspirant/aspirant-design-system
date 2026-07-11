@@ -20,9 +20,20 @@
       "hint":         { "value": "#82b1ff", "comment": "Hint text matches accent" }
     },
     "feedback": {
-      "error":   { "value": "#ff3739" },
-      "success": { "value": "#00b74a" },
-      "info":    { "value": "#00d3ee" }
+      "error":         { "value": "#ff3739" },
+      "success":       { "value": "#00b74a" },
+      "info":          { "value": "#00d3ee" },
+      "neutral":       { "value": "#6c757d", "comment": "Task-#1970 audit — anchor for n/a / disabled / no-data status. Matches text.muted." },
+      "error-bg":      { "value": "rgba(255, 55, 57, 0.10)", "comment": "Task-#1970 audit — tinted alert background derived from feedback.error. Alpha keeps it mode-agnostic." },
+      "success-bg":    { "value": "rgba(0, 183, 74, 0.10)",  "comment": "Task-#1970 audit — tinted alert background derived from feedback.success." },
+      "info-bg":       { "value": "rgba(0, 211, 238, 0.10)", "comment": "Task-#1970 audit — tinted alert background derived from feedback.info." },
+      "warning-bg":    { "value": "rgba(255, 143, 0, 0.10)", "comment": "Task-#1970 audit — tinted alert background derived from feedback.warning." },
+      "neutral-bg":    { "value": "rgba(108, 117, 125, 0.10)", "comment": "Task-#1970 audit — tinted background for neutral status." },
+      "error-text":    { "value": "#8b0f10", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted error-bg + light page. Dark-mode override lives at color.feedback.dark.error-text." },
+      "success-text":  { "value": "#005d26", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted success-bg + light page." },
+      "info-text":     { "value": "#005566", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted info-bg + light page." },
+      "warning-text":  { "value": "#703e00", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted warning-bg + light page." },
+      "neutral-text":  { "value": "#4a5057", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted neutral-bg + light page." }
     },
     "border": {
       "card":    { "value": "#ffb300", "comment": "Amber border matches heading" },

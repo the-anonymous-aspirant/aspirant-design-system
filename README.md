@@ -1,4 +1,4 @@
-# aspirant_design_system
+# aspirant-design-system
 
 A design system for the aspirant ecosystem — reusable Vue 3 components, hand-drawn iconography, and design tokens with Penpot round-tripping.
 
@@ -22,7 +22,7 @@ Extend the existing aspirant-client visual language — dark-cards-on-light-page
 | Icon source | reMarkable Pro → SVG → transperator → manual retouch. Stored on aspirant S3-simulated FS |
 | Icon package | Separate repo (`aspirant-icon-pipeline` — TBD), consumed as dependency |
 | Cross-project | Layered — neutral token core + opinionated aspirant theme (skinnable later) |
-| Repo location | `~/git/aspirant_design_system` (local-only for now, GitHub later) |
+| Repo location | `~/git/aspirant-design-system` (local-only for now, GitHub later) |
 
 ## Deferred (decide as we build)
 
@@ -36,7 +36,7 @@ Extend the existing aspirant-client visual language — dark-cards-on-light-page
 ## Repository layout (planned)
 
 ```
-aspirant_design_system/
+aspirant-design-system/
 ├── README.md                   this file
 ├── docs/
 │   ├── TOKENS.md               extracted tokens + gaps + roadmap

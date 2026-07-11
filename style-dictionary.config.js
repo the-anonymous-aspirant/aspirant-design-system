@@ -139,6 +139,73 @@ const inferDtcgType = (path) => {
   return undefined
 }
 
+// Parse a single CSS box-shadow layer into a DTCG composite shadow object.
+// "0 2px 4px rgba(0,0,0,0.1)" → { offsetX:"0", offsetY:"2px", blur:"4px",
+// spread:"0", color:"rgba(0,0,0,0.1)", inset:false }. Returns null if the value
+// is not a parseable box-shadow (caller falls back to the raw string). Key names
+// and the leading `inset` flag match Penpot 2.16.2's
+// `convert-dtcg-shadow-composite` (app.common.types.tokens-lib), which renames
+// offsetX/offsetY/blur/spread/color/inset into its internal shadow model — a
+// string $value is instead kept inert, which is the behaviour this fixes.
+const LENGTH_RE = /^-?[\d.]+(px|rem|em|%|vh|vw)?$/
+
+const parseShadowLayer = (raw) => {
+  let s = String(raw).trim()
+  if (!s) return null
+
+  let inset = false
+  s = s
+    .replace(/\binset\b/i, () => {
+      inset = true
+      return ' '
+    })
+    .trim()
+
+  // Pull out a functional or hex color first (these embed spaces/commas);
+  // a bare named color is recovered from the leftover tokens below.
+  let color
+  const funcHex = s.match(/rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,8}/)
+  if (funcHex) {
+    color = funcHex[0].replace(/\s+/g, '')
+    s = (s.slice(0, funcHex.index) + s.slice(funcHex.index + funcHex[0].length)).trim()
+  }
+
+  const lengths = []
+  for (const t of s.split(/\s+/).filter(Boolean)) {
+    if (LENGTH_RE.test(t)) lengths.push(t)
+    else if (color === undefined) color = t // named color, e.g. "black"
+  }
+  if (lengths.length < 2) return null // needs at least offsetX + offsetY
+
+  const [offsetX, offsetY, blur = '0', spread = '0'] = lengths
+  return { offsetX, offsetY, blur, spread, color: color ?? '#000000', inset }
+}
+
+// Convert a CSS box-shadow value (one or more comma-separated layers) into the
+// DTCG composite shadow $value Penpot parses — a single object for one layer, an
+// array for several. Top-level comma splitting protects commas inside rgba()/
+// hsla(). Returns null if nothing parses (caller keeps the raw string).
+const cssShadowToDtcg = (value) => {
+  const parts = []
+  let depth = 0
+  let cur = ''
+  for (const ch of String(value)) {
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    if (ch === ',' && depth === 0) {
+      parts.push(cur)
+      cur = ''
+    } else {
+      cur += ch
+    }
+  }
+  if (cur.trim()) parts.push(cur)
+
+  const layers = parts.map(parseShadowLayer).filter(Boolean)
+  if (layers.length === 0) return null
+  return layers.length === 1 ? layers[0] : layers
+}
+
 const setDeep = (obj, path, leaf) => {
   let cursor = obj
   for (let i = 0; i < path.length - 1; i += 1) {
@@ -154,8 +221,15 @@ StyleDictionary.registerFormat({
   format: ({ dictionary }) => {
     const out = {}
     for (const token of dictionary.allTokens) {
-      const leaf = { $value: token.value }
       const type = inferDtcgType(token.path)
+      const leaf = { $value: token.value }
+      // Shadows must be emitted as DTCG composite objects, not CSS shorthand
+      // strings — Penpot keeps a string $value inert (unapplicable in the UI),
+      // but parses the composite into its editable shadow model. See #1992.
+      if (type === 'shadow') {
+        const composite = cssShadowToDtcg(token.value)
+        if (composite) leaf.$value = composite
+      }
       if (type) leaf.$type = type
       if (token.comment) leaf.$description = token.comment
       setDeep(out, token.path, leaf)

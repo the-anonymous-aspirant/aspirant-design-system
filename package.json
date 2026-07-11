@@ -1,0 +1,48 @@
+{
+  "name": "@aspirant/design-system",
+  "version": "0.0.0",
+  "description": "Design system for the aspirant ecosystem — Vue 3 components, hand-drawn iconography, design tokens with Penpot round-tripping",
+  "type": "module",
+  "main": "./dist/aspirant-design-system.umd.cjs",
+  "module": "./dist/aspirant-design-system.js",
+  "exports": {
+    ".": {
+      "import": "./dist/aspirant-design-system.js",
+      "require": "./dist/aspirant-design-system.umd.cjs"
+    },
+    "./tokens.css": "./build/tokens.css",
+    "./tokens": "./build/tokens.js"
+  },
+  "files": [
+    "dist",
+    "build",
+    "src"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "story:dev": "histoire dev",
+    "story:build": "histoire build",
+    "story:preview": "histoire preview",
+    "tokens:build": "style-dictionary build --config style-dictionary.config.js",
+    "lint": "eslint 'src/**/*.{js,vue}' 'stories/**/*.{js,vue}'",
+    "format": "prettier --write 'src/**/*.{js,vue,css}' 'stories/**/*.{js,vue,css}' 'tokens/**/*.json'"
+  },
+  "peerDependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@histoire/plugin-vue": "^0.17.17",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.23.0",
+    "histoire": "^0.17.17",
+    "prettier": "^3.2.0",
+    "style-dictionary": "^4.0.0",
+    "vite": "^5.0.0",
+    "vue": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

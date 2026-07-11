@@ -29,11 +29,18 @@
     "format": "prettier --write 'src/**/*.{js,vue,css}' 'stories/**/*.{js,vue,css}' 'tokens/**/*.json'"
   },
   "peerDependencies": {
+    "chart.js": "^4.0.0",
     "vue": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "chart.js": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@histoire/plugin-vue": "^0.17.17",
     "@vitejs/plugin-vue": "^5.0.0",
+    "chart.js": "^4.5.1",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.23.0",
     "histoire": "^0.17.17",

@@ -128,7 +128,10 @@ const inferDtcgType = (path) => {
   if (top === 'space' || top === 'radius' || top === 'breakpoint') return 'dimension'
   if (top === 'z-index') return 'number'
   if (top === 'shadow') return 'shadow'
-  if (top === 'transition' || top === 'motion') return 'duration'
+  // NB: `transition` and `motion` are intentionally absent here — DTCG's
+  // `duration` type is rejected by Penpot 2.16.2 (silent drop). They are
+  // retyped in penpotLeaf() below: transitions → `number` (ms), easings →
+  // `other`. See tokens/README.md and system_3 task #1991 / #1980.
   if (top === 'font') {
     if (second === 'family') return 'fontFamily'
     if (second === 'weight') return 'fontWeight'
@@ -206,6 +209,61 @@ const cssShadowToDtcg = (value) => {
   return layers.length === 1 ? layers[0] : layers
 }
 
+// Parse the leading duration of a CSS transition/duration value to milliseconds.
+// "0.2s ease" → 200, "150ms" → 150. Returns null if no duration is found.
+const durationToMs = (value) => {
+  const match = String(value).match(/(-?[\d.]+)\s*(ms|s)\b/)
+  if (!match) return null
+  const n = Number(match[1])
+  if (Number.isNaN(n)) return null
+  return match[2] === 's' ? Math.round(n * 1000) : Math.round(n)
+}
+
+// Build the DTCG leaf for a token, retyping the motion/transition groups so
+// Penpot 2.16.2 preserves them instead of dropping the unsupported `duration`
+// type (task #1991):
+//   - transition.* ("0.2s ease")   → { $type: "number", $value: 200 }  (ms;
+//                                      the easing keyword stays CSS-only)
+//   - motion.ease.* (cubic-bezier) → { $type: "other",  $value: "cubic-…" }
+//                                      (preserved-but-inert — DTCG/Penpot have
+//                                      no easing/bezier type)
+const penpotLeaf = (token) => {
+  const top = token.path[0]
+
+  if (top === 'transition') {
+    const ms = durationToMs(token.value)
+    const leaf =
+      ms === null
+        ? { $value: token.value, $type: 'other' }
+        : { $value: ms, $type: 'number' }
+    leaf.$description = token.comment
+      ? `${token.comment} (duration in ms; easing is CSS-only, see tokens.css)`
+      : 'Transition duration in ms; the easing keyword is CSS-only (see tokens.css).'
+    return leaf
+  }
+
+  if (top === 'motion') {
+    const leaf = { $value: token.value, $type: 'other' }
+    leaf.$description = token.comment
+      ? `${token.comment} (easing curve — inert in Penpot; applied via tokens.css).`
+      : 'Easing curve — inert in Penpot (no DTCG easing type); applied via tokens.css.'
+    return leaf
+  }
+
+  const leaf = { $value: token.value }
+  const type = inferDtcgType(token.path)
+  // Shadows must be emitted as the DTCG composite object #1992 introduced, not
+  // the CSS shorthand string — Penpot keeps a string $value inert but parses
+  // the composite into its editable shadow model. See cssShadowToDtcg.
+  if (type === 'shadow') {
+    const composite = cssShadowToDtcg(token.value)
+    if (composite) leaf.$value = composite
+  }
+  if (type) leaf.$type = type
+  if (token.comment) leaf.$description = token.comment
+  return leaf
+}
+
 const setDeep = (obj, path, leaf) => {
   let cursor = obj
   for (let i = 0; i < path.length - 1; i += 1) {
@@ -221,18 +279,7 @@ StyleDictionary.registerFormat({
   format: ({ dictionary }) => {
     const out = {}
     for (const token of dictionary.allTokens) {
-      const type = inferDtcgType(token.path)
-      const leaf = { $value: token.value }
-      // Shadows must be emitted as DTCG composite objects, not CSS shorthand
-      // strings — Penpot keeps a string $value inert (unapplicable in the UI),
-      // but parses the composite into its editable shadow model. See #1992.
-      if (type === 'shadow') {
-        const composite = cssShadowToDtcg(token.value)
-        if (composite) leaf.$value = composite
-      }
-      if (type) leaf.$type = type
-      if (token.comment) leaf.$description = token.comment
-      setDeep(out, token.path, leaf)
+      setDeep(out, token.path, penpotLeaf(token))
     }
     return `${JSON.stringify(out, null, 2)}\n`
   },

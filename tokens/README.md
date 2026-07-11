@@ -109,14 +109,25 @@ Round-trip target: change amber in Penpot → export the DTCG JSON → drop into
 back-compat layer) → `npm run tokens:build` regenerates `tokens.css` /
 `tokens.js` / `tokens.penpot.json` from the updated source.
 
-**Penpot format spike status (v0):** the emitter targets DTCG spec-compliant
-`$value` / `$type` on every leaf, grouped by category. Penpot 2.x's importer
-is DTCG-compatible per public docs but the exact `$type` set Penpot recognises
-is not fully enumerated in their documentation as of 2026-07. If the first
-import round-trip surfaces gaps, adjust `inferDtcgType` in
-`style-dictionary.config.js` and re-emit — no source-of-truth change needed.
-A follow-up subtask under epic #1955 tracks the empirical round-trip check
-against a live Penpot instance.
+**Penpot format status:** the emitter targets DTCG spec-compliant
+`$value` / `$type` on every leaf, grouped by category. The empirical round-trip
+was run against Penpot 2.16.2's own `parse-decoded-json` / `export-dtcg-json`
+(#1980 spike): every emitted token survives import→export.
+
+One retyping is required — Penpot 2.16.2 **rejects the DTCG `duration` type**
+and silently drops any token carrying it. So `style-dictionary.config.js`
+retypes the `motion` and `transition` groups on the Penpot output only (the CSS
+values in `tokens.css` are untouched — the full `0.2s ease` / `cubic-bezier(…)`
+strings still ship there):
+
+- `transition.*` (`"0.2s ease"`) → `$type: "number"`, value = duration in **ms**
+  (`0.2s` → `200`). The easing keyword is CSS-only.
+- `motion.ease.*` (`cubic-bezier(…)`) → `$type: "other"` (preserved-but-inert —
+  DTCG/Penpot have no easing/bezier type).
+
+If a future import round-trip surfaces gaps, adjust `inferDtcgType` /
+`penpotLeaf` in `style-dictionary.config.js` and re-emit — no source-of-truth
+change needed. (system_3 task #1991.)
 
 **Shadows are emitted as DTCG composite objects.** The `shadow.*` tokens hold a
 CSS box-shadow shorthand at source (`"0 4px 8px rgba(0,0,0,0.12)"`); the `css`

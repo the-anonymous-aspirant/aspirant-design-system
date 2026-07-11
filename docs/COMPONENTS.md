@@ -1,0 +1,117 @@
+# Components — v0 (10 core)
+
+Priority: cover ~80% of current `aspirant-client` surface + the shapes needed to redesign one full surface end-to-end. Each has a light + dark variant, mobile-first, and a Histoire story.
+
+Naming: `As*` prefix (e.g. `AsCard`, `AsButton`).
+
+## The 10
+
+### 1. `AsIcon`
+
+Hand-drawn SVG wrapper. Consumes icons from `aspirant-icon-pipeline` (separate repo). Sizing tokens (`sm`/`md`/`lg`), stroke-vs-fill mode, dark-mode inversion strategy pluggable per icon (light stroke invert vs. dark-ink-on-light-card).
+
+Props: `name`, `size`, `variant` (functional | illustrative), `label` (a11y).
+
+### 2. `AsCard`
+
+Signature component — dark surface (`#424242`) on light page, amber heading color, subtle amber border. Slotted header/body/footer. Handles the "inner surface" nesting pattern from `--surface-card-inner`.
+
+Props: `variant` (default | elevated | ghost), `padding`, `interactive` (bool for hover state).
+
+Reference: `aspirant-client/src/components/ApplicationCard.vue`, `ApiCard.vue`.
+
+### 3. `AsButton`
+
+Replaces plain `<button>` in aspirant-client + `<v-btn>` in MessageBoardView. Consistent focus ring, amber-hover border, disabled state.
+
+Props: `variant` (primary | secondary | ghost | destructive), `size`, `loading`, `disabled`, `icon-left`, `icon-right`. Slot: default (label).
+
+Loading state: spinner or skeleton — decide during implementation.
+
+### 4. `AsSidebar` + `AsSidebarLink`
+
+Fixed left sidebar with mobile collapse. Handles the hamburger toggle + overlay pattern already in `App.vue`. Mobile-first: full-height overlay on small screens, fixed rail on desktop.
+
+Props (Sidebar): `collapsed`, `width`, `hideOnMobile`. Slots: header, links, footer.
+Props (SidebarLink): `to`, `icon`, `label`, `badge`.
+
+Reference: `aspirant-client/src/components/sidebar/Sidebar.vue`, `SidebarLink.vue`.
+
+### 5. `AsInput`
+
+Text input replacing `<v-text-field>`. Label + hint + error states. Focus ring uses new `--shadow-focus` token.
+
+Props: `modelValue` (v-model), `label`, `hint`, `error`, `type`, `placeholder`, `required`, `disabled`.
+
+Extend to `AsTextarea` in v0 if free — otherwise defer.
+
+### 6. `AsList` + `AsListItem`
+
+Replaces `<v-list>` on MessageBoardView. Vertical stack with divider option, hover states, optional icon leading.
+
+Props (List): `variant` (default | divided | interactive), `spacing`.
+Props (Item): `icon`, `label`, `meta`, `active`, `disabled`.
+
+### 7. `AsChart`
+
+Chart.js wrapper — pre-configures colors from the (to-be-added) chart palette tokens, sensible defaults for tooltips/legends/grid, and a dark-mode swap. Not a full charting library, just a themed shell.
+
+Props: `type` (line | bar | pie | scatter), `data`, `options` (deep-merged over defaults), `height`.
+
+Reference: `aspirant-client/src/components/RangeChart.vue` for the current shape.
+
+### 8. `AsModal`
+
+Overlay dialog. Focus-trap, escape-to-close, click-outside-to-close (optional), scroll-lock body. Mobile: full-screen sheet.
+
+Props: `open` (v-model), `title`, `size` (sm | md | lg | fullscreen), `dismissible`. Slots: default (body), footer.
+
+### 9. `AsBackButton`
+
+Persistent back navigation — this is a signature interaction pattern in aspirant-client. Fixed position, hand-drawn arrow icon, respects browser history + explicit `to` prop.
+
+Props: `to` (fallback route), `position` (fixed | inline).
+
+Reference: `aspirant-client/src/components/BackButton.vue`.
+
+### 10. `AsTypography` (or heading primitives `AsH1`, `AsH2`, `AsProse`)
+
+Type scale enforcement. Prevents drift where `<h1>` on view A doesn't match view B. `AsProse` handles long-form (paragraph, list, code, blockquote) — matters for blog scope.
+
+Props (Heading): `level` (1..6), `color`, `align`.
+Props (Prose): `size` (sm | base | lg), `contrast`.
+
+## Deferred (not in v0 10)
+
+- `AsTable` — data table. Defer until we redesign a table-heavy surface.
+- `AsTabs` — no clear v0 requirement.
+- `AsTooltip` — nice-to-have; browsers can carry text tooltips for now.
+- `AsBreadcrumb` — no current use.
+- `AsAvatar` — no user-avatar surface today.
+- `AsBadge` — inline in `AsSidebarLink`, extract only if reused.
+- `AsToast` / `AsNotification` — belongs in v1 alongside a global feedback pattern.
+- `AsForm` — collection wrapper around `AsInput` + `AsButton` — defer, use composition.
+- `AsDropdown` / `AsMenu` — nice-to-have; check if aspirant-client needs it.
+
+## Cross-cutting
+
+**Composables** (in `src/composables/`):
+- `useTheme` — light/dark switch, watches `prefers-color-scheme`, persists to localStorage
+- `useMobile` — port `checkMobile` + resize logic from `aspirant-client/src/global_state_manager.js`
+- `useFocusTrap` — used by `AsModal`, potentially `AsSidebar` on mobile
+- `useKeyboard` — escape / arrow keys for menus + modals
+
+**Accessibility baseline** (WCAG AA):
+- Every interactive component: keyboard-operable, focus-visible with `--shadow-focus`
+- Every color pair passes 4.5:1 contrast (verify `#424242` on `#e4e4e4` and amber-on-charcoal)
+- `AsIcon` requires `label` prop unless explicitly `aria-hidden`
+
+## Definition of done (per component)
+
+- [ ] Vue 3 `<script setup>` with typed props
+- [ ] Uses tokens from `build/tokens.css` — no hardcoded color/spacing/type
+- [ ] Light + dark variants render correctly
+- [ ] Mobile-first CSS (min-width media queries only)
+- [ ] Histoire story covering default + all prop variants + edge cases (empty, loading, error where applicable)
+- [ ] Keyboard-navigable + focus-visible
+- [ ] Documented in the story: purpose, when to use, when not to

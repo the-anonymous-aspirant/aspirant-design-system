@@ -1,0 +1,78 @@
+{
+  "$comment": "Verbatim copy of the :root custom properties from aspirant-client/src/App.vue (grouped by category). Do not edit values in isolation — aspirant.json overrides + extends base, and the :root in aspirant-client remains the source of truth until all consumers switch to build/tokens.css.",
+  "color": {
+    "surface": {
+      "page":       { "value": "#e4e4e4",           "comment": "60% dominant page background" },
+      "card":       { "value": "#424242",           "comment": "Signature dark card body on light page" },
+      "card-inner": { "value": "rgba(0, 0, 0, 0.3)", "comment": "Nested surface inside cards" },
+      "elevated":   { "value": "#f9f9f9",           "comment": "Modals, popovers, elevated panels" }
+    },
+    "brand": {
+      "primary":       { "value": "#ffb300",   "comment": "Amber-gold — headings, CTAs, active states" },
+      "primary-alpha": { "value": "#ffb30082", "comment": "Amber at 51% alpha" },
+      "primary-hover": { "value": "#e07800",   "comment": "Deeper orange for hover" },
+      "accent":        { "value": "#82b1ff",   "comment": "Soft blue accent — links, hints" }
+    },
+    "text": {
+      "on-light":     { "value": "#424242", "comment": "Body on light surfaces" },
+      "on-dark":      { "value": "#ffffff", "comment": "Body on dark cards" },
+      "heading-card": { "value": "#ffb300", "comment": "Card heading amber" },
+      "muted":        { "value": "#6c757d", "comment": "Secondary / subtitle" },
+      "hint":         { "value": "#82b1ff", "comment": "Hint text matches accent" }
+    },
+    "feedback": {
+      "error":   { "value": "#ff3739" },
+      "success": { "value": "#00b74a" },
+      "info":    { "value": "#00d3ee" }
+    },
+    "border": {
+      "card":    { "value": "#ffb300", "comment": "Amber border matches heading" },
+      "subtle":  { "value": "#cccccc", "comment": "Neutral divider" }
+    }
+  },
+  "font": {
+    "family": {
+      "base": { "value": "Inter, system-ui, Avenir, Helvetica, Arial, sans-serif" }
+    },
+    "size": {
+      "xs":   { "value": "0.75rem" },
+      "sm":   { "value": "0.85rem" },
+      "base": { "value": "1rem" },
+      "md":   { "value": "1.05rem" },
+      "lg":   { "value": "1.2rem" },
+      "xl":   { "value": "1.4rem" },
+      "2xl":  { "value": "1.8rem" },
+      "3xl":  { "value": "2.5rem" }
+    }
+  },
+  "space": {
+    "2xs": { "value": "0.25rem" },
+    "xs":  { "value": "0.5rem" },
+    "sm":  { "value": "0.75rem" },
+    "md":  { "value": "1rem" },
+    "lg":  { "value": "1.5rem" },
+    "xl":  { "value": "2rem" },
+    "2xl": { "value": "3rem" },
+    "3xl": { "value": "4rem" }
+  },
+  "radius": {
+    "sm":   { "value": "4px" },
+    "md":   { "value": "8px" },
+    "lg":   { "value": "12px" },
+    "xl":   { "value": "16px" },
+    "2xl":  { "value": "20px" },
+    "pill": { "value": "40px" },
+    "full": { "value": "50%" }
+  },
+  "transition": {
+    "fast":     { "value": "0.15s ease" },
+    "base":     { "value": "0.2s ease" },
+    "moderate": { "value": "0.3s ease" },
+    "layout":   { "value": "0.5s ease" }
+  },
+  "shadow": {
+    "sm": { "value": "0 2px 4px rgba(0, 0, 0, 0.1)" },
+    "md": { "value": "0 4px 8px rgba(0, 0, 0, 0.12)" },
+    "lg": { "value": "0 10px 20px rgba(0, 0, 0, 0.15)" }
+  }
+}

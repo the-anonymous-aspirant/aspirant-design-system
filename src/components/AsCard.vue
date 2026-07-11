@@ -20,11 +20,11 @@ const props = defineProps({
 
 const emit = defineEmits(['click'])
 
-const rootTag = computed(() => (props.interactive ? 'button' : 'div'))
-
+// Interactive cards use <div role="button"> instead of <button> because the
+// content model of <button> disallows flow content like <header>/<footer>.
 const rootAttrs = computed(() => {
   if (!props.interactive) return {}
-  return { type: 'button' }
+  return { role: 'button', tabindex: 0 }
 })
 
 const classes = computed(() => ({
@@ -37,14 +37,22 @@ const classes = computed(() => ({
 const onClick = (event) => {
   if (props.interactive) emit('click', event)
 }
+
+const onKeydown = (event) => {
+  if (!props.interactive) return
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    emit('click', event)
+  }
+}
 </script>
 
 <template>
-  <component
-    :is="rootTag"
+  <div
     v-bind="rootAttrs"
     :class="classes"
     @click="onClick"
+    @keydown="onKeydown"
   >
     <header v-if="$slots.header" class="card__header">
       <slot name="header" />
@@ -55,7 +63,7 @@ const onClick = (event) => {
     <footer v-if="$slots.footer" class="card__footer">
       <slot name="footer" />
     </footer>
-  </component>
+  </div>
 </template>
 
 <style scoped>
@@ -136,12 +144,6 @@ const onClick = (event) => {
 
 .card--interactive {
   cursor: pointer;
-  appearance: none;
-  border-width: 2px;
-  font: inherit;
-  color: inherit;
-  background: var(--surface-card);
-  width: 100%;
 }
 
 .card--interactive:hover {

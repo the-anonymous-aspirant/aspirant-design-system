@@ -48,6 +48,28 @@ Produces three files under `build/` (which is git-ignored):
 | `build/tokens.js` | ES module (`export const ColorBrandPrimary = '#ffb300'`) | JS runtime — Chart.js palette wiring, computed style comparisons in tests |
 | `build/tokens.penpot.json` | W3C DTCG format (`{ $value, $type }`) | Penpot 2.x import — see [Penpot round-trip](#penpot-round-trip) |
 
+### Naming across platforms
+
+Source JSON is grouped by category (`color.surface.page`, `font.size.xs`) so
+Penpot can infer `$type` and JS consumers get unambiguous `ColorSurfacePage`
+identifiers. The **CSS platform preserves aspirant-client's `:root` names
+verbatim** — the `name/aspirant-css-preserve` transform in
+`../style-dictionary.config.js` collapses `color.*` to the leaf name and maps
+`font.size.*` to `text-*`:
+
+| Source path (JSON) | CSS variable | JS export |
+|---|---|---|
+| `color.surface.page` | `--surface-page` | `ColorSurfacePage` |
+| `color.brand.primary` | `--brand-primary` | `ColorBrandPrimary` |
+| `font.size.xs` | `--text-xs` | `FontSizeXs` |
+| `space.md` | `--space-md` | `SpaceMd` |
+| `color.chart.series-1` | `--chart-series-1` | `ColorChartSeries1` |
+
+Every custom property that lives in `aspirant-client/src/App.vue`'s `:root`
+block emits with the identical name from `tokens/base.json`, so `tokens.css`
+is a drop-in replacement — no consumer renames required to swap from the
+inline `:root` in `App.vue` to `@import '@aspirant/design-system/tokens.css'`.
+
 ## Dark mode
 
 `aspirant.json` carries `color.surface.dark.*` and `color.text.dark.*` subtrees.
@@ -59,7 +81,7 @@ components use one variable name and get the correct value based on the
 
 ```css
 .card {
-  background: var(--color-surface-card);  /* light: #424242 / dark: #2a2a2a */
+  background: var(--surface-card);  /* light: #424242 / dark: #2a2a2a */
 }
 ```
 
@@ -127,20 +149,20 @@ new Chart(ctx, {
 
 <style scoped>
 .btn {
-  background: var(--color-brand-primary);
-  color: var(--color-text-on-light);
+  background: var(--brand-primary);
+  color: var(--text-on-light);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   transition: var(--transition-fast);
 }
 
 .btn:hover {
-  background: var(--color-brand-primary-hover);
+  background: var(--brand-primary-hover);
 }
 
 .btn:focus-visible {
-  outline: var(--color-focus-ring-width) solid var(--color-focus-ring-color);
-  outline-offset: var(--color-focus-ring-offset);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 </style>
 ```

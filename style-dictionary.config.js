@@ -18,6 +18,31 @@
 import StyleDictionary from 'style-dictionary'
 
 // -----------------------------------------------------------------------------
+// Custom name transform: preserve aspirant-client's :root names on CSS output
+// -----------------------------------------------------------------------------
+//
+// tokens/base.json groups values by Style Dictionary category (`color.surface.page`,
+// `font.size.xs`, ...) for correct Penpot DTCG $type inference. Default CSS
+// naming would then emit `--color-surface-page`, `--font-size-xs` — a name change
+// from aspirant-client/src/App.vue's :root. The task specifies "verbatim" copy,
+// which we interpret at the CSS-consumer level: build/tokens.css is a drop-in
+// replacement for the App.vue :root block, so :root-original names win on the
+// CSS platform. Penpot + JS platforms keep the category-prefixed names because
+// their consumers benefit from unambiguous grouping (JS: `ColorSurfacePage`
+// disambiguates against future non-color tokens under `surface`).
+
+StyleDictionary.registerTransform({
+  name: 'name/aspirant-css-preserve',
+  type: 'name',
+  transform: (token) => {
+    const p = token.path
+    if (p[0] === 'color') return p.slice(1).join('-')
+    if (p[0] === 'font' && p[1] === 'size') return `text-${p.slice(2).join('-')}`
+    return p.join('-')
+  },
+})
+
+// -----------------------------------------------------------------------------
 // Custom CSS format: :root (light) + [data-theme='dark'] override
 // -----------------------------------------------------------------------------
 //
@@ -45,12 +70,20 @@ const isDarkOverride = (token) => {
   )
 }
 
-const cssVarName = (path) => `--${path.join('-')}`
+// Apply the same aspirant-client :root name compaction the transform does.
+const cssVarNameFromPath = (path) => {
+  if (path[0] === 'color') return `--${path.slice(1).join('-')}`
+  if (path[0] === 'font' && path[1] === 'size') return `--text-${path.slice(2).join('-')}`
+  return `--${path.join('-')}`
+}
 
-const cssVarNameLightEquivalent = (path) => {
-  // color.surface.dark.page → color.surface.page → --color-surface-page
-  const stripped = [path[0], path[1], ...path.slice(3)]
-  return `--${stripped.join('-')}`
+const cssVarName = (token) => cssVarNameFromPath(token.path)
+
+const cssVarNameLightEquivalent = (token) => {
+  // color.surface.dark.page → color.surface.page → --surface-page
+  const p = token.path
+  const stripped = [p[0], p[1], ...p.slice(3)]
+  return cssVarNameFromPath(stripped)
 }
 
 StyleDictionary.registerFormat({
@@ -62,12 +95,12 @@ StyleDictionary.registerFormat({
 
     const rootLines = dictionary.allTokens
       .filter((t) => !isDarkOverride(t))
-      .map((t) => `  ${cssVarName(t.path)}: ${t.value};`)
+      .map((t) => `  ${cssVarName(t)}: ${t.value};`)
       .join('\n')
 
     const darkLines = dictionary.allTokens
       .filter(isDarkOverride)
-      .map((t) => `  ${cssVarNameLightEquivalent(t.path)}: ${t.value};`)
+      .map((t) => `  ${cssVarNameLightEquivalent(t)}: ${t.value};`)
       .join('\n')
 
     return `${header}:root {\n${rootLines}\n}\n\n[data-theme='dark'] {\n${darkLines}\n}\n`

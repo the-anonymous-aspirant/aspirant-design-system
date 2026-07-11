@@ -73,5 +73,12 @@
     "sm": { "value": "0 2px 4px rgba(0, 0, 0, 0.1)" },
     "md": { "value": "0 4px 8px rgba(0, 0, 0, 0.12)" },
     "lg": { "value": "0 10px 20px rgba(0, 0, 0, 0.15)" }
+  },
+  "icon": {
+    "size": {
+      "sm": { "value": "16px", "comment": "Task-#1972 — inline icon in dense text runs" },
+      "md": { "value": "20px", "comment": "Task-#1972 — default sidebar / button icon slot" },
+      "lg": { "value": "24px", "comment": "Task-#1972 — heading-adjacent or emphasis icon" }
+    }
   }
 }

@@ -1,9 +1,13 @@
 <script setup>
 import { computed, getCurrentInstance } from 'vue'
+import AspIcon from './AspIcon.vue'
 
 const props = defineProps({
   to: { type: String, required: true },
   label: { type: String, required: true },
+  // `icon` is an icon key looked up in the shared registry (see
+  // src/icons/registry.js) — e.g. "home", "applications". The Unicode
+  // fallback glyph is defined once at the registry and inherited here.
   icon: { type: String, default: null },
   badge: { type: [String, Number], default: null },
   active: { type: Boolean, default: null },
@@ -50,7 +54,7 @@ const onClick = (event) => {
     :tabindex="disabled ? -1 : 0"
     @click="onClick"
   >
-    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">{{ icon }}</span>
+    <AspIcon v-if="icon" :name="icon" size="md" class="sidebar-link__icon" />
     <span class="sidebar-link__label">{{ label }}</span>
     <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
   </router-link>
@@ -62,7 +66,7 @@ const onClick = (event) => {
     :tabindex="disabled ? -1 : 0"
     @click="onClick"
   >
-    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">{{ icon }}</span>
+    <AspIcon v-if="icon" :name="icon" size="md" class="sidebar-link__icon" />
     <span class="sidebar-link__label">{{ label }}</span>
     <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
   </a>
@@ -105,11 +109,7 @@ const onClick = (event) => {
 }
 
 .sidebar-link__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.4em;
-  font-size: var(--text-lg);
+  flex-shrink: 0;
 }
 
 .sidebar-link__label {

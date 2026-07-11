@@ -125,6 +125,7 @@ const inferDtcgType = (path) => {
   const [top, second] = path
   if (top === 'color') return 'color'
   if (top === 'space' || top === 'radius' || top === 'breakpoint') return 'dimension'
+  if (top === 'icon' && second === 'size') return 'dimension'
   if (top === 'z-index') return 'number'
   if (top === 'shadow') return 'shadow'
   if (top === 'transition' || top === 'motion') return 'duration'

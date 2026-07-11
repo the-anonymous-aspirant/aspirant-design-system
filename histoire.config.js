@@ -7,12 +7,8 @@ export default defineConfig({
   setupFile: 'stories/histoire.setup.js',
   theme: {
     title: 'aspirant-design-system',
-    logo: {
-      square: './stories/logo.svg',
-      light: './stories/logo.svg',
-      dark: './stories/logo.svg',
-    },
-    favicon: './stories/favicon.svg',
+    // Logo + favicon slots are wired once aspirant-icon-pipeline ships (v1).
+    // Histoire renders the default mark until then.
     colors: {
       primary: {
         50: '#fff8e1',

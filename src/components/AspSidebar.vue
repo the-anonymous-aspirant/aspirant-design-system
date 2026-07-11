@@ -140,7 +140,7 @@ watch(isMobile, (nowMobile, wasMobile) => {
 }
 
 /* Collapsed desktop: hide label text of child links via CSS attribute selector
-   so consumers using AsSidebarLink automatically compact. Consumers using other
+   so consumers using AspSidebarLink automatically compact. Consumers using other
    link renderers can opt-in with the .sidebar-link__label class. */
 .sidebar--collapsed :deep(.sidebar-link__label),
 .sidebar--collapsed :deep(.sidebar-link__badge),

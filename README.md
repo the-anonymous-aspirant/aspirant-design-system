@@ -16,7 +16,7 @@ Extend the existing aspirant-client visual language — dark-cards-on-light-page
 | Modes | Light canonical, dark supported |
 | Framework | Vue 3 + Vite (drop Vuetify — trivial removal, ~8 tag instances total) |
 | Layout | Mobile-first |
-| Component prefix | `As*` (e.g. `<AsCard>`) |
+| Component prefix | `Asp*` (e.g. `<AspCard>`) |
 | Token format | JSON source (Style Dictionary–style) → generate CSS custom properties + JS module + Penpot Design Tokens JSON |
 | Docs / demo | Histoire |
 | Icon source | reMarkable Pro → SVG → transperator → manual retouch. Stored on aspirant S3-simulated FS |
@@ -45,7 +45,7 @@ aspirant-design-system/
 │   ├── base.json               neutral primitives
 │   └── aspirant.json           opinionated theme
 ├── src/
-│   ├── components/             As* Vue components — TBD
+│   ├── components/             Asp* Vue components — TBD
 │   ├── composables/            useTheme, useMobile, etc.
 │   └── index.js                barrel export
 ├── stories/                    Histoire stories per component
@@ -62,7 +62,7 @@ Seed docs only. No code yet.
 - [x] `docs/COMPONENTS.md` — 10-list prioritized
 - [ ] Vite + Histoire scaffold
 - [ ] Style Dictionary pipeline
-- [ ] First 3 components (AsCard, AsButton, AsSidebar) as proof
+- [ ] First 3 components (AspCard, AspButton, AspSidebar) as proof
 - [ ] Penpot round-trip spike
 - [ ] `aspirant-icon-pipeline` repo (parallel track)
 

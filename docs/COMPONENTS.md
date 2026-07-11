@@ -4,6 +4,22 @@ Priority: cover ~80% of current `aspirant-client` surface + the shapes needed to
 
 Naming: `Asp*` prefix (e.g. `AspCard`, `AspButton`).
 
+## Consuming
+
+The Vite lib build ships the component styles as a **separate** stylesheet (they
+are not injected by the JS bundle). A consumer needs three imports, once, at its
+entry point:
+
+```js
+import '@aspirant/design-system/tokens.css'  // design tokens (:root custom props)
+import '@aspirant/design-system/styles.css'  // component styles (.card, .sidebar, …)
+import { AspCard, AspButton } from '@aspirant/design-system'
+```
+
+Importing the components without `styles.css` renders them structurally correct
+but unstyled — this mirrors `vuetify/styles` / element-plus. (Discovered in the
+aspirant-client AspCard dogfood, system_3 #1979.)
+
 ## The 10
 
 ### 1. `AspIcon`

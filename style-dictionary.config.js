@@ -63,11 +63,12 @@ StyleDictionary.registerTransform({
 // their CSS names to the light-mode name by dropping the `dark` segment.
 
 const isDarkOverride = (token) => {
+  // Any color.<category>.dark.* triple is a dark-mode override, remapped to
+  // [data-theme='dark'] with the .dark segment dropped from the CSS name.
+  // Subsumes the earlier explicit (surface, dark) / (text, dark) allow-list
+  // and extends to feedback and any future category using the same pattern.
   const p = token.path
-  return (
-    (p[0] === 'color' && p[1] === 'surface' && p[2] === 'dark') ||
-    (p[0] === 'color' && p[1] === 'text' && p[2] === 'dark')
-  )
+  return p[0] === 'color' && p[2] === 'dark'
 }
 
 // Apply the same aspirant-client :root name compaction the transform does.

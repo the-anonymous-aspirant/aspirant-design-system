@@ -83,6 +83,15 @@ Type scale enforcement. Prevents drift where `<h1>` on view A doesn't match view
 Props (Heading): `level` (1..6), `color`, `align`.
 Props (Prose): `size` (sm | base | lg), `contrast`.
 
+### 11. `AspAppShell` — ✅ shipped
+
+Standard page scaffold: left `AspSidebar` + optional header + main + optional footer, so every app surface shares one shell. Mobile-first — below `--breakpoint-md` the sidebar auto-collapses to an off-canvas overlay (via `AspSidebar`'s own `useMobile`), a hamburger appears in the header, and content flows full width.
+
+Props: `sidebarCollapsed` (`v-model:sidebar-collapsed`), `hasSidebar` (bool, default true), `contentPadding` (sm | md | lg).
+Slots: `sidebar` (nav contents → `AspSidebar` default slot), `header`, default (main), `footer`.
+
+Consumers needing a sidebar header/footer compose `AspSidebar` directly rather than through the shell's single `sidebar` slot.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

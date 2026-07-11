@@ -1,0 +1,120 @@
+{
+  "color": {
+    "surface": {
+      "dark": {
+        "$comment": "Gap 1 — dark-mode surface inversions. Strategy: option 1 from README (light stroke on dark ground) for functional UI; option 2 (dark ink on light paper) is for hand-drawn assets and is not tokenized here (asset-level concern).",
+        "page":       { "value": "#1a1a1a", "comment": "Dark counterpart to surface.page (#e4e4e4)" },
+        "card":       { "value": "#2a2a2a", "comment": "Dark counterpart to surface.card (#424242) — lighter than page so cards read as elevated" },
+        "card-inner": { "value": "rgba(255, 255, 255, 0.06)", "comment": "Dark counterpart to surface.card-inner" },
+        "elevated":   { "value": "#333333", "comment": "Dark counterpart to surface.elevated (#f9f9f9)" }
+      }
+    },
+    "text": {
+      "dark": {
+        "$comment": "Gap 1 continued — dark-mode text inversions.",
+        "on-light":     { "value": "#e0e0e0", "comment": "In dark mode this maps to text-on-dark-surface" },
+        "on-dark":      { "value": "#ffffff" },
+        "heading-card": { "value": "#ffb300" },
+        "muted":        { "value": "#9aa1a8", "comment": "Muted stays high enough contrast on dark page" },
+        "hint":         { "value": "#82b1ff" }
+      }
+    },
+    "brand": {
+      "primary-50":  { "value": "#fff8e1", "comment": "Gap 2 — semantic ramps for brand.primary (amber). Derived via HSL lightness steps from #ffb300 (H=42°, S=100%)." },
+      "primary-100": { "value": "#ffecb3" },
+      "primary-200": { "value": "#ffe082" },
+      "primary-300": { "value": "#ffd54f" },
+      "primary-400": { "value": "#ffca28" },
+      "primary-500": { "value": "#ffb300", "comment": "Anchor — equals color.brand.primary" },
+      "primary-600": { "value": "#ffa000" },
+      "primary-700": { "value": "#ff8f00" },
+      "primary-800": { "value": "#ff6f00" },
+      "primary-900": { "value": "#e07800", "comment": "Equals color.brand.primary-hover; keeps existing hover semantics" },
+      "accent-50":   { "value": "#eaf2ff" },
+      "accent-100":  { "value": "#cddffe" },
+      "accent-200":  { "value": "#adcaff" },
+      "accent-300":  { "value": "#82b1ff", "comment": "Anchor — equals color.brand.accent" },
+      "accent-400":  { "value": "#5a94ff" },
+      "accent-500":  { "value": "#3d7dfa" },
+      "accent-600":  { "value": "#2c66d9" },
+      "accent-700":  { "value": "#1e4fb0" },
+      "accent-800":  { "value": "#123a86" },
+      "accent-900":  { "value": "#0a265a" }
+    },
+    "chart": {
+      "$comment": "Gap 3 — 10-color categorical chart palette. Base is the Okabe-Ito color-blind-safe set (7 colors) extended with brand amber + two neutrals for continuity with the design language. Contrast between adjacent pairs >= 3:1 sRGB (WCAG AA non-text). Use in Chart.js via chart.data.datasets[i].backgroundColor.",
+      "series-1":  { "value": "#ffb300", "comment": "Brand amber (aspirant identity carrier)" },
+      "series-2":  { "value": "#0072b2", "comment": "Okabe-Ito blue" },
+      "series-3":  { "value": "#009e73", "comment": "Okabe-Ito bluish-green" },
+      "series-4":  { "value": "#d55e00", "comment": "Okabe-Ito vermillion" },
+      "series-5":  { "value": "#cc79a7", "comment": "Okabe-Ito reddish-purple" },
+      "series-6":  { "value": "#56b4e9", "comment": "Okabe-Ito sky-blue" },
+      "series-7":  { "value": "#f0e442", "comment": "Okabe-Ito yellow" },
+      "series-8":  { "value": "#e69f00", "comment": "Okabe-Ito orange (distinct from brand amber under color-blind simulation)" },
+      "series-9":  { "value": "#6c757d", "comment": "Neutral grey (matches text-muted)" },
+      "series-10": { "value": "#82b1ff", "comment": "Brand accent (soft blue) — for continuity with links" }
+    },
+    "feedback": {
+      "warning":    { "value": "#ff8f00", "comment": "Gap 8 — amber-orange warning, distinct from brand.primary (#ffb300) so warning is unambiguously alarming rather than branded" }
+    },
+    "focus-ring": {
+      "$comment": "Gap 8 — focus-ring color + width. WCAG 2.4.7 focus-visible target; contrast ratio vs both light and dark surfaces >= 3:1.",
+      "color": { "value": "#5a94ff", "comment": "Blue-500-ish; brighter than accent-300 for high visibility" },
+      "width": { "value": "2px" },
+      "offset": { "value": "2px" }
+    }
+  },
+  "font": {
+    "family": {
+      "mono": { "value": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "comment": "Gap 7 — mono stack extracted from ad-hoc usage in admin/system-health views" }
+    },
+    "weight": {
+      "$comment": "Gap 7 — font weights.",
+      "regular": { "value": "400" },
+      "medium":  { "value": "500" },
+      "bold":    { "value": "700" }
+    },
+    "line-height": {
+      "$comment": "Gap 7 — line-heights (unitless multipliers).",
+      "tight":   { "value": "1.1", "comment": "Existing h1 line-height in App.vue" },
+      "normal":  { "value": "1.5", "comment": "Existing body line-height in App.vue" },
+      "relaxed": { "value": "1.75" }
+    },
+    "letter-spacing": {
+      "$comment": "Gap 7 — letter-spacing.",
+      "tight":  { "value": "-0.01em" },
+      "normal": { "value": "0" },
+      "wide":   { "value": "0.02em" }
+    }
+  },
+  "motion": {
+    "$comment": "Gap 4 — motion primitives. Durations already live in transition.* (base.json); ease curves are added here and prefers-reduced-motion is handled at consumer level (no dedicated token — see tokens/README.md).",
+    "ease": {
+      "in-out": { "value": "cubic-bezier(0.4, 0, 0.2, 1)", "comment": "Material Standard" },
+      "out":    { "value": "cubic-bezier(0, 0, 0.2, 1)",   "comment": "Deceleration" },
+      "in":     { "value": "cubic-bezier(0.4, 0, 1, 1)",   "comment": "Acceleration" },
+      "spring": { "value": "cubic-bezier(0.34, 1.56, 0.64, 1)", "comment": "Overshoot for playful interactions" }
+    }
+  },
+  "breakpoint": {
+    "$comment": "Gap 5 — breakpoint tokens. Mobile-first — treat as min-widths.",
+    "sm": { "value": "640px" },
+    "md": { "value": "768px" },
+    "lg": { "value": "1024px" },
+    "xl": { "value": "1280px" }
+  },
+  "z-index": {
+    "$comment": "Gap 6 — z-index scale. Replaces magic numbers 1000/1001 currently in the sidebar (aspirant-client/src/components/*Sidebar*).",
+    "base":     { "value": "1" },
+    "dropdown": { "value": "100" },
+    "sticky":   { "value": "500" },
+    "modal":    { "value": "1000" },
+    "toast":    { "value": "1050" },
+    "tooltip":  { "value": "1100" }
+  },
+  "shadow": {
+    "$comment": "Gap 8 — focus-visible shadow, complementing color.focus-ring.",
+    "focus": { "value": "0 0 0 2px #5a94ff", "comment": "2px solid ring around focus target — pairs with color.focus-ring.width + offset" },
+    "inset": { "value": "inset 0 2px 4px rgba(0, 0, 0, 0.1)", "comment": "Inset counterpart to shadow.sm" }
+  }
+}

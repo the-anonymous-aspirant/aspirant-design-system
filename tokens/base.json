@@ -1,5 +1,4 @@
 {
-  "$comment": "Verbatim copy of the :root custom properties from aspirant-client/src/App.vue (grouped by category). Do not edit values in isolation — aspirant.json overrides + extends base, and the :root in aspirant-client remains the source of truth until all consumers switch to build/tokens.css.",
   "color": {
     "surface": {
       "page":       { "value": "#e4e4e4",           "comment": "60% dominant page background" },

@@ -1,5 +1,4 @@
 {
-  "$comment": "v0 additions closing the 8 gaps flagged in docs/TOKENS.md §Gaps. Overrides are minimal — everything here is an addition on top of base.json unless explicitly renaming. Dark-mode inversions are exposed under color.surface.dark.* and consumed by the css platform's [data-theme='dark'] selector.",
   "color": {
     "surface": {
       "dark": {

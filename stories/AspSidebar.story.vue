@@ -15,8 +15,17 @@ const mobileCollapsed = ref(true)
       <p><strong>When not to use:</strong> for in-page tab navigation — pick a horizontal tabs component (deferred to v1).</p>
     </template>
 
+    <!--
+      Each variant wrapper uses @click.capture.prevent so clicking a demo
+      AspSidebarLink does not navigate the Histoire sandbox. Router-less,
+      AspSidebarLink renders <a href="/active"> etc.; without this guard the
+      iframe would leave the story and reload Histoire's index. preventDefault
+      only cancels the anchor navigation — the mobile toggle <button> and any
+      link @click handlers still fire normally.
+    -->
+
     <Variant title="Expanded (240px)">
-      <div style="display: flex; min-height: 400px; background: var(--surface-page);">
+      <div style="display: flex; min-height: 400px; background: var(--surface-page);" @click.capture.prevent>
         <AspSidebar v-model:collapsed="collapsed">
           <template #header><strong>Aspirant</strong></template>
           <AspSidebarLink to="/" label="Home" icon="⌂" :active="true" />
@@ -36,7 +45,7 @@ const mobileCollapsed = ref(true)
     </Variant>
 
     <Variant title="Collapsed (60px rail)">
-      <div style="display: flex; min-height: 400px; background: var(--surface-page);">
+      <div style="display: flex; min-height: 400px; background: var(--surface-page);" @click.capture.prevent>
         <AspSidebar :collapsed="true">
           <AspSidebarLink to="/" label="Home" icon="⌂" :active="true" />
           <AspSidebarLink to="/applications" label="Applications" icon="◇" />
@@ -52,7 +61,7 @@ const mobileCollapsed = ref(true)
     </Variant>
 
     <Variant title="Mobile overlay (resize below 768px to see)">
-      <div style="min-height: 400px; background: var(--surface-page); position: relative;">
+      <div style="min-height: 400px; background: var(--surface-page); position: relative;" @click.capture.prevent>
         <AspSidebar v-model:collapsed="mobileCollapsed">
           <template #header><strong>Aspirant</strong></template>
           <AspSidebarLink to="/" label="Home" icon="⌂" :active="true" />
@@ -68,7 +77,7 @@ const mobileCollapsed = ref(true)
     </Variant>
 
     <Variant title="Link states">
-      <div style="display: flex; min-height: 200px; background: var(--surface-page);">
+      <div style="display: flex; min-height: 200px; background: var(--surface-page);" @click.capture.prevent>
         <AspSidebar :show-toggle="false">
           <AspSidebarLink to="/active" label="Active" icon="●" :active="true" />
           <AspSidebarLink to="/hover" label="Default" icon="○" />
@@ -79,7 +88,7 @@ const mobileCollapsed = ref(true)
     </Variant>
 
     <Variant title="Dark theme">
-      <div data-theme="dark" style="display: flex; min-height: 300px; background: var(--surface-page);">
+      <div data-theme="dark" style="display: flex; min-height: 300px; background: var(--surface-page);" @click.capture.prevent>
         <AspSidebar>
           <AspSidebarLink to="/" label="Home" icon="⌂" :active="true" />
           <AspSidebarLink to="/applications" label="Applications" icon="◇" />

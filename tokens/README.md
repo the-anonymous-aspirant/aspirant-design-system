@@ -144,6 +144,16 @@ comma-separated multi-layer shadows (emitted as an array). Verified against
 Penpot 2.16.2's `convert-dtcg-shadow-composite` — all 5 shadow tokens round-trip
 as composite objects (system_3 task #1992).
 
+**Font tokens (canonical plural forms):** Penpot 2.16.2 accepts the singular
+DTCG `$type`s `fontFamily`/`fontWeight` on import but always re-exports the
+plural canonical forms `fontFamilies`/`fontWeights`, and splits a
+comma-separated `fontFamily` stack into a string array. So the emitter targets
+those canonical forms directly — `font.family.*` → `$type: "fontFamilies"` with
+an array `$value`, `font.weight.*` → `$type: "fontWeights"` — so
+`tokens.penpot.json` is byte-stable through an import→export from pass one
+rather than drifting on the first round-trip. Verified against the backend
+`app.common.types.tokens-lib` transform (task #1993 / #1980 spike).
+
 ## Consumer example
 
 ```js

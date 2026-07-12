@@ -1,5 +1,7 @@
 <script setup>
 import { computed, getCurrentInstance } from 'vue'
+import AspIcon from './AspIcon.vue'
+import { registryFallback } from '../icons/registry.js'
 
 const props = defineProps({
   to: { type: String, required: true },
@@ -11,6 +13,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['click'])
+
+// A registered icon name renders as an AspIcon (hand-drawn PNG when the asset
+// server is reachable, glyph otherwise). A raw glyph string (e.g. "⌂") is
+// rendered verbatim, keeping the icon prop's public contract unchanged.
+const isNamedIcon = computed(
+  () => props.icon != null && registryFallback(props.icon) !== null
+)
 
 const instance = getCurrentInstance()
 
@@ -50,7 +59,10 @@ const onClick = (event) => {
     :tabindex="disabled ? -1 : 0"
     @click="onClick"
   >
-    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">{{ icon }}</span>
+    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">
+      <AspIcon v-if="isNamedIcon" :name="icon" size="sm" />
+      <template v-else>{{ icon }}</template>
+    </span>
     <span class="sidebar-link__label">{{ label }}</span>
     <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
   </router-link>
@@ -62,7 +74,10 @@ const onClick = (event) => {
     :tabindex="disabled ? -1 : 0"
     @click="onClick"
   >
-    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">{{ icon }}</span>
+    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">
+      <AspIcon v-if="isNamedIcon" :name="icon" size="sm" />
+      <template v-else>{{ icon }}</template>
+    </span>
     <span class="sidebar-link__label">{{ label }}</span>
     <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
   </a>

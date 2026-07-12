@@ -21,5 +21,5 @@ module.exports = {
     'vue/max-attributes-per-line': ['warn', { singleline: 6, multiline: 1 }],
     'vue/singleline-html-element-content-newline': 'off',
   },
-  ignorePatterns: ['node_modules/', 'dist/', 'build/', '.histoire/'],
+  ignorePatterns: ['node_modules/', 'dist/', 'build/', '.histoire/', '**/*.json'],
 }

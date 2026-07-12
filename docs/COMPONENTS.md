@@ -123,6 +123,22 @@ Props: `heading`, `message`, `variant` (`empty` | `filtered`, default `empty`),
 Slots: `icon` (override default), `heading`, default (message body), `action`
 (full control, e.g. a composed `AspButton`). Emits: `action`.
 
+### 13. `AspBadge` — ✅ shipped
+
+The inline status/label family in one component, four variants. Ports the
+system_3 `_partials/badge.html` status `<mark>`, `.label-badge`, and
+`.status-dot` shapes (see `system_3_ux_conventions.md` §4). Color is
+supplementary to a visible text label; `status`/`dot` emit a legend `title` so
+the color→meaning mapping is decodable on hover.
+
+Props: `variant` (`status` | `chip` | `filter` | `dot`, default `status`),
+`status` (`positive` | `caution` | `negative` | `neutral`, default `neutral` —
+drives semantic color on `status` + `dot`), `size` (`sm` | `md`), `tip`
+(legend override), `ariaLabel` (accessible label / remove-button label).
+Emits: `remove` (the `filter` variant's `×`).
+Tokens: the tinted `--feedback-{success,warning,error,neutral}-bg` / `-text`
+pairs (#1970), `--radius-pill`.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.
@@ -130,7 +146,6 @@ Slots: `icon` (override default), `heading`, default (message body), `action`
 - `AsTooltip` — nice-to-have; browsers can carry text tooltips for now.
 - `AsBreadcrumb` — no current use.
 - `AsAvatar` — no user-avatar surface today.
-- `AsBadge` — inline in `AspSidebarLink`, extract only if reused.
 - `AsToast` / `AsNotification` — belongs in v1 alongside a global feedback pattern.
 - `AspForm` — collection wrapper around `AspInput` + `AspButton` — defer, use composition.
 - `AsDropdown` / `AsMenu` — nice-to-have; check if aspirant-client needs it.

@@ -108,6 +108,21 @@ Slots: `sidebar` (nav contents → `AspSidebar` default slot), `header`, default
 
 Consumers needing a sidebar header/footer compose `AspSidebar` directly rather than through the shell's single `sidebar` slot.
 
+### 12. `AspEmptyState` — ✅ shipped
+
+Centered placeholder for a view with no data. Ports the system_3
+`_partials/empty_state.html` macro (`system_3_ux_conventions.md` §1 primary-action
+placement, §4 neutral color for inert states). Two variants distinguish *why*
+the view is empty: `empty` (first-run / no data yet) and `filtered` (data
+exists but the active filters match nothing) — the variant picks a subtle
+default icon (inbox vs funnel, `--text-muted`); the `filtered` icon is lighter
+so it reads as transient rather than alarming.
+
+Props: `heading`, `message`, `variant` (`empty` | `filtered`, default `empty`),
+`actionLabel` (convenience CTA → renders an `AspButton` emitting `action`).
+Slots: `icon` (override default), `heading`, default (message body), `action`
+(full control, e.g. a composed `AspButton`). Emits: `action`.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

@@ -133,8 +133,13 @@ const inferDtcgType = (path) => {
   // retyped in penpotLeaf() below: transitions → `number` (ms), easings →
   // `other`. See tokens/README.md and system_3 task #1991 / #1980.
   if (top === 'font') {
-    if (second === 'family') return 'fontFamily'
-    if (second === 'weight') return 'fontWeight'
+    // Penpot 2.16.2's canonical DTCG type names for these two are plural —
+    // it accepts singular `fontFamily`/`fontWeight` on import but always
+    // re-exports `fontFamilies`/`fontWeights`. Emitting the plural forms up
+    // front makes the emitted file byte-stable through an import→export from
+    // pass one (task #1993 / #1980 round-trip spike).
+    if (second === 'family') return 'fontFamilies'
+    if (second === 'weight') return 'fontWeights'
     if (second === 'size') return 'dimension'
     if (second === 'line-height') return 'number'
     if (second === 'letter-spacing') return 'dimension'
@@ -259,10 +264,22 @@ const penpotLeaf = (token) => {
     const composite = cssShadowToDtcg(token.value)
     if (composite) leaf.$value = composite
   }
+  // fontFamilies values round-trip as arrays, not CSS comma-strings —
+  // emit the array so Penpot's export matches (#1993).
+  if (type === 'fontFamilies') leaf.$value = fontFamilyToArray(token.value)
   if (type) leaf.$type = type
   if (token.comment) leaf.$description = token.comment
   return leaf
 }
+
+// Penpot stores a fontFamilies $value as an array of font names, splitting a
+// CSS comma-separated stack ("Inter, system-ui, …") on export. Emitting the
+// array up front keeps the value shape byte-stable through the round-trip.
+const fontFamilyToArray = (value) =>
+  String(value)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
 
 const setDeep = (obj, path, leaf) => {
   let cursor = obj

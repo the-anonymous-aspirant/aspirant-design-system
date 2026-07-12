@@ -139,6 +139,25 @@ Emits: `remove` (the `filter` variant's `×`).
 Tokens: the tinted `--feedback-{success,warning,error,neutral}-bg` / `-text`
 pairs (#1970), `--radius-pill`.
 
+### 14. `AspDataTable` — ✅ shipped
+
+DS-themed sortable table. Ports the system_3 `_partials/table.html` +
+`_sort_header.html` macros (`system_3_frontend_spec.md` criterion 27 column
+sorting; `system_3_ux_conventions.md` §8 per-row actionable cells). Unlike the
+server-side HTMX macro it sorts **client-side by default** (numeric-aware, nulls
+last), emitting `sort` and supporting a controlled `sortBy`/`sortDir` +
+`manualSort` so a server-paginating consumer can take over. Sortable headers use
+▲/▼ + `aria-sort`; cells truncate with an ellipsis + `title`; the wrapper
+horizontal-scrolls on mobile.
+
+Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width? }]`),
+`rows`, `density` (`default` | `compact`), `interactive` (hover +
+keyboard-operable rows), `sortBy` / `sortDir` (v-model-able), `manualSort`,
+`rowKey` (string | fn), `caption`.
+Slots: `cell-<key>` (scoped: `{ row, value, index }`), `header-<key>`, `empty`.
+Emits: `sort` (`{ key, dir }`), `update:sortBy`, `update:sortDir`, `row-click`
+(`row, index`).
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

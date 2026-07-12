@@ -118,6 +118,21 @@ import round-trip surfaces gaps, adjust `inferDtcgType` in
 A follow-up subtask under epic #1955 tracks the empirical round-trip check
 against a live Penpot instance.
 
+**Shadows are emitted as DTCG composite objects.** The `shadow.*` tokens hold a
+CSS box-shadow shorthand at source (`"0 4px 8px rgba(0,0,0,0.12)"`); the `css`
+and `js` platforms keep that string verbatim, but the `penpot` platform parses
+it into the DTCG composite `$value`
+(`{ offsetX, offsetY, blur, spread, color, inset }`) that Penpot's importer maps
+onto its internal shadow model. A string `$value` survives the round-trip but
+stays **inert** — it cannot be applied to a shape's drop-shadow in the Penpot
+UI. Emitting the composite makes shadows first-class, editable Penpot tokens.
+The `inset` keyword (`shadow.inset`) becomes `"inset": true`; a missing
+`blur`/`spread` defaults to `"0"`. The `cssShadowToDtcg` parser in
+`style-dictionary.config.js` owns the conversion and also handles
+comma-separated multi-layer shadows (emitted as an array). Verified against
+Penpot 2.16.2's `convert-dtcg-shadow-composite` — all 5 shadow tokens round-trip
+as composite objects (system_3 task #1992).
+
 ## Consumer example
 
 ```js

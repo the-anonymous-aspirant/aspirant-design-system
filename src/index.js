@@ -9,6 +9,7 @@ export { default as AspSidebarLink } from './components/AspSidebarLink.vue'
 export { default as AspChart } from './components/AspChart.vue'
 export { default as AspAppShell } from './components/AspAppShell.vue'
 export { default as AspIcon } from './components/AspIcon.vue'
+export { default as AspEmptyState } from './components/AspEmptyState.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useIconBase, isIconBaseConfigured } from './composables/useIconBase.js'

@@ -11,6 +11,7 @@ export { default as AspAppShell } from './components/AspAppShell.vue'
 export { default as AspIcon } from './components/AspIcon.vue'
 export { default as AspEmptyState } from './components/AspEmptyState.vue'
 export { default as AspBadge } from './components/AspBadge.vue'
+export { default as AspDataTable } from './components/AspDataTable.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useIconBase, isIconBaseConfigured } from './composables/useIconBase.js'

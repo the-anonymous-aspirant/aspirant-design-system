@@ -33,7 +33,12 @@
       "success-text":  { "value": "#005d26", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted success-bg + light page." },
       "info-text":     { "value": "#005566", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted info-bg + light page." },
       "warning-text":  { "value": "#703e00", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted warning-bg + light page." },
-      "neutral-text":  { "value": "#4a5057", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted neutral-bg + light page." }
+      "neutral-text":  { "value": "#4a5057", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted neutral-bg + light page." },
+      "error-solid":   { "value": "#c62828", "comment": "Task-#2089 — bold full-bleed error surface tuned for white body text at WCAG AA (contrast 5.62:1 vs #ffffff). Pair with color.text.on-dark." },
+      "success-solid": { "value": "#2e7d32", "comment": "Task-#2089 — bold full-bleed success surface tuned for white body text at WCAG AA (contrast 5.13:1 vs #ffffff). Pair with color.text.on-dark." },
+      "info-solid":    { "value": "#00677c", "comment": "Task-#2089 — bold full-bleed info surface tuned for white body text at WCAG AA (contrast 6.50:1 vs #ffffff). Pair with color.text.on-dark." },
+      "warning-solid": { "value": "#b45309", "comment": "Task-#2089 — bold full-bleed warning surface tuned for white body text at WCAG AA (contrast 5.02:1 vs #ffffff). Pair with color.text.on-dark." },
+      "neutral-solid": { "value": "#495057", "comment": "Task-#2089 — bold full-bleed neutral surface tuned for white body text at WCAG AA (contrast 8.18:1 vs #ffffff). Pair with color.text.on-dark." }
     },
     "border": {
       "card":    { "value": "#ffb300", "comment": "Amber border matches heading" },

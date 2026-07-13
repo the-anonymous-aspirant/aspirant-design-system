@@ -38,7 +38,7 @@ The palette follows a 60/30/10 rule: neutral surfaces dominate, brand accent car
 
 ### Feedback
 
-Solid anchors, tinted-bg variants, and text-on-tinted-bg variants:
+Solid anchors, tinted-bg variants, text-on-tinted-bg variants, and AA-tuned bold-surface variants:
 
 | Token | Light value | Dark value | Origin | Usage |
 |---|---|---|---|---|
@@ -57,8 +57,15 @@ Solid anchors, tinted-bg variants, and text-on-tinted-bg variants:
 | `--feedback-info-text` | `#005566` | `#6be3f2` | #1970 audit | Text on tinted `info-bg` |
 | `--feedback-warning-text` | `#703e00` | `#ffb75f` | #1970 audit | Text on tinted `warning-bg` |
 | `--feedback-neutral-text` | `#4a5057` | `#b8bec5` | #1970 audit | Text on tinted `neutral-bg` |
+| `--feedback-error-solid` | `#c62828` | — | #2089 | Bold error surface — pair with `--text-on-dark` (contrast 5.62:1) |
+| `--feedback-success-solid` | `#2e7d32` | — | #2089 | Bold success surface — pair with `--text-on-dark` (contrast 5.13:1) |
+| `--feedback-info-solid` | `#00677c` | — | #2089 | Bold info surface — pair with `--text-on-dark` (contrast 6.50:1) |
+| `--feedback-warning-solid` | `#b45309` | — | #2089 | Bold warning surface — pair with `--text-on-dark` (contrast 5.02:1) |
+| `--feedback-neutral-solid` | `#495057` | — | #2089 | Bold neutral surface — pair with `--text-on-dark` (contrast 8.18:1) |
 
 `-bg` variants use `rgba` alpha so a single value works on both light and dark surfaces; `-text` variants need a per-mode override to keep WCAG AA contrast on tinted regions.
+
+`-solid` variants are opaque fills tuned for **white body text** (`--text-on-dark`, `#ffffff`) at WCAG-AA (≥4.5:1 for normal text, ≥3:1 for large). Use them for full-bleed status bands, solid alert surfaces, and bold-treatment tiles — not for small text on light surfaces (use `-text` for that). Every value is mode-agnostic because the pairing (bold color + white text) reads the same in light and dark themes.
 
 ### Borders
 
@@ -167,13 +174,14 @@ Ease curve is uniform `ease` — v0 should decide whether to split into `--ease-
 
 ## Source coverage
 
-Every token in `tokens/base.json` + `tokens/aspirant.json` traces back to one of three sources. The audit under system_3 task #1970 added the last row after diffing the DS against `system_3/frontend/static/system3.css`; entries classified `SKIP-artificial`, `SKIP-app-specific`, or `DEFER` in that audit are intentionally absent here.
+Every token in `tokens/base.json` + `tokens/aspirant.json` traces back to one of four sources. The audit under system_3 task #1970 added the third row after diffing the DS against `system_3/frontend/static/system3.css`; entries classified `SKIP-artificial`, `SKIP-app-specific`, or `DEFER` in that audit are intentionally absent here. Task #2089 added the fourth row when the aspirant Overview redesign (#2080) needed a bold full-bleed status band.
 
 | Source | What it covers | Where |
 |---|---|---|
 | `aspirant-client :root` (verbatim) | Surface, brand, text (4-tier), solid feedback anchors (error / success / info), border, base font-size scale, radius scale, spacing scale, transitions, shadows | `tokens/base.json` |
 | aspirant-client gap-fill (v0 gaps 1–8) | Dark-mode surface + text inversions, brand semantic ramps (`primary-50..900`, `accent-50..900`), chart palette (Okabe-Ito + brand amber), motion ease curves, breakpoints, z-index scale, font weights / line-heights / letter-spacing / mono family, warning solid + focus ring | `tokens/aspirant.json` |
 | system_3 frontend (task #1970 audit) | Tinted feedback backgrounds (`error-bg` / `success-bg` / `info-bg` / `warning-bg` / `neutral-bg`), text-on-tinted-bg per mode (`{error,success,info,warning,neutral}-text` in `:root` and under `color.feedback.dark.*`), neutral status anchor | `tokens/base.json` + `tokens/aspirant.json` |
+| Overview redesign (task #2089) | AA-tuned bold-surface variants for full-bleed status bands: `{error,success,info,warning,neutral}-solid`. Each opaque value ≥4.5:1 vs `#ffffff` so white body text passes WCAG-AA. | `tokens/base.json` |
 
 Values under the third row are **not** verbatim from system_3. system_3's semantic status tokens (`--color-success`, `--color-warn`, ...) are HSL-derived and part of the "artificial" aesthetic the DS explicitly rejects (task #1955 decisions). The `-bg` and `-text` shapes are the genuinely-useful patterns that got ported; values are re-derived from aspirant's own `feedback.*` anchors so the aspirant identity carries through.
 

@@ -74,7 +74,7 @@
   },
   "font": {
     "family": {
-      "mono": { "value": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "comment": "Gap 7 — mono stack extracted from ad-hoc usage in admin/system-health views" }
+      "mono": { "value": "Iosevka, \"Iosevka Web\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "comment": "Mono stack — Iosevka-first (same self-hosted webfont as font.family.base; Iosevka is monospace so base and mono resolve to the same face)." }
     },
     "weight": {
       "$comment": "Gap 7 — font weights.",

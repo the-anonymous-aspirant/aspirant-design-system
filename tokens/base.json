@@ -47,7 +47,7 @@
   },
   "font": {
     "family": {
-      "base": { "value": "Inter, system-ui, Avenir, Helvetica, Arial, sans-serif" }
+      "base": { "value": "Iosevka, \"Iosevka Web\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "comment": "Iosevka-first stack — full monospace terminal aesthetic (teenage.engineering moodboard). Bundled via @font-face in src/fonts/fonts.css; system-mono fallbacks keep first paint sane during font-display: swap." }
     },
     "size": {
       "xs":   { "value": "0.75rem" },

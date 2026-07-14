@@ -1,0 +1,35 @@
+/*
+ * Iosevka webfont — self-hosted latin subset for the aspirant design system.
+ *
+ * Sourced from @fontsource/iosevka v5.2.5 (upstream Iosevka; see CHANGELOG).
+ * Weights 400/500/700 only — matches --font-weight-regular/medium/bold from
+ * build/tokens.css. font-display: swap keeps first paint on the system stack
+ * declared by --font-family-base until the woff2 arrives.
+ *
+ * Consumers: import "@aspirant/design-system/fonts.css" before styles.css so
+ * @font-face is registered before components mount.
+ */
+
+@font-face {
+  font-family: 'Iosevka';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('./iosevka-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Iosevka';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('./iosevka-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Iosevka';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('./iosevka-latin-700-normal.woff2') format('woff2');
+}

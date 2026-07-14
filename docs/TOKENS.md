@@ -76,13 +76,26 @@ Solid anchors, tinted-bg variants, text-on-tinted-bg variants, and AA-tuned bold
 
 ## Typography
 
-Single family, system-optimized:
+Iosevka, self-hosted. Base and mono resolve to the same face — the design system is monospace end-to-end.
 
 ```css
---font-family-base: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+--font-family-base: Iosevka, "Iosevka Web", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+--font-family-mono: Iosevka, "Iosevka Web", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 ```
 
-Monospace stack is not tokenized yet but used ad-hoc in admin/system-health views (`ui-monospace, SFMono-Regular, Menlo, monospace`). Add `--font-family-mono` in v0.
+**Rationale (task #2120, operator taste decision 2026-07-14):** Iosevka carries the teenage.engineering terminal aesthetic across body, headings, and tabular data — a nerdy/retro grid where every digit occupies one cell and columns align without `font-variant-numeric: tabular-nums`. Replaces the earlier Inter stack. Confirmed against a live Iosevka render of the Agents page (`docs/design/2026-07-13-overview-mockup/agents-iosevka-preview.png`).
+
+**Delivery:** three latin-subset woff2 files (weights 400 / 500 / 700, ≈985 KB each) live under `src/fonts/` and are sourced from `@fontsource/iosevka` v5.2.5. `@font-face` declarations with `font-display: swap` ship in `src/fonts/fonts.css`; consumers import it via:
+
+```js
+import '@aspirant/design-system/fonts.css'
+import '@aspirant/design-system/tokens.css'
+import '@aspirant/design-system/styles.css'
+```
+
+First paint stays on the system-mono fallback chain (`ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`) until Iosevka arrives — no layout shift beyond the swap tick, because every fallback in the stack is also monospace at the same nominal metrics.
+
+To refresh the bundled woff2 files after an upstream Iosevka release: `npm install @fontsource/iosevka@latest && cp node_modules/@fontsource/iosevka/files/iosevka-latin-{400,500,700}-normal.woff2 src/fonts/`.
 
 ### Scale
 

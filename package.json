@@ -12,7 +12,9 @@
     },
     "./styles.css": "./dist/style.css",
     "./tokens.css": "./build/tokens.css",
-    "./tokens": "./build/tokens.js"
+    "./tokens": "./build/tokens.js",
+    "./fonts.css": "./src/fonts/fonts.css",
+    "./fonts/*": "./src/fonts/*"
   },
   "files": [
     "dist",
@@ -39,6 +41,7 @@
     }
   },
   "devDependencies": {
+    "@fontsource/iosevka": "^5.2.5",
     "@histoire/plugin-vue": "^0.17.17",
     "@vitejs/plugin-vue": "^5.0.0",
     "chart.js": "^4.5.1",

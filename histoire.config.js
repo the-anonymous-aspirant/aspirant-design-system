@@ -25,6 +25,7 @@ export default defineConfig({
     },
   },
   vite: {
+    base: process.env.HISTOIRE_BASE || '/',
     resolve: {
       alias: {
         '@': new URL('./src', import.meta.url).pathname,

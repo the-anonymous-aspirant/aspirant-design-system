@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Pre-push hook: build and push the Histoire GHCR image when pushing to
+# main (system_3 #2218 — 'merge to main' and 'image published' are the
+# same action, so the cell's auto-pull cron always deploys a current
+# build without anyone remembering a rebuild step).
+#
+# Enable once per clone:
+#   git config core.hooksPath scripts/git-hooks
+#
+# Skip in emergencies:
+#   git push --no-verify
+#
+# Stdin format (per githooks(5)):
+#   <local_ref> <local_sha> <remote_ref> <remote_sha>
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+script="$repo_root/scripts/build-and-push-image.sh"
+
+zero="0000000000000000000000000000000000000000"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" != "refs/heads/main" ]; then
+    continue
+  fi
+  if [ "$local_sha" = "$zero" ]; then
+    # Branch deletion — nothing to build.
+    continue
+  fi
+  echo "pre-push: pushing to main → running build-and-push-image.sh"
+  "$script"
+done

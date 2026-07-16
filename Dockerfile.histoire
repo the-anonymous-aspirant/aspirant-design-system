@@ -1,0 +1,27 @@
+# Histoire static build served by nginx (system_3 #2218).
+#
+# Self-contained: the design system builds from THIS repo alone — no
+# sibling checkout, no host node toolchain (the aspirant-client
+# sibling-checkout gap is structurally impossible here). Node version is
+# pinned by the base image, not by anything on the host.
+#
+# Build + publish happens locally via scripts/build-and-push-image.sh,
+# wired to pushes to main by scripts/git-hooks/pre-push (this repo uses
+# no GitHub Actions by design). The cell's auto-pull cron deploys the
+# resulting GHCR :latest image unattended.
+
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+# Baked base path: the image serves the app at this same path (see
+# scripts/histoire-nginx.conf), so the client-nginx edge proxies
+# without rewriting and local runs browse identically to production.
+ARG HISTOIRE_BASE=/admin/histoire/
+ENV HISTOIRE_BASE=$HISTOIRE_BASE
+RUN npm run story:build
+
+FROM nginx:alpine
+COPY scripts/histoire-nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/.histoire/dist /usr/share/nginx/html/admin/histoire

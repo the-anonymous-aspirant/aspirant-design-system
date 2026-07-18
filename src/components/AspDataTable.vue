@@ -187,7 +187,14 @@ const tableClasses = computed(() => ({
   border-collapse: collapse;
   font-family: var(--font-family-base);
   font-size: var(--text-sm);
-  color: var(--text-on-light);
+  /* `inherit`, not an absolute ink: this element sets no background of its own,
+     so it renders on whatever surface the consumer drops it into. AspCard's
+     default surface is DARK even in the light theme, where --text-on-light and
+     --surface-card are both #424242 — an absolute ink there renders text in
+     exactly its own background colour (measured 1:1, invisible). Inheriting
+     takes the ink the surface-setter already declared, which is correct on the
+     page, on a card, and on any surface added later. */
+  color: inherit;
 }
 
 .data-table__caption {
@@ -238,7 +245,7 @@ const tableClasses = computed(() => ({
   cursor: pointer;
   appearance: none;
 }
-.data-table__sort:hover { color: var(--text-on-light); }
+.data-table__sort:hover { text-decoration: underline; }
 .data-table__sort:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);

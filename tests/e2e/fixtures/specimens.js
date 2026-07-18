@@ -2,7 +2,7 @@
 // measures them on. Shared by the real matrix and the known-bad fixture so the
 // two cannot drift apart — a known-bad fixture that tests different markup
 // than the real one proves nothing about the real one.
-import { h } from 'vue'
+import { h, nextTick, ref } from 'vue'
 import * as DS from '../../../src/index.js'
 
 const COLUMNS = [
@@ -67,10 +67,70 @@ export const openPanels = () => [
   ]),
 ]
 
+/**
+ * A closed AspModal plus its trigger. Like the select panel, the modal's panel
+ * is a surface no other specimen reaches (--surface-card, dark in both themes),
+ * and it teleports to <body> so it is measured wherever it is authored.
+ *
+ * It stays CLOSED until the spec clicks the trigger, and the spec does that
+ * last: an open modal's scrim is fixed inset-0 at z-index 1000, so it would
+ * intercept the clicks and hovers the earlier passes depend on. A component
+ * that silently disables another pass of the same suite is worse than one that
+ * is not measured at all.
+ */
+const modalSpecimen = () => ({
+  setup() {
+    const open = ref(false)
+
+    // Tagged imperatively rather than by passing `data-surface` as a prop: the
+    // component's root is a Teleport, and relying on attribute fallthrough
+    // through one is a guess about Vue internals that the probe's attribution
+    // would silently depend on. The scrim is the panel's parent in <body>, so
+    // tagging it is what `surfaceOf` walks up to find.
+    const tag = () =>
+      nextTick(() => document.querySelector('.modal__scrim')?.setAttribute('data-surface', 'modal'))
+
+    return () => [
+      h(
+        'button',
+        {
+          id: 'probe-open-modal',
+          type: 'button',
+          onClick: () => {
+            open.value = true
+            tag()
+          },
+        },
+        'open modal'
+      ),
+      h(
+        DS.AspModal,
+        { open: open.value, 'onUpdate:open': (v) => (open.value = v), title: 'modal title' },
+        {
+          default: () => [
+            h('p', null, 'modal body text'),
+            h(DS.AspInput, { label: 'modal field label', modelValue: 'typed value' }),
+          ],
+          footer: () => [
+            h(DS.AspButton, { variant: 'ghost' }, () => 'cancel'),
+            h(DS.AspButton, { variant: 'primary' }, () => 'confirm'),
+          ],
+        }
+      ),
+    ]
+  },
+})
+
 export const shell = (extra = []) =>
   h(DS.AspAppShell, {}, {
     sidebar: () => [h(DS.AspSidebarLink, { to: '#', label: 'Sidebar link', icon: '◱', badge: '3' })],
-    default: () => h('div', { class: 'probe-root' }, [...surfaces(), ...openPanels(), ...extra]),
+    default: () =>
+      h('div', { class: 'probe-root' }, [
+        ...surfaces(),
+        ...openPanels(),
+        h(modalSpecimen()),
+        ...extra,
+      ]),
   })
 
 export const injectProbeCss = () => {

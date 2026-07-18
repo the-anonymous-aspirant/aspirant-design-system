@@ -172,7 +172,8 @@ watch(isMobile, (nowMobile, wasMobile) => {
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  /* Same wash as AspModal — tokenised when the modal needed it, identical value. */
+  background: var(--surface-scrim);
   z-index: calc(var(--z-index-modal, 1000) - 1);
   animation: sidebar-overlay-fade-in var(--transition-fast) ease-out;
 }

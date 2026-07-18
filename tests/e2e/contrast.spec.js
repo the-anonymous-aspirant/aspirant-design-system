@@ -38,6 +38,19 @@ async function subAaSites(page, fixture, theme) {
     }
   }
 
+  // The modal goes LAST, on purpose. Its scrim is fixed inset-0 at z-index
+  // 1000, so opening it earlier would intercept the select clicks and the
+  // hovers above — and the hovers are `.catch`ed, so they would degrade to
+  // silent no-ops rather than failing loudly.
+  const modalTrigger = page.locator('#probe-open-modal')
+  if (await modalTrigger.count()) {
+    await modalTrigger.click()
+    await page.waitForTimeout(80)
+    for (const r of await page.evaluate(MEASURE)) {
+      if (r.ratio < AA && r.surface === 'modal') found.push(r)
+    }
+  }
+
   // Dedupe: the same rule repeats across identical specimens per surface.
   const seen = new Set()
   return found.filter((r) => {
@@ -76,6 +89,21 @@ test.describe('the probe itself', () => {
       ).toBeGreaterThan(0)
     })
   }
+
+  // The modal is opened by a click and attributed by an imperatively-set
+  // data-surface. Either step can break silently, and the failure mode is a
+  // GREEN matrix that measured no modal at all. Assert the surface is present
+  // and non-trivial rather than trusting the pass above.
+  test('actually measures the open modal surface', async ({ page }) => {
+    await page.goto('/tests/e2e/fixtures/matrix.html', { waitUntil: 'networkidle' })
+    await page.locator('#probe-open-modal').click()
+    await page.waitForTimeout(80)
+    const modalSites = (await page.evaluate(MEASURE)).filter((r) => r.surface === 'modal')
+    expect(
+      modalSites.length,
+      'no text measured on the modal surface — the trigger or the data-surface tag broke, and the AA pass above is measuring nothing'
+    ).toBeGreaterThan(3)
+  })
 
   test('detects the specific 1:1 invisible-text defect it was built for', async ({ page }) => {
     const sites = await subAaSites(page, 'known-bad.html', 'light')

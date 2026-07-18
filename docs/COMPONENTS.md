@@ -82,11 +82,38 @@ Datasets that omit their own colors are auto-assigned from the palette (by datas
 
 Reference: `aspirant-client/src/components/RangeChart.vue` for the current shape.
 
-### 8. `AspModal`
+### 8. `AspModal` — ✅ shipped
 
-Overlay dialog. Focus-trap, escape-to-close, click-outside-to-close (optional), scroll-lock body. Mobile: full-screen sheet.
+Overlay dialog for create-task, edit and confirm flows. Focus-trap, escape-to-close,
+optional click-outside-to-close, ref-counted body scroll-lock. Mobile is a
+full-screen sheet, and that is the **base** style — the sized, centred, rounded
+dialog appears from the `md` breakpoint up via `min-width`, per the mobile-first
+rule.
 
-Props: `open` (v-model), `title`, `size` (sm | md | lg | fullscreen), `dismissible`. Slots: default (body), footer.
+**Teleported to `<body>`.** A dialog authored inside a card or any ancestor with
+`overflow: hidden`, `transform` or `filter` would be clipped or positioned
+against that ancestor rather than the viewport, and its call sites are exactly
+that shape.
+
+**Surface.** The panel sets `--surface-card` — dark even in the light theme — so
+it sets the paired ink (`--text-on-dark`) rather than inheriting the ambient one;
+the title takes the same amber as `AspCard`. Children inherit from the panel.
+This is the #2415 distinction: a component that sets a background must set the
+ink with it.
+
+The scrim uses the new `--surface-scrim` token, which is the literal
+`AspSidebar`'s mobile overlay had hardcoded; the sidebar now reads the token
+too, at the same value.
+
+Props: `open` (v-model), `title`, `size` (`sm` | `md` | `lg` | `fullscreen`),
+`dismissible`, `showClose`, `closeLabel`, `ariaLabel`.
+Slots: default (body), `footer`.
+Emits: `update:open`, `open`, `close`.
+
+Behaviour worth knowing: the scrim closes only when the press both *starts and
+ends* on it, so a text selection dragged out of the panel does not discard a
+draft. A dialog with nothing focusable in it still takes focus on its own panel
+(`tabindex="-1"`) so Tab cannot walk out to the page behind.
 
 ### 9. `AspBackButton`
 
@@ -178,7 +205,10 @@ Emits: `sort` (`{ key, dir }`), `update:sortBy`, `update:sortDir`, `row-click`
 **Composables** (in `src/composables/`):
 - `useTheme` — light/dark switch, watches `prefers-color-scheme`, persists to localStorage
 - `useMobile` — port `checkMobile` + resize logic from `aspirant-client/src/global_state_manager.js`
-- `useFocusTrap` — used by `AspModal`, potentially `AspSidebar` on mobile
+- `useFocusTrap` — ✅ shipped with `AspModal`; exported from the barrel. Takes a ref to a
+  container, confines Tab/Shift-Tab to it, and restores focus to whatever was focused before
+  `activate()` (captured at activation, not read at release — by then the trigger may be gone).
+  `AspSidebar`'s mobile overlay is the other named candidate, not yet wired.
 - `useKeyboard` — escape / arrow keys for menus + modals
 
 **Accessibility baseline** (WCAG AA):

@@ -19,6 +19,10 @@
           "value": "#333333",
           "comment": "Dark counterpart to surface.elevated (#f9f9f9)"
         }
+      },
+      "scrim": {
+        "value": "rgba(0, 0, 0, 0.5)",
+        "comment": "Overlay scrim behind modals and the mobile sidebar. Mode-agnostic on purpose: the job is to darken whatever sits behind it, and a lighter scrim in dark mode would weaken the panel's separation from the page rather than strengthen it. Value is the literal AspSidebar had hardcoded before AspModal needed the same wash."
       }
     },
     "text": {

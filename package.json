@@ -1,7 +1,7 @@
 {
   "name": "@aspirant/design-system",
   "version": "0.0.0",
-  "description": "Design system for the aspirant ecosystem — Vue 3 components, hand-drawn iconography, design tokens with Penpot round-tripping",
+  "description": "Design system for the aspirant ecosystem \u2014 Vue 3 components, hand-drawn iconography, design tokens with Penpot round-tripping",
   "type": "module",
   "main": "./dist/aspirant-design-system.umd.cjs",
   "module": "./dist/aspirant-design-system.js",
@@ -27,6 +27,8 @@
     "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:preview": "histoire preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "tokens:build": "style-dictionary build --config style-dictionary.config.js",
     "lint": "eslint 'src/**/*.{js,vue}' 'stories/**/*.{js,vue}'",
     "format": "prettier --write 'src/**/*.{js,vue,css}' 'stories/**/*.{js,vue,css}' 'tokens/**/*.json'"
@@ -43,6 +45,7 @@
   "devDependencies": {
     "@fontsource/iosevka": "^5.2.5",
     "@histoire/plugin-vue": "^0.17.17",
+    "@playwright/test": "^1.61.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "chart.js": "^4.5.1",
     "eslint": "^8.57.0",

@@ -99,7 +99,14 @@ const onInput = (event) => emit('update:modelValue', event.target.value)
 }
 
 .field__label {
-  color: var(--text-on-light);
+  /* `inherit`, not an absolute ink: this element sets no background of its own,
+     so it renders on whatever surface the consumer drops it into. AspCard's
+     default surface is DARK even in the light theme, where --text-on-light and
+     --surface-card are both #424242 — an absolute ink there renders text in
+     exactly its own background colour (measured 1:1, invisible). Inheriting
+     takes the ink the surface-setter already declared, which is correct on the
+     page, on a card, and on any surface added later. */
+  color: inherit;
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   line-height: 1.3;

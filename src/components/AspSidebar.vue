@@ -131,8 +131,9 @@ watch(isMobile, (nowMobile, wasMobile) => {
   transition: background var(--transition-fast);
 }
 .sidebar__toggle:hover {
+  /* No colour override: the base rule's --text-on-dark is correct here. The
+     hover surface is amber-over---surface-card, i.e. still dark chrome. */
   background: var(--brand-primary-alpha);
-  color: var(--text-on-light);
 }
 .sidebar__toggle:focus-visible {
   outline: none;

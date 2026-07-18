@@ -142,7 +142,7 @@ const onInput = (event) => emit('update:modelValue', event.target.value)
  * component that already consumes it).
  */
 .field__control:focus-within {
-  border-color: var(--text-on-light);
+  border-color: var(--text-body);
   box-shadow: var(--shadow-focus);
 }
 
@@ -163,7 +163,7 @@ const onInput = (event) => emit('update:modelValue', event.target.value)
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--text-on-light);
+  color: var(--text-body);
   font-family: inherit;
   font-size: var(--text-sm);
   line-height: 1;

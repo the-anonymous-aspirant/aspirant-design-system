@@ -53,11 +53,15 @@ Props (SidebarLink): `to`, `icon`, `label`, `badge`.
 
 Reference: `aspirant-client/src/components/sidebar/Sidebar.vue`, `SidebarLink.vue`.
 
-### 5. `AspInput`
+### 5. `AspInput` — built
 
-Text input replacing `<v-text-field>`. Label + hint + error states. Focus ring uses new `--shadow-focus` token.
+Text input replacing `<v-text-field>`. Label + hint + error states. Control height is 34px (the §3.10 filter-row canon), overridable per call site via `--asp-input-height`.
 
-Props: `modelValue` (v-model), `label`, `hint`, `error`, `type`, `placeholder`, `required`, `disabled`.
+Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search | number), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
+
+`error` takes a string (rendered as the message) or a bare `true` (styles the field invalid with no message, for callers that surface the text elsewhere). An error supersedes a hint — only one message line shows at a time. The `search` type renders a leading `AspIcon`.
+
+Focus indicator: `--shadow-focus` (#5a94ff) measures 2.80:1 against `--surface-elevated` and 2.32:1 against `--surface-page`, both under the 3:1 WCAG 1.4.11 non-text minimum. The control therefore pairs the ring with a `--text-on-light` border so the composite indicator has an AA-passing edge in both themes. **The shared token is still sub-AA for every other component that uses it alone** — worth a follow-up at the token layer.
 
 Extend to `AsTextarea` in v0 if free — otherwise defer.
 

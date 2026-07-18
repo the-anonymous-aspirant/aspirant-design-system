@@ -133,7 +133,17 @@ const onClick = (event) => {
 
 .btn--ghost {
   background: transparent;
-  color: var(--brand-primary);
+  /* Brand amber cannot be the raw label ink here. A ghost button has no
+     background, so it lands on whatever surface the consumer provides, and
+     those have opposite polarity: --brand-primary measures 1.41:1 on the light
+     page but 5.60:1 on a dark card. No single amber clears 4.5:1 on both --
+     sweeping the amber hue family tops out at 2.81:1.
+
+     Mixing a darker brand step into currentColor keeps the amber identity
+     while inheriting the surface's polarity: on a light surface currentColor
+     is dark ink and the result darkens; on a dark card it is white and the
+     result stays bright. Worst case 4.80:1, on the light page. Task-#2419. */
+  color: color-mix(in srgb, var(--brand-primary-800) 40%, currentColor);
   border-color: transparent;
 }
 .btn--ghost:hover:not(:disabled) {

@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DS contrast matrix — known-bad control</title>
+<!-- Theme is set BEFORE any stylesheet applies, from ?theme=dark.
+     Flipping data-theme after load and measuring 150ms later is racy: a
+     measurement can catch `color` already recalculated to the new theme while
+     an ancestor `background` still reports the old one, which reported a
+     bogus 1.21:1 (dark ink on a light surface) only when another test had run
+     first. Rendering in the target theme from the start removes the race. -->
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<div id="app"></div>
+<script type="module" src="./known-bad.js"></script>

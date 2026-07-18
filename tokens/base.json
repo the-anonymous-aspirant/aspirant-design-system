@@ -58,8 +58,8 @@
         "comment": "Card heading amber"
       },
       "muted": {
-        "value": "#6c757d",
-        "comment": "Secondary / subtitle"
+        "value": "color-mix(in srgb, currentColor 80%, transparent)",
+        "comment": "Relative to the inherited ink, NOT an absolute grey. No single grey can pass WCAG AA on both light-theme surfaces: --surface-page (#e4e4e4) and --surface-card (#424242) have opposite polarity, and the best possible grey (#878787) reaches only 2.80:1 on each. Deriving from currentColor makes the muted treatment adapt to whatever surface it lands on -- the same principle as --text-body and component-level `color: inherit`. 80% is the floor that keeps every surface at or above 4.5:1 (worst case 4.77:1 on the light page); muting further would trade AA for de-emphasis. Deliberately has NO dark override: the value is theme-agnostic by construction. Task-#2418."
       },
       "hint": {
         "value": "#82b1ff",

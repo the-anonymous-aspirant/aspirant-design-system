@@ -4,6 +4,7 @@
 //   import '@aspirant/design-system/tokens.css'
 export { default as AspCard } from './components/AspCard.vue'
 export { default as AspButton } from './components/AspButton.vue'
+export { default as AspSelect } from './components/AspSelect.vue'
 export { default as AspSidebar } from './components/AspSidebar.vue'
 export { default as AspSidebarLink } from './components/AspSidebarLink.vue'
 export { default as AspChart } from './components/AspChart.vue'

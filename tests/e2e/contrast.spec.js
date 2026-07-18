@@ -16,6 +16,14 @@ async function subAaSites(page, fixture, theme) {
   const q = theme === 'dark' ? '?theme=dark' : ''
   await page.goto(`/tests/e2e/fixtures/${fixture}${q}`, { waitUntil: 'networkidle' })
 
+  // Open every select in the dedicated open-panel surfaces before measuring.
+  // A dropdown's panel is a surface no closed specimen reaches; leaving them
+  // shut would let invisible option text pass.
+  for (const trigger of await page.locator('[data-surface$="-select-open"] .select__trigger').all()) {
+    await trigger.click()
+  }
+  await page.waitForTimeout(80)
+
   const found = (await page.evaluate(MEASURE)).filter((r) => r.ratio < AA)
 
   for (const selector of HOVER_TARGETS) {

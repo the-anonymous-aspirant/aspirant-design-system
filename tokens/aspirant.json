@@ -23,7 +23,7 @@
     },
     "text": {
       "dark": {
-        "$comment": "Gap 1 continued \u2014 dark-mode text inversions.",
+        "$comment": "Gap 1 continued \u2014 dark-mode text inversions. NOTE: muted has no dark override by design as of Task-#2418 -- it derives from currentColor and is theme-agnostic. Re-adding a literal dark value would silently reintroduce the surface-polarity bug.",
         "body": {
           "value": "#e0e0e0",
           "comment": "Ambient body ink, dark theme. Note there is deliberately NO dark override for on-fixed-light: brand amber is light in both themes, so its ink must not flip. Task-#2417."
@@ -37,10 +37,6 @@
         },
         "heading-card": {
           "value": "#ffb300"
-        },
-        "muted": {
-          "value": "#9aa1a8",
-          "comment": "Muted stays high enough contrast on dark page"
         },
         "hint": {
           "value": "#82b1ff"

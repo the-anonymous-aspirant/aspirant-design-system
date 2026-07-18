@@ -32,6 +32,7 @@ export const iconRegistry = {
 
   // Glyph-only names — no aspirant asset yet; upgrade silently once the
   // reMarkable SVG pipeline serves `${VITE_ICON_BASE}/${name}.svg`.
+  search: { glyph: '⌕', asset: null },
   trusted: { glyph: '✧', asset: null },
   active: { glyph: '●', asset: null },
   badge: { glyph: '◐', asset: null },

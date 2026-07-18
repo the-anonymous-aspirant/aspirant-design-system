@@ -111,7 +111,10 @@ const onClick = (event) => {
 /* Variants */
 .btn--primary {
   background: var(--brand-primary);
-  color: var(--text-on-light);
+  /* Brand amber is light in EVERY theme, so its ink must not flip with the
+     theme. --text-on-light did flip (#e0e0e0 in dark), which put light ink on
+     an amber button: measured 1.36:1. Task-#2417. */
+  color: var(--text-on-fixed-light);
 }
 .btn--primary:hover:not(:disabled) {
   background: var(--brand-primary-hover);
@@ -120,7 +123,7 @@ const onClick = (event) => {
 
 .btn--secondary {
   background: var(--surface-elevated);
-  color: var(--text-on-light);
+  color: var(--text-body);
   border-color: var(--border-subtle);
 }
 .btn--secondary:hover:not(:disabled) {
@@ -135,7 +138,7 @@ const onClick = (event) => {
 }
 .btn--ghost:hover:not(:disabled) {
   background: var(--brand-primary-alpha);
-  color: var(--text-on-light);
+  color: var(--text-body);
 }
 
 .btn--destructive {

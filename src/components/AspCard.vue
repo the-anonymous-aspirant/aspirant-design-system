@@ -90,7 +90,7 @@ const onKeydown = (event) => {
 
 .card--variant-ghost {
   background: transparent;
-  color: var(--text-on-light);
+  color: var(--text-body);
   box-shadow: none;
   border-style: dashed;
 }

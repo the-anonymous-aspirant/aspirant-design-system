@@ -1,93 +1,263 @@
 {
   "color": {
     "surface": {
-      "page":       { "value": "#e4e4e4",           "comment": "60% dominant page background" },
-      "card":       { "value": "#424242",           "comment": "Signature dark card body on light page" },
-      "card-inner": { "value": "rgba(0, 0, 0, 0.3)", "comment": "Nested surface inside cards" },
-      "elevated":   { "value": "#f9f9f9",           "comment": "Modals, popovers, elevated panels" }
+      "page": {
+        "value": "#e4e4e4",
+        "comment": "60% dominant page background"
+      },
+      "card": {
+        "value": "#424242",
+        "comment": "Signature dark card body on light page"
+      },
+      "card-inner": {
+        "value": "rgba(0, 0, 0, 0.3)",
+        "comment": "Nested surface inside cards"
+      },
+      "elevated": {
+        "value": "#f9f9f9",
+        "comment": "Modals, popovers, elevated panels"
+      }
     },
     "brand": {
-      "primary":       { "value": "#ffb300",   "comment": "Amber-gold — headings, CTAs, active states" },
-      "primary-alpha": { "value": "#ffb30082", "comment": "Amber at 51% alpha" },
-      "primary-hover": { "value": "#e07800",   "comment": "Deeper orange for hover" },
-      "accent":        { "value": "#82b1ff",   "comment": "Soft blue accent — links, hints" }
+      "primary": {
+        "value": "#ffb300",
+        "comment": "Amber-gold \u2014 headings, CTAs, active states"
+      },
+      "primary-alpha": {
+        "value": "#ffb30082",
+        "comment": "Amber at 51% alpha"
+      },
+      "primary-hover": {
+        "value": "#e07800",
+        "comment": "Deeper orange for hover"
+      },
+      "accent": {
+        "value": "#82b1ff",
+        "comment": "Soft blue accent \u2014 links, hints"
+      }
     },
     "text": {
-      "on-light":     { "value": "#424242", "comment": "Body on light surfaces" },
-      "on-dark":      { "value": "#ffffff", "comment": "Body on dark cards" },
-      "heading-card": { "value": "#ffb300", "comment": "Card heading amber" },
-      "muted":        { "value": "#6c757d", "comment": "Secondary / subtitle" },
-      "hint":         { "value": "#82b1ff", "comment": "Hint text matches accent" }
+      "body": {
+        "value": "#424242",
+        "comment": "Ambient body ink. FLIPS with the theme (dark override #e0e0e0), because the ambient surfaces it sits on (--surface-page, --surface-elevated) flip with the theme too. Use this for anything that does not establish its own background."
+      },
+      "on-fixed-light": {
+        "value": "#424242",
+        "comment": "Ink for a surface that is light in EVERY theme -- brand amber (--brand-primary) is the case that exists. Deliberately has NO dark override: the surface does not change, so the ink must not either. Task-#2417."
+      },
+      "on-light": {
+        "value": "#424242",
+        "comment": "DEPRECATED (Task-#2417) -- use color.text.body. Kept only so external consumers do not break. The name is a lie: it reads as 'ink for a light surface', but --surface-card is DARK in the light theme and both are #424242, so hardcoding this on a card renders text in its own background colour (measured 1:1). It also flips in dark mode, which silently breaks any fixed-light surface -- see color.text.on-fixed-light."
+      },
+      "on-dark": {
+        "value": "#ffffff",
+        "comment": "Body on dark cards"
+      },
+      "heading-card": {
+        "value": "#ffb300",
+        "comment": "Card heading amber"
+      },
+      "muted": {
+        "value": "#6c757d",
+        "comment": "Secondary / subtitle"
+      },
+      "hint": {
+        "value": "#82b1ff",
+        "comment": "Hint text matches accent"
+      }
     },
     "feedback": {
-      "error":         { "value": "#ff3739" },
-      "success":       { "value": "#00b74a" },
-      "info":          { "value": "#00d3ee" },
-      "neutral":       { "value": "#6c757d", "comment": "Task-#1970 audit — anchor for n/a / disabled / no-data status. Matches text.muted." },
-      "error-bg":      { "value": "rgba(255, 55, 57, 0.10)", "comment": "Task-#1970 audit — tinted alert background derived from feedback.error. Alpha keeps it mode-agnostic." },
-      "success-bg":    { "value": "rgba(0, 183, 74, 0.10)",  "comment": "Task-#1970 audit — tinted alert background derived from feedback.success." },
-      "info-bg":       { "value": "rgba(0, 211, 238, 0.10)", "comment": "Task-#1970 audit — tinted alert background derived from feedback.info." },
-      "warning-bg":    { "value": "rgba(255, 143, 0, 0.10)", "comment": "Task-#1970 audit — tinted alert background derived from feedback.warning." },
-      "neutral-bg":    { "value": "rgba(108, 117, 125, 0.10)", "comment": "Task-#1970 audit — tinted background for neutral status." },
-      "error-text":    { "value": "#8b0f10", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted error-bg + light page. Dark-mode override lives at color.feedback.dark.error-text." },
-      "success-text":  { "value": "#005d26", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted success-bg + light page." },
-      "info-text":     { "value": "#005566", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted info-bg + light page." },
-      "warning-text":  { "value": "#703e00", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted warning-bg + light page." },
-      "neutral-text":  { "value": "#4a5057", "comment": "Task-#1970 audit — darker text for WCAG AA on tinted neutral-bg + light page." },
-      "error-solid":   { "value": "#c62828", "comment": "Task-#2089 — bold full-bleed error surface tuned for white body text at WCAG AA (contrast 5.62:1 vs #ffffff). Pair with color.text.on-dark." },
-      "success-solid": { "value": "#2e7d32", "comment": "Task-#2089 — bold full-bleed success surface tuned for white body text at WCAG AA (contrast 5.13:1 vs #ffffff). Pair with color.text.on-dark." },
-      "info-solid":    { "value": "#00677c", "comment": "Task-#2089 — bold full-bleed info surface tuned for white body text at WCAG AA (contrast 6.50:1 vs #ffffff). Pair with color.text.on-dark." },
-      "warning-solid": { "value": "#b45309", "comment": "Task-#2089 — bold full-bleed warning surface tuned for white body text at WCAG AA (contrast 5.02:1 vs #ffffff). Pair with color.text.on-dark." },
-      "neutral-solid": { "value": "#495057", "comment": "Task-#2089 — bold full-bleed neutral surface tuned for white body text at WCAG AA (contrast 8.18:1 vs #ffffff). Pair with color.text.on-dark." }
+      "error": {
+        "value": "#ff3739"
+      },
+      "success": {
+        "value": "#00b74a"
+      },
+      "info": {
+        "value": "#00d3ee"
+      },
+      "neutral": {
+        "value": "#6c757d",
+        "comment": "Task-#1970 audit \u2014 anchor for n/a / disabled / no-data status. Matches text.muted."
+      },
+      "error-bg": {
+        "value": "rgba(255, 55, 57, 0.10)",
+        "comment": "Task-#1970 audit \u2014 tinted alert background derived from feedback.error. Alpha keeps it mode-agnostic."
+      },
+      "success-bg": {
+        "value": "rgba(0, 183, 74, 0.10)",
+        "comment": "Task-#1970 audit \u2014 tinted alert background derived from feedback.success."
+      },
+      "info-bg": {
+        "value": "rgba(0, 211, 238, 0.10)",
+        "comment": "Task-#1970 audit \u2014 tinted alert background derived from feedback.info."
+      },
+      "warning-bg": {
+        "value": "rgba(255, 143, 0, 0.10)",
+        "comment": "Task-#1970 audit \u2014 tinted alert background derived from feedback.warning."
+      },
+      "neutral-bg": {
+        "value": "rgba(108, 117, 125, 0.10)",
+        "comment": "Task-#1970 audit \u2014 tinted background for neutral status."
+      },
+      "error-text": {
+        "value": "#8b0f10",
+        "comment": "Task-#1970 audit \u2014 darker text for WCAG AA on tinted error-bg + light page. Dark-mode override lives at color.feedback.dark.error-text."
+      },
+      "success-text": {
+        "value": "#005d26",
+        "comment": "Task-#1970 audit \u2014 darker text for WCAG AA on tinted success-bg + light page."
+      },
+      "info-text": {
+        "value": "#005566",
+        "comment": "Task-#1970 audit \u2014 darker text for WCAG AA on tinted info-bg + light page."
+      },
+      "warning-text": {
+        "value": "#703e00",
+        "comment": "Task-#1970 audit \u2014 darker text for WCAG AA on tinted warning-bg + light page."
+      },
+      "neutral-text": {
+        "value": "#4a5057",
+        "comment": "Task-#1970 audit \u2014 darker text for WCAG AA on tinted neutral-bg + light page."
+      },
+      "error-solid": {
+        "value": "#c62828",
+        "comment": "Task-#2089 \u2014 bold full-bleed error surface tuned for white body text at WCAG AA (contrast 5.62:1 vs #ffffff). Pair with color.text.on-dark."
+      },
+      "success-solid": {
+        "value": "#2e7d32",
+        "comment": "Task-#2089 \u2014 bold full-bleed success surface tuned for white body text at WCAG AA (contrast 5.13:1 vs #ffffff). Pair with color.text.on-dark."
+      },
+      "info-solid": {
+        "value": "#00677c",
+        "comment": "Task-#2089 \u2014 bold full-bleed info surface tuned for white body text at WCAG AA (contrast 6.50:1 vs #ffffff). Pair with color.text.on-dark."
+      },
+      "warning-solid": {
+        "value": "#b45309",
+        "comment": "Task-#2089 \u2014 bold full-bleed warning surface tuned for white body text at WCAG AA (contrast 5.02:1 vs #ffffff). Pair with color.text.on-dark."
+      },
+      "neutral-solid": {
+        "value": "#495057",
+        "comment": "Task-#2089 \u2014 bold full-bleed neutral surface tuned for white body text at WCAG AA (contrast 8.18:1 vs #ffffff). Pair with color.text.on-dark."
+      }
     },
     "border": {
-      "card":    { "value": "#ffb300", "comment": "Amber border matches heading" },
-      "subtle":  { "value": "#cccccc", "comment": "Neutral divider" }
+      "card": {
+        "value": "#ffb300",
+        "comment": "Amber border matches heading"
+      },
+      "subtle": {
+        "value": "#cccccc",
+        "comment": "Neutral divider"
+      }
     }
   },
   "font": {
     "family": {
-      "base": { "value": "Iosevka, \"Iosevka Web\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", "comment": "Iosevka-first stack — full monospace terminal aesthetic (teenage.engineering moodboard). Bundled via @font-face in src/fonts/fonts.css; system-mono fallbacks keep first paint sane during font-display: swap." }
+      "base": {
+        "value": "Iosevka, \"Iosevka Web\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        "comment": "Iosevka-first stack \u2014 full monospace terminal aesthetic (teenage.engineering moodboard). Bundled via @font-face in src/fonts/fonts.css; system-mono fallbacks keep first paint sane during font-display: swap."
+      }
     },
     "size": {
-      "xs":   { "value": "0.75rem" },
-      "sm":   { "value": "0.85rem" },
-      "base": { "value": "1rem" },
-      "md":   { "value": "1.05rem" },
-      "lg":   { "value": "1.2rem" },
-      "xl":   { "value": "1.4rem" },
-      "2xl":  { "value": "1.8rem" },
-      "3xl":  { "value": "2.5rem" }
+      "xs": {
+        "value": "0.75rem"
+      },
+      "sm": {
+        "value": "0.85rem"
+      },
+      "base": {
+        "value": "1rem"
+      },
+      "md": {
+        "value": "1.05rem"
+      },
+      "lg": {
+        "value": "1.2rem"
+      },
+      "xl": {
+        "value": "1.4rem"
+      },
+      "2xl": {
+        "value": "1.8rem"
+      },
+      "3xl": {
+        "value": "2.5rem"
+      }
     }
   },
   "space": {
-    "2xs": { "value": "0.25rem" },
-    "xs":  { "value": "0.5rem" },
-    "sm":  { "value": "0.75rem" },
-    "md":  { "value": "1rem" },
-    "lg":  { "value": "1.5rem" },
-    "xl":  { "value": "2rem" },
-    "2xl": { "value": "3rem" },
-    "3xl": { "value": "4rem" }
+    "2xs": {
+      "value": "0.25rem"
+    },
+    "xs": {
+      "value": "0.5rem"
+    },
+    "sm": {
+      "value": "0.75rem"
+    },
+    "md": {
+      "value": "1rem"
+    },
+    "lg": {
+      "value": "1.5rem"
+    },
+    "xl": {
+      "value": "2rem"
+    },
+    "2xl": {
+      "value": "3rem"
+    },
+    "3xl": {
+      "value": "4rem"
+    }
   },
   "radius": {
-    "sm":   { "value": "4px" },
-    "md":   { "value": "8px" },
-    "lg":   { "value": "12px" },
-    "xl":   { "value": "16px" },
-    "2xl":  { "value": "20px" },
-    "pill": { "value": "40px" },
-    "full": { "value": "50%" }
+    "sm": {
+      "value": "4px"
+    },
+    "md": {
+      "value": "8px"
+    },
+    "lg": {
+      "value": "12px"
+    },
+    "xl": {
+      "value": "16px"
+    },
+    "2xl": {
+      "value": "20px"
+    },
+    "pill": {
+      "value": "40px"
+    },
+    "full": {
+      "value": "50%"
+    }
   },
   "transition": {
-    "fast":     { "value": "0.15s ease" },
-    "base":     { "value": "0.2s ease" },
-    "moderate": { "value": "0.3s ease" },
-    "layout":   { "value": "0.5s ease" }
+    "fast": {
+      "value": "0.15s ease"
+    },
+    "base": {
+      "value": "0.2s ease"
+    },
+    "moderate": {
+      "value": "0.3s ease"
+    },
+    "layout": {
+      "value": "0.5s ease"
+    }
   },
   "shadow": {
-    "sm": { "value": "0 2px 4px rgba(0, 0, 0, 0.1)" },
-    "md": { "value": "0 4px 8px rgba(0, 0, 0, 0.12)" },
-    "lg": { "value": "0 10px 20px rgba(0, 0, 0, 0.15)" }
+    "sm": {
+      "value": "0 2px 4px rgba(0, 0, 0, 0.1)"
+    },
+    "md": {
+      "value": "0 4px 8px rgba(0, 0, 0, 0.12)"
+    },
+    "lg": {
+      "value": "0 10px 20px rgba(0, 0, 0, 0.15)"
+    }
   }
 }

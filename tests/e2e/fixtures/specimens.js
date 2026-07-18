@@ -32,6 +32,9 @@ export const specimens = () => [
   h(DS.AspButton, { variant: 'ghost' }, () => 'ghost'),
   h(DS.AspInput, { label: 'field label', modelValue: 'typed value' }),
   h(DS.AspSelect, { label: 'select label', modelValue: 'a', options: SELECT_OPTIONS }),
+  h(DS.AspCheckbox, { label: 'checkbox unchecked', modelValue: false }),
+  h(DS.AspCheckbox, { label: 'checkbox checked', modelValue: true }),
+  h(DS.AspCheckbox, { label: 'checkbox mixed', modelValue: false, indeterminate: true }),
   h(DS.AspEmptyState, { heading: 'empty heading', message: 'empty message' }),
 ]
 

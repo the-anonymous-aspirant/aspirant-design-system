@@ -10,11 +10,11 @@ const THEMES = ['light', 'dark']
 const HOVER_TARGETS = ['.sidebar__toggle', '.app-shell__menu', '.data-table__sort']
 
 async function subAaSites(page, fixture, theme) {
-  await page.goto(`/tests/e2e/fixtures/${fixture}`, { waitUntil: 'networkidle' })
-  if (theme === 'dark') {
-    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
-    await page.waitForTimeout(150)
-  }
+  // ?theme= is read by the fixture before any stylesheet applies. Setting the
+  // attribute after load and measuring shortly after is racy — see the comment
+  // in the fixture.
+  const q = theme === 'dark' ? '?theme=dark' : ''
+  await page.goto(`/tests/e2e/fixtures/${fixture}${q}`, { waitUntil: 'networkidle' })
 
   const found = (await page.evaluate(MEASURE)).filter((r) => r.ratio < AA)
 

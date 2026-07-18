@@ -12,6 +12,7 @@ export { default as AspIcon } from './components/AspIcon.vue'
 export { default as AspEmptyState } from './components/AspEmptyState.vue'
 export { default as AspBadge } from './components/AspBadge.vue'
 export { default as AspDataTable } from './components/AspDataTable.vue'
+export { default as AspInput } from './components/AspInput.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useIconBase, isIconBaseConfigured } from './composables/useIconBase.js'

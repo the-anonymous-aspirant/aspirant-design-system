@@ -89,7 +89,7 @@ const setCollapsed = (value) => emit('update:sidebarCollapsed', value)
   display: flex;
   min-height: 100vh;
   background: var(--surface-page);
-  color: var(--text-on-light);
+  color: var(--text-body);
   font-family: var(--font-family-base);
 }
 
@@ -129,8 +129,8 @@ const setCollapsed = (value) => emit('update:sidebarCollapsed', value)
 }
 
 .app-shell__menu:hover {
+  /* No colour override -- see AspSidebar.__toggle:hover. */
   background: var(--brand-primary-alpha);
-  color: var(--text-on-light);
 }
 
 .app-shell__menu:focus-visible {

@@ -129,20 +129,36 @@ const onRemove = (event) => {
 /* --- Status badge: tinted background + accessible text color (#1970) --- */
 .badge--status .badge__label { display: inline-block; }
 
+/* The -bg tokens are deliberately alpha tints ("Alpha keeps it mode-agnostic",
+   tokens/base.json, Task-#1970 audit), so they composite over whatever is
+   beneath them. On a default AspCard that is a DARK surface, which turned the
+   dark ink of the paired -text token into 1.1:1. Layering the tint over an
+   explicit --surface-elevated keeps the intended tinted look and the
+   mode-agnostic alpha, while making the badge self-contained on any surface:
+   --surface-elevated and the -text tokens both flip with the theme, so the
+   pairing holds in both. Task-#2417. */
 .badge--status.badge--status-positive {
-  background: var(--feedback-success-bg);
+  background:
+    linear-gradient(var(--feedback-success-bg), var(--feedback-success-bg)),
+    var(--surface-elevated);
   color: var(--feedback-success-text);
 }
 .badge--status.badge--status-caution {
-  background: var(--feedback-warning-bg);
+  background:
+    linear-gradient(var(--feedback-warning-bg), var(--feedback-warning-bg)),
+    var(--surface-elevated);
   color: var(--feedback-warning-text);
 }
 .badge--status.badge--status-negative {
-  background: var(--feedback-error-bg);
+  background:
+    linear-gradient(var(--feedback-error-bg), var(--feedback-error-bg)),
+    var(--surface-elevated);
   color: var(--feedback-error-text);
 }
 .badge--status.badge--status-neutral {
-  background: var(--feedback-neutral-bg);
+  background:
+    linear-gradient(var(--feedback-neutral-bg), var(--feedback-neutral-bg)),
+    var(--surface-elevated);
   color: var(--feedback-neutral-text);
 }
 
@@ -150,7 +166,7 @@ const onRemove = (event) => {
 .badge--chip,
 .badge--filter {
   background: var(--surface-elevated);
-  color: var(--text-on-light);
+  color: var(--text-body);
   border: 1px solid var(--border-subtle);
 }
 

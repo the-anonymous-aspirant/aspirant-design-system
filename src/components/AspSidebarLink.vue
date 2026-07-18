@@ -139,7 +139,10 @@ const onClick = (event) => {
   padding: 0 var(--space-2xs);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-bold);
-  color: var(--text-on-light);
+  /* Brand amber is light in EVERY theme, so its ink must not flip with the
+     theme. --text-on-light did flip (#e0e0e0 in dark), which put light ink on
+     an amber button: measured 1.36:1. Task-#2417. */
+  color: var(--text-on-fixed-light);
   background: var(--brand-primary);
   border-radius: var(--radius-pill);
 }

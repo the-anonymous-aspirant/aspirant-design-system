@@ -16,21 +16,43 @@
  *     opacity) is not its raw colour on screen.
  *  4. Only leaf text nodes are measured. An ancestor's `color` is not what
  *     renders; `innerText` reads the DOM, not the screen.
+ *  5. Colour is read as a RASTERISED PIXEL, not parsed from the string canvas
+ *     returns. Parsing needed a per-syntax scale heuristic, and a colour caught
+ *     mid-`transition` comes back as `oklab(...)` -- 0-1 components with a
+ *     prefix the heuristic did not know -- which read as near-black and
+ *     reported a false sub-AA failure. See the comment on `norm`.
  */
 export const MEASURE = () => {
   const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
 
+  // PAINT the colour and read the pixel back, rather than parsing the string
+  // canvas hands back. Defect 5 (see header): the old parser round-tripped
+  // fillStyle to a string and inferred the component scale from its prefix,
+  // special-casing `color()` as 0-1 and assuming everything else was 0-255.
+  //
+  // Chromium reports a colour mid-`transition` as `oklab(L a b / alpha)`, whose
+  // components are ALSO 0-1 and whose prefix is not `color(`. So every hovered
+  // element sampled before its transition settled parsed as near-black and
+  // measured ~1.2:1 against a dark surface -- a false sub-AA verdict on a
+  // component whose settled hover measures 9.41:1. Found on AspBackButton
+  // (#2375); it would have fired on any component with a colour transition.
+  //
+  // The scale heuristic cannot be patched by adding `oklab` to it: the same
+  // trap waits in lab(), lch(), oklch() and every future colour syntax. Reading
+  // the rasterised pixel is format-agnostic by construction -- the browser does
+  // the conversion, and there is no string to misjudge.
   const norm = (c) => {
+    cv.clearRect(0, 0, 1, 1)
     cv.fillStyle = '#000'
     cv.fillStyle = c
-    const r = cv.fillStyle
-    if (r.startsWith('#')) {
-      return [parseInt(r.slice(1, 3), 16), parseInt(r.slice(3, 5), 16), parseInt(r.slice(5, 7), 16), 1]
+    // An unparseable colour leaves fillStyle at #000; painting it would report
+    // opaque black, which is the very failure this replaced. Detect it instead.
+    if (cv.fillStyle === '#000000' && !/^(#000000|#000|black|rgba?\(0, ?0, ?0)/.test(c.trim())) {
+      return [0, 0, 0, 0]
     }
-    const n = r.match(/[\d.]+/g).map(Number)
-    // color() carries 0-1 components; rgb()/rgba() carry 0-255. Detect, never assume.
-    const scale = r.startsWith('color(') ? 255 : 1
-    return [n[0] * scale, n[1] * scale, n[2] * scale, n.length > 3 ? n[3] : 1]
+    cv.fillRect(0, 0, 1, 1)
+    const [r, g, b, a] = cv.getImageData(0, 0, 1, 1).data
+    return [r, g, b, a / 255]
   }
 
   const luminance = ([r, g, b]) => {

@@ -7,7 +7,9 @@ const THEMES = ['light', 'dark']
 // Hover states carry their own colour rules, and two real defects (the sidebar
 // toggle and app-shell menu re-asserting an ambient ink over dark chrome) were
 // invisible to a static pass. Anything with a :hover colour belongs here.
-const HOVER_TARGETS = ['.sidebar__toggle', '.app-shell__menu', '.data-table__sort']
+// `.back-btn` earns its place here: its hover ink is the #2419 amber-on-any-surface
+// trap, and a static pass cannot see it.
+const HOVER_TARGETS = ['.sidebar__toggle', '.app-shell__menu', '.data-table__sort', '.back-btn']
 
 async function subAaSites(page, fixture, theme) {
   // ?theme= is read by the fixture before any stylesheet applies. Setting the
@@ -30,7 +32,10 @@ async function subAaSites(page, fixture, theme) {
     const el = page.locator(selector).first()
     if (!(await el.count())) continue
     await el.hover().catch(() => {})
-    await page.waitForTimeout(120)
+    // Longer than --transition-fast (0.15s). The rule is about the settled
+    // hover state; a colour caught mid-transition is a transient, not a defect.
+    // Sampling at 120ms measured exactly that transient -- see #2375.
+    await page.waitForTimeout(250)
     for (const r of await page.evaluate(MEASURE)) {
       if (r.ratio < AA && r.selector.includes(selector.slice(1))) {
         found.push({ ...r, selector: `${r.selector}:hover` })

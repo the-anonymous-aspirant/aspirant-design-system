@@ -36,6 +36,7 @@ export const specimens = () => [
   h(DS.AspCheckbox, { label: 'checkbox checked', modelValue: true }),
   h(DS.AspCheckbox, { label: 'checkbox mixed', modelValue: false, indeterminate: true }),
   h(DS.AspEmptyState, { heading: 'empty heading', message: 'empty message' }),
+  h(DS.AspBackButton),
 ]
 
 /**

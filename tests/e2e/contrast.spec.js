@@ -9,7 +9,7 @@ const THEMES = ['light', 'dark']
 // invisible to a static pass. Anything with a :hover colour belongs here.
 // `.back-btn` earns its place here: its hover ink is the #2419 amber-on-any-surface
 // trap, and a static pass cannot see it.
-const HOVER_TARGETS = ['.sidebar__toggle', '.app-shell__menu', '.data-table__sort', '.back-btn']
+const HOVER_TARGETS = ['.sidebar__toggle', '.app-shell__menu', '.data-table__sort', '.back-btn', '.list-item__inner']
 
 async function subAaSites(page, fixture, theme) {
   // ?theme= is read by the fixture before any stylesheet applies. Setting the

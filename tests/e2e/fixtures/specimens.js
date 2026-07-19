@@ -43,6 +43,11 @@ export const specimens = () => [
   // Prose carries the risky bits: an inline-code chip (tinted background) and a
   // link whose ink is derived rather than raw --text-hint. Both are measured on
   // every surface, which is the only way the derivation is actually checked.
+  h(DS.AspList, { variant: 'interactive', ariaLabel: 'specimen list' }, () => [
+    h(DS.AspListItem, { label: 'list row', meta: '2m ago' }),
+    h(DS.AspListItem, { label: 'active row', meta: '5m ago', active: true }),
+    h(DS.AspListItem, { label: 'disabled row', meta: 'never', disabled: true }),
+  ]),
   h(DS.AspProse, null, () => [
     h('p', null, [
       'prose body copy with ',

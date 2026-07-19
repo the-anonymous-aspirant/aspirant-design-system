@@ -55,25 +55,26 @@ defineProps({
 }
 
 /*
- * Vertical rhythm: a single margin direction (bottom), with the last child's
- * margin removed. Mixing top and bottom margins is what produces the
- * double-gap-here / no-gap-there drift this component exists to prevent.
+ * Vertical rhythm: reset every child's margin, then give each one after the
+ * first a single top margin. One direction only -- mixing top and bottom
+ * margins is what produces the double-gap-here / no-gap-there drift this
+ * component exists to prevent.
+ *
+ * The reset MUST stay element-agnostic. The first version paired this with
+ * `.prose :deep(p), .prose :deep(ul), ... { margin: 0 }`, and those type
+ * selectors score 0,2,1 against the rhythm rule's 0,1,0 -- so the reset won and
+ * every paragraph rendered flush against the next. Nothing caught it: the
+ * spacing is not a contrast question and no assertion covered it, so 47 green
+ * tests sat on top of a prose component with no prose spacing. It was visible
+ * the moment the story was screenshotted, which is why that step is not
+ * optional.
  */
+.prose :deep(> *) {
+  margin: 0;
+}
+
 .prose :deep(> * + *) {
   margin-top: var(--space-md);
-}
-
-.prose :deep(> *) {
-  margin-bottom: 0;
-}
-
-.prose :deep(p),
-.prose :deep(ul),
-.prose :deep(ol),
-.prose :deep(blockquote),
-.prose :deep(pre) {
-  margin-top: 0;
-  margin-bottom: 0;
 }
 
 .prose :deep(ul),

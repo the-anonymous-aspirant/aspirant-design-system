@@ -63,3 +63,17 @@ test('prose links are underlined, so the cue is not colour alone', async ({ page
     .evaluate((e) => getComputedStyle(e).textDecorationLine)
   expect(deco).toContain('underline')
 })
+
+test('prose actually spaces its children (the rhythm rule wins the cascade)', async ({ page }) => {
+  // Regression guard. The first version of this component paired the rhythm
+  // rule with per-element margin resets whose type selectors outscored it, so
+  // every paragraph rendered flush against the next -- in the one component
+  // whose purpose is spacing. A screenshot caught it; nothing else did.
+  const gap = await page.evaluate(() => {
+    const kids = [...document.querySelector('#prose').children]
+    const a = kids[0].getBoundingClientRect()
+    const b = kids[1].getBoundingClientRect()
+    return b.top - a.bottom
+  })
+  expect(gap, 'no vertical gap between prose children').toBeGreaterThan(8)
+})

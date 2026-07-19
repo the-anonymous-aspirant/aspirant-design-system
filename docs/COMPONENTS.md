@@ -115,11 +115,38 @@ ends* on it, so a text selection dragged out of the panel does not discard a
 draft. A dialog with nothing focusable in it still takes focus on its own panel
 (`tabindex="-1"`) so Tab cannot walk out to the page behind.
 
-### 9. `AspBackButton`
+### 9. `AspBackButton` — ✅ shipped
 
-Persistent back navigation — this is a signature interaction pattern in aspirant-client. Fixed position, hand-drawn arrow icon, respects browser history + explicit `to` prop.
+Persistent back navigation on detail pages — a signature aspirant-client interaction.
+Router-agnostic: `$router` is detected at runtime off `globalProperties` (same trick as
+`AspSidebarLink`), and it degrades to the History API when no router is installed.
 
-Props: `to` (fallback route), `position` (fixed | inline).
+**"No history" is not `history.length > 1`.** The original tested that, but it counts
+forward entries and is `> 1` on a fresh tab that merely navigated inside the app, so
+popping on it can walk the user out to the referring site. This reads
+`history.state.back` — which vue-router 4 maintains — and only falls back to the length
+heuristic when it is paired with a same-origin `document.referrer`. Failing both, it
+navigates to `to`.
+
+**Hover ink deviates from the spec deliberately.** The brief said `--text-muted` →
+`--brand-primary`. Raw brand amber cannot be the ink: the button sets no background, so
+it lands on whatever surface the page gives it, and `--brand-primary` measures 1.41:1 on
+the light page against 5.60:1 on a dark card — the #2419 defect the contrast suite's
+known-bad control reinstates on purpose. It reuses the `color-mix` resolution
+`AspButton`'s ghost variant already landed on. The arrow also nudges left on hover, so
+the affordance is not carried by colour alone.
+
+**Placement is provisional.** Fixed position follows the aspirant-client original
+(top-right, `--space-lg` inset). The spec cites corpus §3.12 as the detail-frame rule,
+but §3.12 introduces the three detail frames *without* specifying a back affordance, and
+is itself unmerged (system_3 PR #1147). Ratify before treating this as settled.
+
+Props: `to` (fallback route, default `/`), `label` (default `Back`), `position`
+(`inline` | `fixed`), `iconOnly` (clips the label but keeps the accessible name).
+Emits: `back`.
+
+Adds a `back` entry (`←`) to the icon registry — glyph-only, so it upgrades silently once
+the reMarkable SVG pipeline serves `${VITE_ICON_BASE}/back.svg`.
 
 Reference: `aspirant-client/src/components/BackButton.vue`.
 

@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AspContent behaviour fixture</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<div id="app"></div>
+<script type="module" src="./content.js"></script>

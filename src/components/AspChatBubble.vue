@@ -112,8 +112,9 @@ const isOwn = computed(() => props.kind === 'operator' || props.kind === 'user')
  * Inbound side. --surface-card-inner is a translucent wash and is MEANT to be:
  * it reads as a recess in the area's surface. It is legible because the area
  * guarantees an opaque surface beneath it, not because the token is safe on its
- * own. Dropping this bubble outside an AspChatArea is what the probe's
- * bubble-on-page specimen exists to catch.
+ * own -- so this is not a standalone component, and outside an AspChatArea it
+ * can land sub-AA. The known-bad fixture strips the area's surface and restores
+ * the literal ruling tokens, so the probe fails if anyone reinstates them here.
  */
 .chat-bubble--inbound .chat-bubble__body {
   background: var(--surface-card-inner);

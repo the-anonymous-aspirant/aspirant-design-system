@@ -93,6 +93,54 @@ export const cardHeadings = () => [
   ]),
 ]
 
+/**
+ * The chat surface, on both the light page and inside a card.
+ *
+ * Rendering it on TWO backdrops is the whole point rather than duplication: the
+ * area declares its own opaque surface, so both instances must measure
+ * IDENTICALLY. If a future change lets ambient paint leak through, the two
+ * surfaces diverge and one of them drops below AA -- which is the #2417 alpha
+ * mechanism, and the reason the own bubble is not --brand-primary-alpha.
+ *
+ * Every state amendment #9766 lists is reachable here: both bubble variants,
+ * over the area's real backdrop, in whichever theme the fixture was loaded in,
+ * with a muted timestamp inside each. States the suite cannot reach are green
+ * by construction, so the sender tags and timestamps are populated on purpose.
+ */
+const CHAT_TRANSCRIPT = [
+  { id: 't1', created_at: '2026-07-19T10:00:00Z', kind: 'agent', sender: 'engineer', body: 'agent bubble body', timestamp: '10:00' },
+  { id: 't2', created_at: '2026-07-19T10:02:00Z', kind: 'tool', sender: 'bash', body: 'tool bubble body', timestamp: '10:02' },
+  { id: 't3', created_at: '2026-07-19T10:04:00Z', kind: 'system', sender: 'system', body: 'system bubble body', timestamp: '10:04' },
+]
+const CHAT_COMMENTS = [
+  { id: 'c1', created_at: '2026-07-19T10:01:00Z', kind: 'operator', sender: 'operator', body: 'own bubble body', timestamp: '10:01' },
+  { id: 'c2', created_at: '2026-07-19T10:03:00Z', kind: 'user', sender: 'operator', body: 'second own bubble', timestamp: '10:03' },
+]
+const CHAT_FILTERS = [
+  { value: 'agent', label: 'conversation prose' },
+  { value: 'tool', label: 'tool-calls' },
+]
+
+const chatArea = (extra = {}) =>
+  h(DS.AspChatArea, {
+    messages: CHAT_TRANSCRIPT,
+    comments: CHAT_COMMENTS,
+    filterOptions: CHAT_FILTERS,
+    modelValue: 'composer text',
+    ...extra,
+  })
+
+export const chatSurfaces = () => [
+  h('div', { class: 'probe-surface', 'data-surface': 'chat-on-page' }, [chatArea()]),
+  h(DS.AspCard, { 'data-surface': 'chat-on-card' }, () => [chatArea()]),
+  // The empty state is a distinct surface: AspEmptyState's ink lands on the
+  // area's dark stream rather than on the ambient page, and nothing else here
+  // reaches it.
+  h('div', { class: 'probe-surface', 'data-surface': 'chat-empty' }, [
+    chatArea({ messages: [], comments: [] }),
+  ]),
+]
+
 export const openPanels = () => [
   h('div', { class: 'probe-surface', 'data-surface': 'page-select-open' }, [
     h(DS.AspSelect, { label: 'open on page', modelValue: 'a', options: SELECT_OPTIONS, ref: 'openA' }),
@@ -163,6 +211,7 @@ export const shell = (extra = []) =>
       h('div', { class: 'probe-root' }, [
         ...surfaces(),
         ...cardHeadings(),
+        ...chatSurfaces(),
         ...openPanels(),
         h(modalSpecimen()),
         ...extra,

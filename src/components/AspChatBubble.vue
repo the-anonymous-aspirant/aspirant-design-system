@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
-// AspChatBubble — one message in an AspChatArea stream (docs/COMPONENTS.md §7).
+// AspChatBubble — one message in an AspChatArea stream (docs/COMPONENTS.md §16).
 //
 // SIDES (§3.12 ruling, ratified): the operator's own messages sit right and
 // carry the brand tint; everything the system produced -- agent, tool, system,

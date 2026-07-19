@@ -7,7 +7,7 @@ import AspCheckbox from './AspCheckbox.vue'
 import AspEmptyState from './AspEmptyState.vue'
 import AspInput from './AspInput.vue'
 
-// AspChatArea — the conversation surface (docs/COMPONENTS.md §7).
+// AspChatArea — the conversation surface (docs/COMPONENTS.md §16).
 //
 // THE POINT OF THIS COMPONENT IS THE MERGE. The operator's own messages live in
 // the `comments` table; the agent's live in the session transcript. A view that
@@ -130,7 +130,12 @@ const submit = () => {
          `assertive`: a chat stream must not interrupt. -->
     <div class="chat-area__stream" role="log" aria-live="polite" aria-busy="loading">
       <div v-if="loading" class="chat-area__skeleton" aria-hidden="true">
-        <div v-for="n in 3" :key="n" class="chat-area__skeleton-row" :class="`chat-area__skeleton-row--${n % 2 ? 'in' : 'own'}`" />
+        <div
+          v-for="n in 3"
+          :key="n"
+          class="chat-area__skeleton-row"
+          :class="`chat-area__skeleton-row--${n % 2 ? 'in' : 'own'}`"
+        />
       </div>
 
       <AspEmptyState

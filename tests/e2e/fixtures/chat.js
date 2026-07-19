@@ -13,18 +13,67 @@ import '../../../build/tokens.css'
 import { AspChatArea } from '../../../src/index.js'
 
 const MESSAGES = [
-  { id: 'm1', created_at: '2026-07-19T10:00:00Z', kind: 'agent', sender: 'engineer', body: 'transcript one', timestamp: '10:00' },
-  { id: 'm2', created_at: '2026-07-19T10:02:00Z', kind: 'tool', sender: 'bash', body: 'transcript two', timestamp: '10:02' },
-  { id: 'm3', created_at: '2026-07-19T10:04:00Z', kind: 'agent', sender: 'engineer', body: 'transcript three', timestamp: '10:04' },
+  {
+    id: 'm1',
+    created_at: '2026-07-19T10:00:00Z',
+    kind: 'agent',
+    sender: 'engineer',
+    body: 'transcript one',
+    timestamp: '10:00',
+  },
+  {
+    id: 'm2',
+    created_at: '2026-07-19T10:02:00Z',
+    kind: 'tool',
+    sender: 'bash',
+    body: 'transcript two',
+    timestamp: '10:02',
+  },
+  {
+    id: 'm3',
+    created_at: '2026-07-19T10:04:00Z',
+    kind: 'agent',
+    sender: 'engineer',
+    body: 'transcript three',
+    timestamp: '10:04',
+  },
   // No created_at at all: a real transcript can carry a null timestamp, and
   // NaN comparisons silently scramble a sort rather than failing loudly.
-  { id: 'm4', created_at: null, kind: 'system', sender: 'system', body: 'transcript undated', timestamp: '' },
+  {
+    id: 'm4',
+    created_at: null,
+    kind: 'system',
+    sender: 'system',
+    body: 'transcript undated',
+    timestamp: '',
+  },
 ]
 
 const COMMENTS = [
-  { id: 'c1', created_at: '2026-07-19T10:01:00Z', kind: 'operator', sender: 'operator', body: 'comment one', timestamp: '10:01' },
-  { id: 'c2', created_at: '2026-07-19T10:03:00Z', kind: 'operator', sender: 'operator', body: 'comment two', timestamp: '10:03' },
-  { id: 'c3', created_at: '2026-07-19T10:04:00Z', kind: 'user', sender: 'operator', body: 'comment tied', timestamp: '10:04' },
+  {
+    id: 'c1',
+    created_at: '2026-07-19T10:01:00Z',
+    kind: 'operator',
+    sender: 'operator',
+    body: 'comment one',
+    timestamp: '10:01',
+  },
+  {
+    id: 'c2',
+    created_at: '2026-07-19T10:03:00Z',
+    kind: 'operator',
+    sender: 'operator',
+    body: 'comment two',
+    timestamp: '10:03',
+  },
+  {
+    id: 'c3',
+    created_at: '2026-07-19T10:04:00Z',
+    kind: 'user',
+    sender: 'operator',
+    body: 'comment tied',
+    timestamp: '10:04',
+  },
 ]
 
 const FILTERS = [

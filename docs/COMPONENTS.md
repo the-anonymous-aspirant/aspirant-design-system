@@ -325,6 +325,67 @@ only), `variant` (`elapsed` | `duration` | `countdown`), `live`, `now` (injectab
 tests and SSR — a component that reads the wall clock internally cannot be asserted at a
 boundary).
 
+### 16. `AspChatArea` + `AspChatBubble` — ✅ shipped
+
+The conversation surface (system_3 #2381): the Agents view and the Overview manager embed.
+
+**The component's job is the merge.** The operator's own messages live in the `comments`
+table; the agent's live in the session transcript. A view that renders only the transcript
+shows the operator a conversation with their own half deleted — that is system_3 **#2348**,
+the highest-value defect in the round-1 review. So `messages` and `comments` are *separate
+props* and the interleave happens here: a caller cannot forget to merge, or merge wrongly,
+because it is not their job. Rows are tagged with their origin (`data-source`) before
+sorting, which is what lets a test prove the interleave rather than infer it — a stream in
+the right order is not evidence, since a fixture whose comments all sorted last would look
+identical under plain concatenation.
+
+Sort is by `created_at`, with two decided edge cases: an entry with no parseable timestamp
+sorts **last** (`Date.parse(null)` is `NaN`, and NaN comparisons silently scramble a sort
+rather than failing loudly), and ties break on source then id so rows written in the same
+millisecond keep a stable order instead of swapping between renders.
+
+`order` ships as a capability, not a default. Newest-first is round-2 P1 and is not yet
+operator-confirmed, so the prop exists and the default stays `chronological` rather than
+pre-empting the decision.
+
+**Bubble sides** (corpus §3.12, ratified): operator/user → brand tint, right-aligned;
+agent/tool/system/cron → recessed inner surface, left-aligned, amber sender tag. Side is
+derived from `kind` *inside* the component, so a caller cannot render an agent message as
+the operator's by passing the wrong prop.
+
+**Both variants are surface-setters, and neither uses the alpha the ruling names.** This is
+the one departure from §3.12 and it is load-bearing. Both tokens the ruling names are
+*alphas*: they composite over whatever is beneath, so their contrast becomes a function of a
+backdrop the component cannot see. Measured across the six real backdrops, no single ink
+survives on the own bubble — black is **4.15:1** on the dark page, white is **1.55:1** on the
+light page; the ink would have to flip by backdrop. That is the #2417/#2419 mechanism.
+`--brand-primary-200` is that alpha composited over white to within `rgb(255,224,130)` vs
+`rgb(255,216,125)` — the ruling's own appearance, but opaque and with no dark override.
+Ink is `--text-on-fixed-light`, exactly as `AspButton`'s primary does it (#2417).
+
+The inbound fill *keeps* `--surface-card-inner` as the ruling names it, but the **area**
+supplies the opaque surface beneath it — that token is a black 30% wash in light and a white
+6% wash in dark, opposite polarities, so over an ambient light page it lands at **3.82:1**
+with **2.85:1** timestamps. Over the area's own surface it is 13.54:1 / 9.05:1. This makes
+`AspChatBubble` a non-standalone component by design: outside an `AspChatArea` it can land
+sub-AA, and the known-bad fixture reinstates the literal ruling tokens so the probe fails if
+anyone re-simplifies it back.
+
+The contrast matrix renders the area on the light page **and** inside a dark card and asserts
+the two measure **identically** — not merely that both clear AA. Both could pass while still
+varying with the backdrop, and that variance *is* the defect.
+
+Props (`AspChatArea`): `messages`, `comments`, `order`, `visibleKinds` (`null` disables
+filtering), `filterOptions`, `loading`, `streamingId`, `modelValue`, `composerPlaceholder`,
+`sendLabel`, `disabled`, `emptyHeading`, `ariaLabel`. Emits `send`, `update:modelValue`,
+`update:visibleKinds`. Slot `message` overrides body rendering per entry.
+
+Props (`AspChatBubble`): `kind`, `sender`, `timestamp`, `streaming`.
+
+An empty stream and a stream emptied *by the filters* get different copy — "No messages" in
+front of an active filter reads as a bug in the view. The stream is `role="log"` with
+`aria-live="polite"`: announced, never interrupting.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

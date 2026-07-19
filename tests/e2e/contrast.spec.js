@@ -110,6 +110,48 @@ test.describe('the probe itself', () => {
     ).toBeGreaterThan(3)
   })
 
+  // Same failure mode as the modal check above: the chat surfaces could vanish
+  // from the matrix (a dropped spread in `shell()`) and the AA pass would stay
+  // green having measured no chat at all.
+  test('actually measures the chat surfaces', async ({ page }) => {
+    await page.goto('/tests/e2e/fixtures/matrix.html', { waitUntil: 'networkidle' })
+    const chat = (await page.evaluate(MEASURE)).filter((r) => r.surface.startsWith('chat'))
+    expect(
+      chat.length,
+      'no text measured on any chat surface — the specimens dropped out of the matrix and the AA pass above is measuring nothing for this component'
+    ).toBeGreaterThan(20)
+  })
+
+  // The load-bearing invariant of AspChatBubble (#2381). Both fills the §3.12
+  // ruling names are ALPHAS, and an alpha's contrast is a function of whatever
+  // is beneath it. The area supplies an opaque surface so the result cannot
+  // depend on where it was dropped — which means the same specimen on the light
+  // page and inside a dark card must measure IDENTICALLY.
+  //
+  // Asserting equality rather than "both above AA" is deliberate: both could
+  // clear AA while still varying with the backdrop, and that variance is the
+  // defect (#2417) rather than the ratio itself.
+  for (const theme of THEMES) {
+    test(`chat bubbles measure identically on every backdrop (${theme})`, async ({ page }) => {
+      const q = theme === 'dark' ? '?theme=dark' : ''
+      await page.goto(`/tests/e2e/fixtures/matrix.html${q}`, { waitUntil: 'networkidle' })
+      const rows = await page.evaluate(MEASURE)
+      const forSurface = (s) =>
+        rows
+          .filter((r) => r.surface === s && r.selector.includes('chat-bubble'))
+          .map((r) => `${r.selector}|${r.text}|${r.ratio}`)
+          .sort()
+
+      const onPage = forSurface('chat-on-page')
+      const onCard = forSurface('chat-on-card')
+      expect(onPage.length, 'no chat bubbles measured on the page surface').toBeGreaterThan(0)
+      expect(
+        onCard,
+        'the same bubble measured differently on a dark card than on the light page — an ambient surface is compositing through, so the fill has become backdrop-dependent again'
+      ).toEqual(onPage)
+    })
+  }
+
   test('detects the specific 1:1 invisible-text defect it was built for', async ({ page }) => {
     const sites = await subAaSites(page, 'known-bad.html', 'light')
     const invisible = sites.filter((s) => s.surface.startsWith('card') && s.ratio <= 1.1)

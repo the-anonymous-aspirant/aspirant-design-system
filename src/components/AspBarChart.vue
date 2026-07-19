@@ -130,8 +130,20 @@ const paint = computed(() => {
   const axisInk = toRgbString(deriveInk(preferredInk, bg, AA))
   const axisLine = toRgbString(deriveInk(preferredLine, bg, AA_NON_TEXT))
 
+  // Bars are graphical objects, so they derive against the plot background at
+  // the NON-TEXT threshold — the same derive-and-adjust rule as the chrome,
+  // applied to the painted half of the MIXED role.
+  //
+  // This is load-bearing, not belt-and-braces. --brand-primary-alpha is amber
+  // at ~51% alpha; composited onto the light page surface it measures 1.22:1,
+  // which is a bar chart with no visible bars. §3.10 names it "amber-alpha on
+  // dark cards" — the alpha treatment was specified FOR the card surface, and
+  // taking it as an unconditional fill is what produces the invisible case.
+  // The state fills fail too (success green is 2.10:1 on the light page), so
+  // all four go through the same derivation rather than special-casing one.
   const barToken = props.state ? STATE_TOKENS[props.state] : '--brand-primary-alpha'
-  const barFill = token(barToken, '#ffb30082')
+  const preferredFill = parseColor(token(barToken, '#ffb30082')) || [255, 179, 0, 0.51]
+  const barFill = toRgbString(deriveInk(preferredFill, bg, AA_NON_TEXT))
 
   const tooltipBg = token('--surface-card', '#424242')
   const tooltipInkPreferred = parseColor(token('--text-on-dark', '#ffffff')) || [255, 255, 255, 1]
@@ -226,14 +238,27 @@ defineExpose({ paint, chartOptions, barThickness: BAR_THICKNESS })
     class="asp-bar-chart"
     :class="[`asp-bar-chart--${variant}`, state && `asp-bar-chart--${state}`]"
   >
+    <!--
+      The unit label is stacked ABOVE the y axis rather than centered against
+      it: at compact's 48px there is no vertical room to center a rotated or
+      stacked label, and a label that only fits one variant is not a shared
+      grammar.
+
+      It sits in normal flow, not absolutely positioned over the plot. The
+      absolute version overlapped the topmost y tick on every single chart —
+      invisible to all 33 assertions, obvious in the first screenshot. Chart.js
+      places that tick at the very top of the canvas, so there is no clear
+      corner to overlay.
+    -->
+    <div
+      v-if="unit"
+      class="asp-bar-chart__unit"
+      :style="{ color: paint.axisInk }"
+      aria-hidden="true"
+    >
+      {{ unit }}
+    </div>
     <div class="asp-bar-chart__plot">
-      <!--
-        The unit label is stacked at the TOP of the y axis rather than centered
-        against it: at compact's 48px there is no vertical room to center a
-        rotated or stacked label, and a label that only fits one variant is not
-        a shared grammar.
-      -->
-      <span v-if="unit" class="asp-bar-chart__unit" aria-hidden="true">{{ unit }}</span>
       <AspChart
         type="bar"
         :data="themedData"
@@ -243,7 +268,23 @@ defineExpose({ paint, chartOptions, barThickness: BAR_THICKNESS })
         :aria-label="ariaLabel"
       />
     </div>
-    <div v-if="range" class="asp-bar-chart__range">{{ range }}</div>
+    <!--
+      Both axis labels take the DERIVED ink rather than `var(--text-muted)`.
+
+      Two reasons, and the second is why this is a style binding rather than a
+      stylesheet rule. First, they are axis chrome: they should be the same ink
+      as the tick values they label, and the tick values are canvas paint that
+      cannot read a CSS variable. Second, --text-muted is
+      `color-mix(in srgb, currentColor 80%, transparent)` — it inherits INK, not
+      surface, so on any container that does not itself establish a text colour
+      it collapses toward the UA default and renders at 1.17:1. That is not
+      hypothetical: it is what the screenshot of this component showed on the
+      dark page surface, and it stayed green through 34 assertions that only
+      ever measured derived colours.
+    -->
+    <div v-if="range" class="asp-bar-chart__range" :style="{ color: paint.axisInk }">
+      {{ range }}
+    </div>
   </div>
 </template>
 
@@ -258,18 +299,16 @@ defineExpose({ paint, chartOptions, barThickness: BAR_THICKNESS })
 }
 
 /*
- * Sits above the y axis in the gutter Chart.js leaves for tick labels. Absolute
- * rather than in flow so it costs no vertical space — P8 asked for shorter
- * charts, and a label that pushes the plot down spends the height the variant
- * just saved.
+ * In flow above the plot. It costs ~1 line of height, which the variant heights
+ * already account for — the rendered-height assertion in bar-chart.spec.js
+ * measures the WHOLE component against the 320px baseline, so this cannot
+ * quietly reintroduce the height P8 objected to.
  */
 .asp-bar-chart__unit {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
+  margin-bottom: var(--space-xs);
   font-size: var(--text-xs);
   line-height: var(--font-line-height-tight);
+  /* Overridden inline with the derived ink; this is the no-JS fallback. */
   color: var(--text-muted);
 }
 
@@ -283,6 +322,7 @@ defineExpose({ paint, chartOptions, barThickness: BAR_THICKNESS })
   margin-top: var(--space-xs);
   text-align: center;
   font-size: var(--text-xs);
+  /* Overridden inline with the derived ink; this is the no-JS fallback. */
   color: var(--text-muted);
 }
 </style>

@@ -127,11 +127,16 @@ export const deriveInk = (preferred, background, target = AA, steps = 24) => {
 
   if (contrastRatio(ink, bg) >= target) return ink
 
-  // Move away from the background: toward white on a dark surface, toward
-  // black on a light one. `luminance` (not raw channel values) picks the
-  // direction, because a mid-grey background is not decided by any one channel.
-  const towardWhite = luminance(bg) < 0.5
-  const endpoint = towardWhite ? [255, 255, 255, 1] : [0, 0, 0, 1]
+  // Pick the endpoint by MEASURING both, not by thresholding the background's
+  // luminance. Relative luminance is not perceptually centred — mid-grey
+  // #808080 sits at 0.216, so a `luminance < 0.5` test sends it toward white,
+  // where the best achievable ratio is 3.95:1. Black reaches 5.32:1 on the same
+  // background. The threshold heuristic therefore fails to find a passing ink
+  // that exists, which is the exact class of silent wrongness this function is
+  // supposed to eliminate. Caught by the #c063c0 case in bar-chart.spec.js.
+  const white = [255, 255, 255, 1]
+  const black = [0, 0, 0, 1]
+  const endpoint = contrastRatio(white, bg) >= contrastRatio(black, bg) ? white : black
 
   for (let i = 1; i <= steps; i += 1) {
     const t = i / steps

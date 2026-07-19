@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { MEASURE } from './contrast-measure.js'
 import {
   AA,
   AA_NON_TEXT,
@@ -45,6 +46,18 @@ test.describe('P8: shorter', () => {
 
   test('compact fits the ~180x48 Health cell the spec sizes', () => {
     expect(HEIGHTS.compact).toBeLessThanOrEqual(48)
+  })
+
+  test('the RENDERED component is shorter, labels included', async ({ page }) => {
+    // The number above sizes the canvas; this measures what the operator
+    // actually sees. The unit and range labels are DOM around the canvas, so
+    // asserting only the canvas height would let the chrome give the saving
+    // back without a single test turning red.
+    await page.goto('/tests/e2e/fixtures/bar-chart.html', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__aspBarChartReady === true)
+    const box = await page.locator('.asp-bar-chart').first().boundingBox()
+    expect(box.height).toBeLessThan(BASELINE_HEIGHT)
+    expect(box.height / BASELINE_HEIGHT).toBeLessThanOrEqual(0.75)
   })
 })
 
@@ -234,6 +247,29 @@ for (const theme of THEMES) {
       // component's chrome goes unmeasured everywhere.
       await expect(page.locator('.asp-bar-chart__unit').first()).toHaveText('ms')
       await expect(page.locator('.asp-bar-chart__range').first()).toHaveText('last 6 hours')
+    })
+
+    test('and those DOM labels are legible on every surface', async ({ page }) => {
+      // The payoff for moving them out of the canvas, and the assertion whose
+      // absence let a real defect through: the labels rendered near-invisible
+      // on the dark page surface while all 34 other assertions stayed green,
+      // because every one of them measured a colour the component DERIVED and
+      // none measured the ones it inherited from CSS.
+      //
+      // Reuses the shipped probe rather than reimplementing it. AspBarChart is
+      // deliberately not in specimens.js (the matrix cannot see a canvas), so
+      // this is where its DOM chrome gets measured.
+      const q = theme === 'dark' ? '?theme=dark' : ''
+      await page.goto(`/tests/e2e/fixtures/bar-chart.html${q}`, { waitUntil: 'networkidle' })
+      await page.waitForFunction(() => window.__aspBarChartReady === true)
+
+      const failures = (await page.evaluate(MEASURE)).filter(
+        (r) => r.ratio < AA && String(r.selector).includes('asp-bar-chart')
+      )
+      expect(
+        failures.map((f) => `${f.selector} "${f.text}": ${f.ratio}:1`),
+        'AspBarChart DOM chrome below AA'
+      ).toEqual([])
     })
   })
 }

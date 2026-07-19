@@ -22,8 +22,16 @@ export const BASELINE_HEIGHT = 320
 /**
  * `regular` — Performance rows, full-width card.
  * `compact` — Health cells; the ~180x48 cell the #2227 spec sizes.
+ *
+ * These size the CANVAS. The unit and range labels are DOM around it and add
+ * roughly a line each, so a fully-labelled regular chart occupies ~220px
+ * against the 320px baseline. `bar-chart.spec.js` asserts the rendered total,
+ * not this number, so the labels cannot quietly give the height back.
+ *
+ * A bare Health cell that wants the literal 48px drops `unit` and `range`; the
+ * labels are opt-in per instance.
  */
-export const HEIGHTS = { regular: 200, compact: 48 }
+export const HEIGHTS = { regular: 180, compact: 48 }
 
 export const VARIANTS = Object.keys(HEIGHTS)
 

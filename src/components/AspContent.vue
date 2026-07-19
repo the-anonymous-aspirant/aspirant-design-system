@@ -126,9 +126,7 @@ const sniffType = (text) => {
   return md > 0 ? 'markdown' : 'text'
 }
 
-const resolvedType = computed(() =>
-  props.type === 'auto' ? sniffType(props.content) : props.type,
-)
+const resolvedType = computed(() => (props.type === 'auto' ? sniffType(props.content) : props.type))
 
 // --- highlighting -----------------------------------------------------------
 const highlight = (code, language) => {
@@ -147,17 +145,22 @@ const highlight = (code, language) => {
 }
 
 const escapeHtml = (s) =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 // --- markdown ---------------------------------------------------------------
 // Raw HTML in the source is ESCAPED, not passed through. marked has shipped no
 // sanitiser since v5 (it defers to the caller), and an artifact body is written
 // by an agent or a tool — i.e. it is untrusted. Escaping at the renderer is the
 // narrow fix: markdown still renders, `<script>` renders as visible text.
+//
+// This is also what makes the template's two `v-html` sites safe, and they are
+// the reason this component exists at all — it renders a body it must first
+// parse. Neither interpolates unescaped input: the markdown branch goes through
+// the `html()` hook below, and the code branch emits only highlight.js span
+// markup over text `highlight()` has already escaped. The `vue/no-v-html` rule
+// is disabled for this file in `.eslintrc.cjs` rather than by an in-template
+// comment, because a template comment is emitted into the rendered DOM as a
+// comment node in every consumer's app.
 const renderer = {
   html(token) {
     return escapeHtml(typeof token === 'string' ? token : token.raw)
@@ -183,8 +186,7 @@ const highlightedSource = computed(() => {
 
 const bodyStyle = computed(() => {
   if (props.maxHeight === null) return {}
-  const h =
-    typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
+  const h = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
   return { maxHeight: h }
 })
 
@@ -195,19 +197,6 @@ const scrollable = computed(() => props.maxHeight !== null)
 </script>
 
 <template>
-  <!--
-    Both `v-html` sites below are deliberate and are the reason this component
-    exists: it renders a body it must first parse. Neither one interpolates
-    unescaped input.
-      - the markdown branch runs through a renderer whose `html()` hook ESCAPES
-        raw HTML rather than passing it through (marked has shipped no sanitiser
-        since v5, and an artifact body is untrusted);
-      - the code branch emits only highlight.js span markup over text that
-        `highlight()` has escaped.
-    eslint-disable-next-line cannot reach these — the rule reports at the
-    attribute, which sits mid-element across several lines.
-  -->
-  <!-- eslint-disable vue/no-v-html -->
   <div
     class="asp-content"
     :class="[`asp-content--${resolvedType}`, { 'asp-content--measured': measure }]"
@@ -380,10 +369,7 @@ const scrollable = computed(() => props.maxHeight !== null)
   margin: 0;
   padding: var(--space-sm) var(--space-md);
   background-color: var(--surface-card);
-  background-image: linear-gradient(
-    var(--surface-card-inner),
-    var(--surface-card-inner)
-  );
+  background-image: linear-gradient(var(--surface-card-inner), var(--surface-card-inner));
   border-radius: var(--radius-md);
   color: var(--text-on-dark);
   font-family: var(--font-family-mono);

@@ -47,8 +47,13 @@ const RAW_SOURCE = [
 
 const LONG_BODY = Array.from(
   { length: 80 },
-  (_, i) => `## Section ${i + 1}\n\nParagraph ${i + 1} of a deliberately long body.\n`,
+  (_, i) => `## Section ${i + 1}\n\nParagraph ${i + 1} of a deliberately long body.\n`
 ).join('\n')
+
+// A fence carrying no language hint. Rendered unhighlighted rather than
+// guessed at: hljs.highlightAuto mis-grammars short snippets, and a wrong
+// grammar mis-colours code that reads fine plain.
+const UNHINTED = ['```', '2026-07-19T09:14:02Z  swap  green -> blue  ok', '```'].join('\n')
 
 // An artifact body is written by an agent or a tool, i.e. untrusted.
 const HOSTILE = [
@@ -62,32 +67,46 @@ const HOSTILE = [
 
 createApp({
   setup: () => () =>
-    h('div', { style: 'padding:24px; display:grid; gap:24px' }, [
-      h('div', { id: 'probe-fenced', 'data-surface': 'content-fenced' }, [
-        h(AspContent, { content: FENCED, type: 'markdown' }),
-      ]),
-      h('div', { id: 'probe-raw', 'data-surface': 'content-raw' }, [
-        h(AspContent, { content: RAW_SOURCE, type: 'code', language: 'python' }),
-      ]),
-      // Same string, no explicit type: proves the sniffer routes it away from
-      // markdown on its own, which is the defect-2 fix for callers that do not
-      // yet have a content-type to pass.
-      h('div', { id: 'probe-auto', 'data-surface': 'content-auto' }, [
-        h(AspContent, { content: RAW_SOURCE, type: 'auto', language: 'python' }),
-      ]),
-      // The control: the SAME string forced through the markdown path. If this
-      // one does not mangle, the fixture is too weak to prove the others.
-      h('div', { id: 'probe-raw-as-markdown', 'data-surface': 'content-control' }, [
-        h(AspContent, { content: RAW_SOURCE, type: 'markdown' }),
-      ]),
-      h('div', { id: 'probe-long', 'data-surface': 'content-long' }, [
-        h(AspContent, { content: LONG_BODY, type: 'markdown', maxHeight: 320 }),
-      ]),
-      h('div', { id: 'probe-uncapped', 'data-surface': 'content-uncapped' }, [
-        h(AspContent, { content: LONG_BODY, type: 'markdown', maxHeight: null }),
-      ]),
-      h('div', { id: 'probe-hostile', 'data-surface': 'content-hostile' }, [
-        h(AspContent, { content: HOSTILE, type: 'markdown' }),
-      ]),
-    ]),
+    h(
+      'div',
+      {
+        // A real consumer sets an ambient ink on its page or card; the tokens
+        // stylesheet alone does not. Without this the whole fixture inherits
+        // the UA default black in BOTH themes, which makes "prose inherits the
+        // surface" unmeasurable — the assertion would compare black to black
+        // and pass a component that had hardcoded its colour.
+        style: 'padding:24px; display:grid; gap:24px; color: var(--text-body)',
+      },
+      [
+        h('div', { id: 'probe-fenced', 'data-surface': 'content-fenced' }, [
+          h(AspContent, { content: FENCED, type: 'markdown' }),
+        ]),
+        h('div', { id: 'probe-raw', 'data-surface': 'content-raw' }, [
+          h(AspContent, { content: RAW_SOURCE, type: 'code', language: 'python' }),
+        ]),
+        // Same string, no explicit type: proves the sniffer routes it away from
+        // markdown on its own, which is the defect-2 fix for callers that do not
+        // yet have a content-type to pass.
+        h('div', { id: 'probe-auto', 'data-surface': 'content-auto' }, [
+          h(AspContent, { content: RAW_SOURCE, type: 'auto', language: 'python' }),
+        ]),
+        // The control: the SAME string forced through the markdown path. If this
+        // one does not mangle, the fixture is too weak to prove the others.
+        h('div', { id: 'probe-raw-as-markdown', 'data-surface': 'content-control' }, [
+          h(AspContent, { content: RAW_SOURCE, type: 'markdown' }),
+        ]),
+        h('div', { id: 'probe-long', 'data-surface': 'content-long' }, [
+          h(AspContent, { content: LONG_BODY, type: 'markdown', maxHeight: 320 }),
+        ]),
+        h('div', { id: 'probe-uncapped', 'data-surface': 'content-uncapped' }, [
+          h(AspContent, { content: LONG_BODY, type: 'markdown', maxHeight: null }),
+        ]),
+        h('div', { id: 'probe-unhinted', 'data-surface': 'content-unhinted' }, [
+          h(AspContent, { content: UNHINTED, type: 'markdown' }),
+        ]),
+        h('div', { id: 'probe-hostile', 'data-surface': 'content-hostile' }, [
+          h(AspContent, { content: HOSTILE, type: 'markdown' }),
+        ]),
+      ]
+    ),
 }).mount('#app')

@@ -50,8 +50,11 @@ test('a fence with no language hint renders unhighlighted rather than guessed', 
   await open(page, 'light')
   // Guessing is worse than not colouring: hljs.highlightAuto mis-grammars short
   // snippets, and a wrong grammar mis-colours code that reads fine plain.
-  const html = await page.locator('#probe-hostile pre').first().innerHTML().catch(() => '')
-  expect(html).not.toContain('hljs-')
+  const pre = page.locator('#probe-unhinted pre')
+  await expect(pre).toBeVisible()
+  expect(await pre.innerHTML()).not.toContain('hljs-')
+  // Still rendered as a code block, just an uncoloured one.
+  expect(await pre.innerText()).toContain('swap  green -> blue  ok')
 })
 
 // --- defect 2: raw source is preserved, not mangled --------------------------
@@ -78,7 +81,9 @@ test('the control proves the fixture can detect mangling', async ({ page }) => {
   // The SAME string forced down the markdown path. If this does not mangle,
   // the two assertions above are vacuous — they would pass on any input.
   const control = page.locator('#probe-raw-as-markdown')
-  await expect(control.locator('h1')).toHaveCount(1)
+  // Two, not one: the specimen opens with two `#` comment lines, and the
+  // markdown path promotes BOTH to headings. That is the mangling.
+  await expect(control.locator('h1')).toHaveCount(2)
   const text = await control.innerText()
   expect(text).not.toContain('    "timeout": 2.5,')
 })
@@ -168,7 +173,23 @@ test('raw HTML in the body is escaped, not executed', async ({ page }) => {
  */
 const rampRatios = async (page) =>
   page.evaluate(() => {
-    const parse = (c) => (c.match(/[\d.]+/g) || []).map(Number)
+    // Colour is read as a RASTERISED PIXEL, not parsed out of the string.
+    // Same technique and same reason as `contrast-measure.js` defect 5: a
+    // regex over the computed value has to guess the component scale, and
+    // Chromium reports `color-mix(... currentColor 60% ...)` as
+    // `color(srgb 1 1 1 / 0.6)` — 0-1 components. A 0-255 parser reads that as
+    // near-black, which is how the comment token first measured sub-AA against
+    // a surface it is in fact perfectly legible on. Letting the browser do the
+    // conversion is format-agnostic by construction.
+    const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+    const parse = (c) => {
+      cv.clearRect(0, 0, 1, 1)
+      cv.fillStyle = '#000'
+      cv.fillStyle = c
+      cv.fillRect(0, 0, 1, 1)
+      const [r, g, b, a] = cv.getImageData(0, 0, 1, 1).data
+      return [r, g, b, a / 255]
+    }
     const over = (fg, bg) => {
       const a = fg[3] ?? 1
       return [0, 1, 2].map((i) => fg[i] * a + bg[i] * (1 - a))
@@ -188,10 +209,12 @@ const rampRatios = async (page) =>
     const pre = document.querySelector('#probe-fenced pre')
     const cs = getComputedStyle(pre)
     let surface = parse(cs.backgroundColor)
-    // Composite each gradient stop's colour over the base, in paint order.
-    for (const stop of cs.backgroundImage.match(/rgba?\([^)]*\)/g) || []) {
-      surface = over(parse(stop), surface)
-    }
+    // The wash is ONE painted layer, so it is composited once — not once per
+    // gradient stop. `linear-gradient(c, c)` has two stops naming the same
+    // colour; applying both would double-darken the surface and overstate every
+    // ratio measured against it.
+    const stop = (cs.backgroundImage.match(/(?:rgba?|color)\([^)]*\)/) || [])[0]
+    if (stop) surface = over(parse(stop), surface)
 
     const out = []
     // The block's own ink, plus every highlighted token in it.

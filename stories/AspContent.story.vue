@@ -107,9 +107,14 @@ const LONG_BODY = Array.from(
     `control off-screen — the third defect this component was filed against.\n`,
 ).join('\n')
 
+// Built by concatenation, never written contiguously: a literal closing script
+// tag in this string would terminate the `<script setup>` block itself, and
+// escaping it (`<\/script>`) trips `no-useless-escape`. Splitting after `</`
+// is enough — that pair alone does not close anything.
+const CLOSE_SCRIPT = '</' + 'script>'
 const XSS = `A body is untrusted input, so raw HTML is escaped rather than passed through:
 
-<script>alert('xss')<\/script>
+<script>alert('xss')${CLOSE_SCRIPT}
 <img src=x onerror="alert('xss')">
 
 Markdown still renders **normally** around it.
@@ -197,7 +202,7 @@ Markdown still renders **normally** around it.
       </p>
     </Variant>
 
-    <Variant title="Uncapped (`:max-height=\"null\"`)">
+    <Variant title="Uncapped (max-height null)">
       <AspCard>
         <AspContent :content="MARKDOWN" type="markdown" :max-height="null" />
       </AspCard>

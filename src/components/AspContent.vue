@@ -195,6 +195,19 @@ const scrollable = computed(() => props.maxHeight !== null)
 </script>
 
 <template>
+  <!--
+    Both `v-html` sites below are deliberate and are the reason this component
+    exists: it renders a body it must first parse. Neither one interpolates
+    unescaped input.
+      - the markdown branch runs through a renderer whose `html()` hook ESCAPES
+        raw HTML rather than passing it through (marked has shipped no sanitiser
+        since v5, and an artifact body is untrusted);
+      - the code branch emits only highlight.js span markup over text that
+        `highlight()` has escaped.
+    eslint-disable-next-line cannot reach these — the rule reports at the
+    attribute, which sits mid-element across several lines.
+  -->
+  <!-- eslint-disable vue/no-v-html -->
   <div
     class="asp-content"
     :class="[`asp-content--${resolvedType}`, { 'asp-content--measured': measure }]"
@@ -203,7 +216,6 @@ const scrollable = computed(() => props.maxHeight !== null)
     :role="scrollable ? 'region' : undefined"
     :aria-label="scrollable ? 'Artifact body' : undefined"
   >
-    <!-- eslint-disable-next-line vue/no-v-html -->
     <div v-if="resolvedType === 'markdown'" class="asp-content__prose" v-html="renderedHtml" />
 
     <pre v-else-if="resolvedType === 'code'" class="asp-content__code"><code

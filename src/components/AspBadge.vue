@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 
+import { resolveDataFill } from '../utils/data_fill.js'
+
 // AspBadge — the inline status/label family: semantic status badge, label /
 // capability chip, removable filter-chip, and agent-status dot. One component,
 // four variants; the semantic color system is shared. Color is always
@@ -40,13 +42,45 @@ const props = defineProps({
   tip: { type: String, default: null },
   // Accessible label for the dot variant when it carries no visible text.
   ariaLabel: { type: String, default: null },
+  /**
+   * Data-driven fill (hex) for `chip` and `dot` — a `vocab_labels.color` or a
+   * per-agent assigned colour. When set it overrides the semantic `status`
+   * token; when omitted the semantic path is untouched.
+   *
+   * The ink is derived from the fill at render time per corpus §3.18, and the
+   * fill itself may be nudged in lightness when neither candidate ink clears
+   * 4.5:1 against it. Nothing is written back — see src/utils/data_fill.js.
+   */
+  color: { type: String, default: null },
 })
 
 const emit = defineEmits(['remove'])
 
 const isDot = computed(() => props.variant === 'dot')
+
+// A malformed hex resolves to null and falls back to the semantic path rather
+// than rendering an arbitrary colour — bad data should degrade, not surprise.
+const dataFill = computed(() =>
+  props.color && (props.variant === 'chip' || props.variant === 'dot')
+    ? resolveDataFill(props.color)
+    : null
+)
+
+/**
+ * The chip paints fill + derived ink; the dot paints the fill only (it carries
+ * no text of its own, so there is no ink to derive for it — its label sits
+ * outside the circle on the ambient surface).
+ */
+const dataStyle = computed(() => {
+  if (!dataFill.value) return null
+  return isDot.value
+    ? { backgroundColor: dataFill.value.fill }
+    : { backgroundColor: dataFill.value.fill, color: dataFill.value.ink }
+})
 const isFilter = computed(() => props.variant === 'filter')
-const usesStatusColor = computed(() => props.variant === 'status' || isDot.value)
+const usesStatusColor = computed(
+  () => (props.variant === 'status' || isDot.value) && !dataFill.value
+)
 
 const legend = computed(() =>
   props.tip ?? (usesStatusColor.value ? STATUS_LEGEND[props.status] : null),
@@ -57,6 +91,7 @@ const classes = computed(() => ({
   [`badge--${props.variant}`]: true,
   [`badge--size-${props.size}`]: true,
   [`badge--status-${props.status}`]: usesStatusColor.value,
+  'badge--data-color': Boolean(dataFill.value),
 }))
 
 const onRemove = (event) => {
@@ -72,7 +107,12 @@ const onRemove = (event) => {
     :class="classes"
     :title="legend || undefined"
   >
-    <span class="badge__dot" :aria-label="ariaLabel || legend || undefined" role="img" />
+    <span
+      class="badge__dot"
+      :style="dataStyle"
+      :aria-label="ariaLabel || legend || undefined"
+      role="img"
+    />
     <span v-if="$slots.default" class="badge__dot-label"><slot /></span>
   </span>
 
@@ -80,6 +120,7 @@ const onRemove = (event) => {
   <span
     v-else
     :class="classes"
+    :style="dataStyle"
     :title="legend || undefined"
   >
     <span class="badge__label"><slot /></span>
@@ -104,6 +145,16 @@ const onRemove = (event) => {
 </template>
 
 <style scoped>
+/*
+ * A data-coloured chip paints its fill and ink INLINE, because the value comes
+ * from data and cannot be a class. The only thing this rule does is stop the
+ * token-driven border from fighting a fill it knows nothing about — the fill
+ * and its derived ink already carry the shape.
+ */
+.badge--data-color {
+  border-color: transparent;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

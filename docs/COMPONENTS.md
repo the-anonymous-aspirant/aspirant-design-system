@@ -253,6 +253,30 @@ Emits: `remove` (the `filter` variant's `×`).
 Tokens: the tinted `--feedback-{success,warning,error,neutral}-bg` / `-text`
 pairs (#1970), `--radius-pill`.
 
+
+**Data-driven fill (`color`), added #2378.** `chip` and `dot` accept a hex `color` — a
+`vocab_labels.color` or a per-agent assigned colour — which overrides the semantic `status`
+token. Omitting it leaves the semantic path untouched. This is the design-of-record render
+path for label chips and agent status dots: **one primitive, data-driven**, not separate
+`AspLabelChip` / `AspStatusDot` components (conventions §3.13, §3.11 promote-once).
+
+Ink is derived from the fill at render time per corpus §3.18, in three steps: pick the
+better of the two candidate inks; if it clears 4.5:1, render unchanged; otherwise nudge the
+**fill's** lightness minimally — hue and saturation held — until it does. The third step is
+load-bearing: `#c063c0` clears neither candidate (3.63:1 against white, 4.44:1 against
+near-black), so no choice-of-ink rule alone can save it. It resolves to `#c165c1` at 4.52:1.
+
+The stored value is **never** written back — the adjustment is a pure function of the fill,
+so the operator's colour round-trips intact and the guarantee extends to colours added
+later. 11px/700 is not WCAG "large text" (that needs ≥18.66px bold), so the 3:1 allowance
+does not apply and the threshold stays 4.5:1.
+
+The dark pole is `#212121`, **not** `--text-on-light`. That token is `#424242` here and
+flips to `#e0e0e0` under `[data-theme='dark']`, which would hand step 1 two light candidates
+in dark mode. The choice also decides how much the palette moves: against `#212121` one of
+nine live fills needs adjusting; against `#424242`, eight of nine do. See
+`src/utils/data_fill.js` — flagged for the designer to ratify and tokenize.
+
 ### 14. `AspDataTable` — ✅ shipped
 
 DS-themed sortable table. Ports the system_3 `_partials/table.html` +

@@ -150,12 +150,46 @@ the reMarkable SVG pipeline serves `${VITE_ICON_BASE}/back.svg`.
 
 Reference: `aspirant-client/src/components/BackButton.vue`.
 
-### 10. `AspTypography` (or heading primitives `AspH1`, `AspH2`, `AspProse`)
+### 10. `AspHeading` + `AspProse` — ✅ shipped
 
-Type scale enforcement. Prevents drift where `<h1>` on view A doesn't match view B. `AspProse` handles long-form (paragraph, list, code, blockquote) — matters for blog scope.
+Typography primitives that bind text to the token scale so per-view drift cannot start.
+(Shipped as two components rather than one `AspTypography`: a heading and a prose block
+share no props and no behaviour, and the barrel is the thing consumers import from.)
 
-Props (Heading): `level` (1..6), `color`, `align`.
-Props (Prose): `size` (sm | base | lg), `contrast`.
+**`AspHeading`** — `level` (1-6) picks the semantic element; `size` picks the scale step,
+**independently**. Document outline and visual hierarchy genuinely disagree — a card title
+is an `<h2>` while reading smaller than the page `<h1>` — and coupling them pushes authors
+into choosing a level for its font size, which is how heading outlines break
+(WCAG 1.3.1 / 2.4.6). Ships no margin: `AspProse` spaces its own children.
+
+Props: `level` (1-6, default 2), `size` (`xs`…`3xl`, defaults per level), `color`
+(`inherit` | `muted` | `heading`), `align` (`start` | `center` | `end`), `weight`.
+
+**`AspProse`** — long-form wrapper that styles its descendants (`p`, lists, `code`, `pre`,
+`blockquote`, `a`, `hr`). It styles descendants rather than exposing a component per
+element because its content is usually *rendered* — an artifact body, a task description —
+so there is no authoring moment at which someone could reach for an `<AspParagraph>`.
+
+Props: `size` (`sm` | `base` | `lg`), `measure` (caps the line length at `70ch`).
+
+**Colour rules, all three learned by measurement rather than reasoning:**
+
+- There is **no `body` colour option**. It was in the first draft and measured **1:1 on a
+  dark card** in the light theme — `--text-body` is an absolute dark ink. `inherit` already
+  yields the body ink on any correctly-set surface, so it was redundant as well as unsafe.
+- Prose links are blue per corpus §1.3 but **not raw `--text-hint`** (#82b1ff measures
+  **1.71:1** on the light page; this was its first consumer as ink). Same `color-mix`
+  resolution as `AspButton`'s ghost label, with the accent ramp.
+- Code chips and rules tint from **`currentColor`, not `--surface-card-inner`**. That token
+  is `rgba(255,255,255,0.06)` — a white wash that *lightens* every surface, including light
+  ones, where it measured **3.8:1**.
+
+`color="heading"` is the signature amber and is **card surfaces only** — 5.60:1 on
+`--surface-card`, 1.41:1 on the light page (#2419). It is opt-in and measured on card
+surfaces in the contrast matrix, which is where the design puts it.
+
+The former `Foundations/Typography` showcase (webfont + token verification) is folded into
+this component's story, so the scale has one home rather than two that can disagree.
 
 ### 11. `AspAppShell` — ✅ shipped
 

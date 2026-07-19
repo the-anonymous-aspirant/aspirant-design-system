@@ -26,7 +26,7 @@ const stateData = (data) => ({ labels: cellData.labels, datasets: [{ label: 'rat
     <template #docs>
       <p><strong>Purpose:</strong> an opinionated <em>preset</em> over <code>AspChart(type: bar)</code> — not a second chart engine. Every bar graph on Performance and Health renders through this one component, so axes, tick density, bar geometry and hover behaviour cannot drift per page.</p>
       <p><strong>Axes are drawn, not implied.</strong> A 1px axis line runs along the baseline and the left edge; the plot grid is off. The y <em>unit</em> label sits at the axis and the x <em>range</em> label is centered under the baseline — both as real DOM text, replacing the muted <code>y: … / x: …</code> caption prose.</p>
-      <p><strong>Operator feedback (P8)</strong> drove three of the defaults: charts are <em>shorter</em> ({{ HEIGHTS.regular }}px regular against AspChart's {{ BASELINE_HEIGHT }}px), the hover tooltip names <em>both</em> the x and the y value, and the x axis labels every category instead of thinning them out.</p>
+      <p><strong>Operator feedback (P8)</strong> drove three of the defaults: charts are <em>shorter</em> ({{ HEIGHTS.regular }}px regular against AspChart's {{ BASELINE_HEIGHT }}px), the hover tooltip names <em>both</em> the x and the y value, and the x axis fits about 50% more labels than the default treatment — rotating them rather than dropping them, while Chart.js's collision avoidance still guarantees none overlap.</p>
       <p><strong>Contrast:</strong> tick text and axis lines are painted on a canvas, so they cannot inherit per surface. The component resolves the container's real background and <em>derives</em> an ink that clears AA against it — which is why it is legible on a dark <code>AspCard</code> in the light theme, the surface that breaks naive charts.</p>
       <p><strong>chart.js</strong> is an optional peer dependency — install it in the consuming app.</p>
     </template>
@@ -136,14 +136,14 @@ const stateData = (data) => ({ labels: cellData.labels, datasets: [{ label: 'rat
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; background: var(--surface-page);">
         <div>
           <p style="color: var(--text-muted); margin: 0 0 8px;">
-            before — AspChart(type: bar), {{ BASELINE_HEIGHT }}px, thinned x labels, value-only hover
+            before — AspChart(type: bar), {{ BASELINE_HEIGHT }}px, sparser x labels, value-only hover
           </p>
           <AspChart type="bar" :data="perfData" :height="BASELINE_HEIGHT" aria-label="Latency, plain chart" />
           <p style="color: var(--text-muted); margin: 8px 0 0; font-size: var(--text-xs);">y: ms — x: last 30 hours</p>
         </div>
         <div>
           <p style="color: var(--text-muted); margin: 0 0 8px;">
-            after — AspBarChart, {{ HEIGHTS.regular }}px, every x label, x+y hover, drawn axes
+            after — AspBarChart, {{ HEIGHTS.regular }}px, ~50% more x labels, x+y hover, drawn axes
           </p>
           <AspBarChart :data="perfData" unit="ms" range="last 30 hours" aria-label="Latency, bar preset" />
         </div>

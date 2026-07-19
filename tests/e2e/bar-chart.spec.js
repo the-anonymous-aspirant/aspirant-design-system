@@ -89,9 +89,33 @@ test.describe('P8: hover exposes x AND y', () => {
 })
 
 test.describe('P8: denser axis labels', () => {
-  test('regular labels every x category rather than thinning them', () => {
-    expect(TICKS.regular.x.autoSkip).toBe(false)
-    expect(OPTS().scales.x.ticks.autoSkip).toBe(false)
+  // Asserted on what RENDERS, not on the flag. The first version of this suite
+  // asserted `autoSkip === false` and passed while the 30-category chart drew
+  // `0h1h2h3h4h…29h` as one unreadable smear — the assertion encoded the
+  // implementation choice instead of the operator's goal, so it could not tell
+  // the difference between "denser" and "illegible".
+  test('regular renders MORE x labels than a plain AspChart, and none overlap', async ({
+    page,
+  }) => {
+    await page.goto('/tests/e2e/fixtures/tick-density.html', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__tickDensityReady === true, null, { timeout: 10_000 })
+    const m = await page.evaluate(() => window.__tickDensity)
+
+    // Denser than the treatment P8 objected to.
+    expect(
+      m.preset.count,
+      `preset drew ${m.preset.count} x labels, baseline drew ${m.baseline.count}`
+    ).toBeGreaterThan(m.baseline.count)
+
+    // And still readable: collision avoidance is ON, so no two adjacent labels
+    // may share pixels. This is the half the flag assertion could not see.
+    expect(m.preset.overlaps, `${m.preset.overlaps} overlapping x label pairs`).toBe(0)
+  })
+
+  test('collision avoidance stays enabled', () => {
+    // The specific regression: turning this off is what produced the smear.
+    expect(TICKS.regular.x.autoSkip).toBe(true)
+    expect(OPTS().scales.x.ticks.autoSkip).toBe(true)
   })
 
   test('regular gives y a real tick ramp, not just the extremes', () => {
@@ -131,8 +155,10 @@ test.describe('it is a preset, not a fork', () => {
     expect(overridden.scales.y.beginAtZero).toBe(false)
   })
 
-  test('an unknown variant falls back rather than rendering an empty scale', () => {
-    expect(buildBarOptions({ variant: 'nonsense' }).scales.x.ticks.autoSkip).toBe(false)
+  test('an unknown variant falls back to regular rather than an empty scale', () => {
+    // Compared against TICKS.regular rather than a literal, so retuning the
+    // density policy cannot leave this asserting a value nothing uses.
+    expect(buildBarOptions({ variant: 'nonsense' }).scales.x.ticks).toMatchObject(TICKS.regular.x)
   })
 })
 

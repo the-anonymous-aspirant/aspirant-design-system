@@ -57,10 +57,30 @@ export const BAR_GAP = 7
 /**
  * Tick budget per variant.
  *
- * `regular.x.autoSkip: false` is the direct answer to P8's "denser x/y axis
- * label values": Chart.js's default drops x labels whenever they crowd, which
- * is what produced the sparse treatment the operator objected to. Turning it
- * off labels every category.
+ * P8 asked for "denser x/y axis label values". The first implementation read
+ * that as `autoSkip: false` — label every category, no exceptions. That is
+ * wrong, and the storybook showed why within seconds: at 30 hourly categories
+ * the labels render as `0h1h2h3h4h…29h`, a single unreadable smear. More
+ * labels than can be read is fewer labels, and disabling Chart.js's collision
+ * avoidance threw away the one thing it does correctly.
+ *
+ * So density is tuned, not forced. `autoSkip` stays ON — the library guarantees
+ * no overlap — and the knobs push toward more labels within that guarantee.
+ *
+ * The knob that actually moves the number is `maxRotation`, and this took
+ * measuring to find. Dropping `autoSkipPadding` from 3 to 1 changed nothing:
+ * autoskip quantises to an integer skip ratio, so on 30 categories it lands on
+ * "every 3rd" either way. Raising the rotation budget to 90 does move it,
+ * because a rotated label's horizontal footprint is its line height rather than
+ * its text width. Measured on the Performance page's own "last 30 hours" data
+ * at the contested 340px width: **15 labels against the baseline's 10, zero
+ * overlaps**, settling at 56°. Chart.js only rotates as far as it must, so a
+ * five-category chart still renders flat.
+ *
+ * The test asserts that RENDERED count against a plain AspChart on the same
+ * data at the same width, plus zero overlapping pairs. Asserting the flag value
+ * instead is what let the smear through: it encoded the implementation choice,
+ * not the operator's goal, so it could not tell "denser" from "illegible".
  *
  * `compact` goes the other way on purpose. A 48px-tall cell has no vertical
  * room for a tick ramp and no horizontal room for category labels; y falls back
@@ -69,7 +89,10 @@ export const BAR_GAP = 7
  * the surface P8 was looking at, not a rule for every surface.
  */
 export const TICKS = {
-  regular: { y: { maxTicksLimit: 6 }, x: { autoSkip: false, maxRotation: 0 } },
+  regular: {
+    y: { maxTicksLimit: 6 },
+    x: { autoSkip: true, autoSkipPadding: 1, maxRotation: 90, minRotation: 0 },
+  },
   compact: { y: { maxTicksLimit: 2 }, x: { display: false } },
 }
 

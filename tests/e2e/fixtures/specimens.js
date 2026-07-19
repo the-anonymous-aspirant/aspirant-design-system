@@ -37,6 +37,22 @@ export const specimens = () => [
   h(DS.AspCheckbox, { label: 'checkbox mixed', modelValue: false, indeterminate: true }),
   h(DS.AspEmptyState, { heading: 'empty heading', message: 'empty message' }),
   h(DS.AspBackButton),
+  h(DS.AspHeading, { level: 2 }, () => 'heading inherit'),
+  h(DS.AspHeading, { level: 3, color: 'body' }, () => 'heading body'),
+  h(DS.AspHeading, { level: 3, color: 'muted' }, () => 'heading muted'),
+  // Prose carries the risky bits: an inline-code chip (tinted background) and a
+  // link whose ink is derived rather than raw --text-hint. Both are measured on
+  // every surface, which is the only way the derivation is actually checked.
+  h(DS.AspProse, null, () => [
+    h('p', null, [
+      'prose body copy with ',
+      h('code', null, 'inline code'),
+      ' and ',
+      h('a', { href: '#' }, 'a link'),
+      '.',
+    ]),
+    h('blockquote', null, 'quoted prose'),
+  ]),
 ]
 
 /**
@@ -59,6 +75,18 @@ export const surfaces = () => [
  * would still be green. Rendered on the page surface and inside a default
  * card, since the panel must be legible regardless of what it opens over.
  */
+/**
+ * The signature amber card heading. Scoped to card surfaces on purpose: amber
+ * is 5.60:1 on --surface-card and 1.41:1 on the light page (#2419), and the
+ * design only ever puts it on a card. Measuring it on the page surface would
+ * assert a defect the library does not ship.
+ */
+export const cardHeadings = () => [
+  h(DS.AspCard, { 'data-surface': 'card-amber-heading' }, () => [
+    h(DS.AspHeading, { level: 2, color: 'heading' }, () => 'signature amber heading'),
+  ]),
+]
+
 export const openPanels = () => [
   h('div', { class: 'probe-surface', 'data-surface': 'page-select-open' }, [
     h(DS.AspSelect, { label: 'open on page', modelValue: 'a', options: SELECT_OPTIONS, ref: 'openA' }),
@@ -128,6 +156,7 @@ export const shell = (extra = []) =>
     default: () =>
       h('div', { class: 'probe-root' }, [
         ...surfaces(),
+        ...cardHeadings(),
         ...openPanels(),
         h(modalSpecimen()),
         ...extra,

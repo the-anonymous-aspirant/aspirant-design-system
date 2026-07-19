@@ -15,10 +15,19 @@ import { AA } from './contrast-measure.js'
 
 const THEMES = ['light', 'dark']
 
-const open = (page, theme) =>
-  page.goto(`/tests/e2e/fixtures/content.html${theme === 'dark' ? '?theme=dark' : ''}`, {
+const open = async (page, theme) => {
+  await page.goto(`/tests/e2e/fixtures/content.html${theme === 'dark' ? '?theme=dark' : ''}`, {
     waitUntil: 'networkidle',
   })
+  // Wait for the MOUNT, not just the network. This fixture pulls in
+  // highlight.js's grammar modules, and on the first hit of a cold `vite dev`
+  // the transform of that module graph can outlast a 5s assertion timeout — so
+  // the suite failed once with "element(s) not found" on an ordering where this
+  // spec ran first, and passed on every ordering where something else warmed
+  // the server. Waiting on the component's own root removes the dependence on
+  // which spec happens to go first.
+  await page.locator('.asp-content').first().waitFor({ state: 'attached' })
+}
 
 // --- defect 1: highlighting -------------------------------------------------
 
@@ -218,7 +227,10 @@ const rampRatios = async (page) =>
 
     const out = []
     // The block's own ink, plus every highlighted token in it.
-    const targets = [['pre', pre], ...[...pre.querySelectorAll('[class*="hljs-"]')].map((e) => [e.className, e])]
+    const targets = [
+      ['pre', pre],
+      ...[...pre.querySelectorAll('[class*="hljs-"]')].map((e) => [e.className, e]),
+    ]
     for (const [name, el] of targets) {
       const text = [...el.childNodes]
         .filter((n) => n.nodeType === Node.TEXT_NODE)
@@ -244,7 +256,7 @@ for (const theme of THEMES) {
     expect(
       failures,
       `code surface rgb(${surface.join(',')}) — sub-AA: ` +
-        failures.map((f) => `${f.name} ${f.ratio}:1 ("${f.text}")`).join(', '),
+        failures.map((f) => `${f.name} ${f.ratio}:1 ("${f.text}")`).join(', ')
     ).toEqual([])
   })
 }

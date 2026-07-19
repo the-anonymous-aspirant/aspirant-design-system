@@ -238,9 +238,22 @@ const scrollable = computed(() => props.maxHeight !== null)
 }
 
 /*
- * Subtle scrollbar, both engines. Firefox takes the standard properties;
- * WebKit/Blink still need the pseudo-element. Tinted from currentColor so the
- * thumb follows the surface's polarity like the rest of the inherited layer.
+ * Subtle scrollbar. Tinted from currentColor so the thumb follows the surface's
+ * polarity like the rest of the inherited layer.
+ *
+ * The two blocks are a fallback pair, not a belt-and-braces duplicate, and the
+ * precedence runs one way: where the standard `scrollbar-width` /
+ * `scrollbar-color` properties are supported, the engine IGNORES the
+ * `::-webkit-scrollbar` pseudo-element entirely. Modern Chromium and Firefox
+ * therefore take the standard block; only older WebKit falls through to the
+ * pseudo-element one.
+ *
+ * A consequence worth knowing before someone "fixes" it: under the standard
+ * properties the scrollbar is an OVERLAY and occupies no layout width
+ * (measured gutter = 0), so a capped body shows no persistent scroll
+ * affordance at rest — the cut edge is the only cue until the pointer enters
+ * or the region is scrolled. That is the platform's behaviour, not a missing
+ * rule, and the `width` in the pseudo-element block does not override it.
  */
 .asp-content {
   scrollbar-width: thin;

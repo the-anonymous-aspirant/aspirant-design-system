@@ -104,7 +104,7 @@ const LONG_BODY = Array.from(
   (_, i) =>
     `## Section ${i + 1}\n\nParagraph ${i + 1} of a body long enough that an uncapped ` +
     `renderer would expand to the full page height and push every surrounding ` +
-    `control off-screen — the third defect this component was filed against.\n`,
+    `control off-screen — the third defect this component was filed against.\n`
 ).join('\n')
 
 // Built by concatenation, never written contiguously: a literal closing script
@@ -125,41 +125,40 @@ Markdown still renders **normally** around it.
   <Story title="Components/AspContent">
     <template #docs>
       <p>
-        <strong>Purpose:</strong> the artifact/report body renderer — a body that arrives as
-        opaque text (a markdown report, a source file, a log dump) and has to render without
-        mangling, without unbounded growth, and without a hand-authored markup step.
+        <strong>Purpose:</strong> the artifact/report body renderer — a body that arrives as opaque
+        text (a markdown report, a source file, a log dump) and has to render without mangling,
+        without unbounded growth, and without a hand-authored markup step.
       </p>
       <p>
         <strong>When to use:</strong> rendering an artifact, report, or task body you did not
         author. <strong>When not to use:</strong> content you already have as markup — that is
-        <code>AspProse</code>, which styles descendants it is handed. The difference is the
-        parse: <code>AspContent</code> owns it, because all three defects it was filed against
+        <code>AspProse</code>, which styles descendants it is handed. The difference is the parse:
+        <code>AspContent</code> owns it, because all three defects it was filed against
         (<code>#2382</code>) happen during the render, not during the styling.
       </p>
       <p>
         <strong>Contrast role: MIXED</strong> (spec amendment <code>#2382</code> comment 9767;
-        <code>system_3_design_conventions.md</code> §3.18). Prose <em>inherits</em> — no colour,
-        no background, so it is legible on the light page and on a dark card alike. Code blocks
+        <code>system_3_design_conventions.md</code> §3.18). Prose <em>inherits</em> — no colour, no
+        background, so it is legible on the light page and on a dark card alike. Code blocks
         <em>paint</em> — background and ink declared together, which is what makes the highlight
         ramp's contrast provable once instead of once per theme.
       </p>
       <p>
         <strong>No stock highlight.js theme is vendored.</strong> A third-party theme ships a
-        palette tuned for its own background, so dropping one in overrides token ink with
-        colours chosen against a different surface entirely. The ramp is re-mapped onto DS
-        tokens and every colour was measured against <em>both</em> resolved code surfaces —
-        <code>#2e2e2e</code> in the light theme, <code>#373737</code> in the dark — and clears
-        4.5:1. Four tokens failed that measurement and are excluded:
-        <code>--chart-series-3</code> (3.97), <code>--chart-series-5</code> (4.44),
-        <code>--chart-series-4</code> (3.51), <code>--chart-series-9</code> (2.90). The green
-        one is the trap — "strings are green" is the reflex, and strings are the largest token
-        class in a highlighted body.
+        palette tuned for its own background, so dropping one in overrides token ink with colours
+        chosen against a different surface entirely. The ramp is re-mapped onto DS tokens and every
+        colour was measured against <em>both</em> resolved code surfaces — <code>#2e2e2e</code> in
+        the light theme, <code>#373737</code> in the dark — and clears 4.5:1. Four tokens failed
+        that measurement and are excluded: <code>--chart-series-3</code> (3.97),
+        <code>--chart-series-5</code> (4.44), <code>--chart-series-4</code> (3.51),
+        <code>--chart-series-9</code> (2.90). The green one is the trap — "strings are green" is the
+        reflex, and strings are the largest token class in a highlighted body.
       </p>
       <p>
-        <strong><code>type="auto"</code> is biased away from markdown.</strong> Mis-reading
-        source as markdown is the logged defect — eaten indentation, <code>*</code> as
-        emphasis. Mis-reading markdown as source is merely plain-looking. The costs are not
-        symmetric, so neither is the test: markdown has to be affirmatively evidenced.
+        <strong><code>type="auto"</code> is biased away from markdown.</strong> Mis-reading source
+        as markdown is the logged defect — eaten indentation, <code>*</code> as emphasis.
+        Mis-reading markdown as source is merely plain-looking. The costs are not symmetric, so
+        neither is the test: markdown has to be affirmatively evidenced.
       </p>
     </template>
 
@@ -231,8 +230,8 @@ Markdown still renders **normally** around it.
         <AspContent :content="XSS" type="markdown" />
       </AspCard>
       <p class="note">
-        <code>marked</code> has shipped no sanitiser since v5 and an artifact body is written by
-        an agent or a tool. Escaping at the renderer is the narrow fix: markdown still renders,
+        <code>marked</code> has shipped no sanitiser since v5 and an artifact body is written by an
+        agent or a tool. Escaping at the renderer is the narrow fix: markdown still renders,
         <code>&lt;script&gt;</code> renders as visible text.
       </p>
     </Variant>

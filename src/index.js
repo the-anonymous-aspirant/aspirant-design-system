@@ -21,6 +21,7 @@ export { default as AspHeading } from './components/AspHeading.vue'
 export { default as AspProse } from './components/AspProse.vue'
 export { default as AspList } from './components/AspList.vue'
 export { default as AspListItem } from './components/AspListItem.vue'
+export { default as AspTimeSince } from './components/AspTimeSince.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'

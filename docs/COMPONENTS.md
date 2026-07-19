@@ -296,6 +296,35 @@ Slots: `cell-<key>` (scoped: `{ row, value, index }`), `header-<key>`, `empty`.
 Emits: `sort` (`{ key, dir }`), `update:sortBy`, `update:sortDir`, `row-click`
 (`row, index`).
 
+### 15. `AspTimeSince` — ✅ shipped
+
+One component for every "how long" read on the frontend (system_3 #2272): freshness
+(`elapsed`), time-in-lane (`duration`), cron next-fire (`countdown`).
+
+**Format rule (exact):** single largest unit, floored — `<60s → Xs`, `<60m → Xm`,
+`<24h → Xh`, else `Xd`. **Never compound.** `1h 22m` reads as prose; `1h` reads as a
+terminal field, and these sit in dense columns that have to scan (§2.7). The rule lives in
+`src/utils/time_since.js` as a pure function, asserted at both sides of all three unit
+boundaries — it floors before comparing, so `59.7s` is `59s` and never the unreachable
+`60s`.
+
+Renders a `<time>` with a real `datetime` attribute, so the machine-readable instant is in
+the DOM rather than only in the tooltip.
+
+Two edge cases decided rather than left to chance: a countdown past its instant reads `due`,
+not `next -3m`; a missing or unparseable instant renders an em dash with an accessible label
+so the column keeps its shape.
+
+Live re-tick scales with magnitude (1s → 1m → 1h) and re-arms a `setTimeout` each tick
+rather than fixing an interval at mount, because the correct cadence changes as the reading
+ages. A table of 200 nine-day-old timestamps must not wake the main thread 200 times a
+second.
+
+Props: `datetime` (ISO | Date | epoch ms), `seconds` (pre-computed magnitude, `duration`
+only), `variant` (`elapsed` | `duration` | `countdown`), `live`, `now` (injectable, for
+tests and SSR — a component that reads the wall clock internally cannot be asserted at a
+boundary).
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

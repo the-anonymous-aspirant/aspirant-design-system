@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AspBarChart tick density</title>
+<!-- Theme set BEFORE any stylesheet applies, for the same reason as
+     matrix.html: flipping data-theme after load and measuring shortly after
+     races the recalculation and reports colours from two different themes. -->
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<div id="app"></div>
+<script type="module" src="./tick-density.js"></script>

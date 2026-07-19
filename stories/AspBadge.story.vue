@@ -1,4 +1,22 @@
 <script setup>
+// Live vocab_labels fills (captured 2026-07-19) — the data-driven render path.
+const VOCAB = [
+  { name: 'design-spec', color: '#ffb300' },
+  { name: 'epic', color: '#e0803c' },
+  { name: 'human-review-pending', color: '#5fb85f' },
+  { name: 'memory', color: '#4bb5b0' },
+  { name: 'severity=high', color: '#4f9dde' },
+  { name: 'structural-anchor', color: '#c07ba0' },
+  { name: 'security-finding', color: '#8f7ee0' },
+  { name: 'verify:assumption', color: '#d1a72e' },
+  { name: 'feature-request', color: '#c063c0' },
+]
+const AGENTS = [
+  { name: 'aspirant_engineer', color: '#4bb5b0' },
+  { name: 'system_3_manager', color: '#e0803c' },
+  { name: 'design_agent', color: '#c063c0' },
+]
+
 import { ref } from 'vue'
 import AspBadge from '../src/components/AspBadge.vue'
 
@@ -78,6 +96,43 @@ const removeFilter = (name) => {
         <AspBadge variant="filter" @remove="() => {}">label:bug</AspBadge>
         <AspBadge variant="dot" status="positive">Working</AspBadge>
       </div>
+    </Variant>
+    <Variant title="Data-driven: label chips (vocab_labels.color)">
+      <div class="wrap">
+        <AspBadge v-for="l in VOCAB" :key="l.name" variant="chip" :color="l.color">
+          {{ l.name }}
+        </AspBadge>
+      </div>
+      <p class="note">
+        Fill comes from data; the ink is derived from the fill at render time (§3.18). Eight of
+        these nine render their stored colour untouched. <code>feature-request</code>
+        (<code>#c063c0</code>) is the one fill that clears neither candidate ink — 3.63:1 against
+        white, 4.44:1 against near-black — so its lightness is nudged +0.6% to
+        <code>#c165c1</code> (4.52:1). Hue and saturation are held, and the stored value is never
+        written back.
+      </p>
+    </Variant>
+
+    <Variant title="Data-driven: per-agent status dots">
+      <div class="wrap">
+        <AspBadge v-for="a in AGENTS" :key="a.name" variant="dot" :color="a.color">
+          {{ a.name }}
+        </AspBadge>
+      </div>
+      <p class="note">
+        The dot takes the fill only — it carries no text of its own, so there is no ink to derive.
+        Its label sits outside the circle on the ambient surface and inherits that.
+      </p>
+    </Variant>
+
+    <Variant title="Data-driven: malformed colour falls back">
+      <div class="wrap">
+        <AspBadge variant="chip" color="not-a-colour">falls back to the semantic chip</AspBadge>
+      </div>
+      <p class="note">
+        Bad data degrades rather than surprising — an unparseable hex resolves to
+        <code>null</code> and the semantic token path renders instead.
+      </p>
     </Variant>
   </Story>
 </template>

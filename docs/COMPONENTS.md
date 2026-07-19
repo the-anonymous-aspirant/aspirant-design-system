@@ -65,12 +65,34 @@ Focus indicator: `--shadow-focus` (#5a94ff) measures 2.80:1 against `--surface-e
 
 Extend to `AsTextarea` in v0 if free — otherwise defer.
 
-### 6. `AspList` + `AspListItem`
+### 6. `AspList` + `AspListItem` — ✅ shipped
 
-Replaces `<v-list>` on MessageBoardView. Vertical stack with divider option, hover states, optional icon leading.
+Replaces `<v-list>` on MessageBoardView. Vertical stack with divider option, hover states,
+optional leading icon and trailing meta.
 
-Props (List): `variant` (default | divided | interactive), `spacing`.
-Props (Item): `icon`, `label`, `meta`, `active`, `disabled`.
+`variant` and `spacing` are **provided down** rather than repeated on each item: every item
+in a list shares them by definition, so a per-item prop would just be a per-call-site
+opportunity to make them inconsistent.
+
+An interactive row is a real `<button>` inside the `<li>`, not an `<li>` carrying `tabindex`
+and a keydown handler. `AspDataTable` does the latter because a `<tr>` cannot contain a
+row-spanning button without breaking table semantics; a list has no such constraint, so it
+gets the element that already has Enter *and* Space, the right implicit role, and real
+`disabled` semantics. The `<li>` stays a listitem either way.
+
+Selection is an amber inset bar plus weight, **not** a background tint, and pairs with
+`aria-current` so it is not colour-only. Amber behind text is the #2419 trap. A neutral tint
+was no safer: the first version used `currentColor 6%` and the contrast matrix measured the
+row's muted meta at 4.49:1 — under AA by a hundredth, because `--text-muted` is already 80%
+of the ink and has no margin to spend.
+
+Hover tints from `currentColor` rather than `--surface-card-inner`, for the reason recorded
+in §10 — that token is a white wash that lightens every surface, including light ones.
+
+Props (List): `variant` (`default` | `divided` | `interactive`), `spacing` (`sm` | `md` |
+`lg`), `ariaLabel`.
+Props (Item): `icon` (registry name or raw glyph), `label`, `meta`, `active`, `disabled`.
+Slots (Item): default (overrides `label`). Emits: `click`.
 
 ### 7. `AspChart` — ✅ shipped
 

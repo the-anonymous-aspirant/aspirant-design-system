@@ -37,6 +37,7 @@ export const specimens = () => [
   h(DS.AspCheckbox, { label: 'checkbox mixed', modelValue: false, indeterminate: true }),
   h(DS.AspEmptyState, { heading: 'empty heading', message: 'empty message' }),
   h(DS.AspBackButton),
+  h(DS.AspTimeSince, { datetime: '2026-07-19T11:58:00.000Z', now: Date.parse('2026-07-19T12:00:00.000Z') }),
   h(DS.AspHeading, { level: 2 }, () => 'heading inherit'),
   h(DS.AspHeading, { level: 3, color: 'body' }, () => 'heading body'),
   h(DS.AspHeading, { level: 3, color: 'muted' }, () => 'heading muted'),

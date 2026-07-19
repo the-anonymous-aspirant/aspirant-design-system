@@ -386,6 +386,37 @@ An empty stream and a stream emptied *by the filters* get different copy — "No
 front of an active filter reads as a bug in the view. The stream is `role="log"` with
 `aria-live="polite"`: announced, never interrupting.
 
+### 17. `AspContent` — ✅ shipped
+
+The artifact/report body renderer: a body that arrives as *opaque text* — a markdown report,
+a source file, a log dump — and has to render without mangling and without unbounded growth.
+
+Unlike `AspProse`, which styles descendants it is handed pre-rendered, `AspContent` **owns the
+parse**. That is the whole distinction, and it follows from the three defects it was filed
+against (#2382): fenced code with no highlighting, raw source fed to a markdown parser and
+returned as mangled paragraphs, and no `max-height` so a large body grew to the full page
+height. All three happen during the render, so styling alone cannot reach them.
+
+Props: `content`, `type` (`auto` | `markdown` | `code` | `text`), `language`, `maxHeight`
+(number/CSS length, `null` opts out), `measure`.
+
+`type="auto"` is **biased away from markdown**. Mis-reading source as markdown is the logged
+defect — eaten indentation, `*` read as emphasis; mis-reading markdown as source is merely
+plain-looking. The costs are not symmetric, so markdown has to be affirmatively evidenced.
+
+Contrast role is **MIXED**: prose *inherits* the ambient ink, fenced code *paints* its own
+background and ink. No stock highlight.js theme is vendored — a third-party theme ships a
+palette tuned for its own background and would override token ink with colours chosen against
+a different surface. The ramp is re-mapped onto DS tokens and every colour is measured against
+both resolved code surfaces in `tests/e2e/content.spec.js`.
+
+Raw HTML in the body is **escaped, not passed through**: `marked` has shipped no sanitiser
+since v5 and an artifact body is written by an agent or a tool.
+
+`marked` and `highlight.js` are **optional peer dependencies** — the consuming app installs
+them. Bundling them tripled the library (85.64 kB → 262.98 kB), which is not a cost every
+consumer should pay for one renderer.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

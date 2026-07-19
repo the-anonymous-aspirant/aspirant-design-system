@@ -17,6 +17,8 @@ export { default as AspDataTable } from './components/AspDataTable.vue'
 export { default as AspInput } from './components/AspInput.vue'
 export { default as AspModal } from './components/AspModal.vue'
 export { default as AspBackButton } from './components/AspBackButton.vue'
+export { default as AspHeading } from './components/AspHeading.vue'
+export { default as AspProse } from './components/AspProse.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'

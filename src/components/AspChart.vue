@@ -19,6 +19,17 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  /**
+   * Per-instance Chart.js plugins. Passed to the chart config rather than
+   * registered globally, so one consumer's inline plugin cannot leak into every
+   * other chart in the host app. Added for AspBarChart's threshold rule, which
+   * needs ~15 lines of canvas drawing and should not cost consumers a second
+   * charting dependency.
+   */
+  plugins: {
+    type: Array,
+    default: () => [],
+  },
   /** Canvas wrapper height — number (px) or any CSS length. */
   height: {
     type: [String, Number],
@@ -185,6 +196,7 @@ const render = () => {
     type: props.type,
     data: themedData(),
     options: mergeDeep(themedDefaults(), props.options),
+    plugins: props.plugins,
   })
 }
 
@@ -204,7 +216,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [props.type, props.data, props.options, props.height],
+  () => [props.type, props.data, props.options, props.height, props.plugins],
   () => render(),
   { deep: true }
 )

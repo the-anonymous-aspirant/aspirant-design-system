@@ -172,12 +172,40 @@ export const buildBarOptions = ({
  * draw a rectangle would push cost onto every consumer for one component's
  * feature.
  *
- * The line is drawn beneath the bars so a bar crossing it stays readable, and
- * it is labelled on hover — the label is drawn only when the pointer is inside
- * the plot area, which is what "threshold-line hover" asks for.
+ * It is labelled when the pointer is near the LINE — not merely somewhere in
+ * the plot — which is what "threshold-line hover" asks for and what keeps the
+ * label from fighting the value tooltip for the same pointer position.
+ *
+ * Hover is tracked INSIDE the plugin, via `afterEvent`, rather than being fed
+ * in as a reactive prop. Feeding it in would put the hover flag inside the
+ * options object, and AspChart deep-watches options and rebuilds the chart when
+ * it changes — so every pointer move would destroy and re-create the chart.
+ * `args.changed = true` asks Chart.js for a repaint, which is all a hover label
+ * actually needs.
  */
+const hoverState = new WeakMap()
+
+/** Pointer must be within this many px of the rule for it to label itself. */
+export const THRESHOLD_HOVER_SLOP = 6
+
 export const thresholdPlugin = {
   id: 'aspThreshold',
+
+  afterEvent(chart, args, opts) {
+    if (!opts || typeof opts.value !== 'number') return
+    const { event, inChartArea } = args
+    if (!event || (event.type !== 'mousemove' && event.type !== 'mouseout')) return
+
+    const y = chart.scales.y.getPixelForValue(opts.value)
+    const near =
+      inChartArea && event.type === 'mousemove' && Math.abs(event.y - y) <= THRESHOLD_HOVER_SLOP
+
+    if (hoverState.get(chart) !== near) {
+      hoverState.set(chart, near)
+      args.changed = true
+    }
+  },
+
   afterDatasetsDraw(chart, _args, opts) {
     if (!opts || typeof opts.value !== 'number') return
     const { ctx, chartArea, scales } = chart
@@ -193,7 +221,7 @@ export const thresholdPlugin = {
     ctx.lineTo(chartArea.right, y)
     ctx.stroke()
 
-    if (opts.hovered && opts.label) {
+    if (hoverState.get(chart) && opts.label) {
       ctx.setLineDash([])
       ctx.font = `12px ${opts.fontFamily || 'sans-serif'}`
       const text = opts.label

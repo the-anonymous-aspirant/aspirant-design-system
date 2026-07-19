@@ -1,7 +1,7 @@
 {
   "name": "@aspirant/design-system",
   "version": "0.0.0",
-  "description": "Design system for the aspirant ecosystem \u2014 Vue 3 components, hand-drawn iconography, design tokens with Penpot round-tripping",
+  "description": "Design system for the aspirant ecosystem — Vue 3 components, hand-drawn iconography, design tokens with Penpot round-tripping",
   "type": "module",
   "main": "./dist/aspirant-design-system.umd.cjs",
   "module": "./dist/aspirant-design-system.js",
@@ -58,5 +58,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.6"
   }
 }

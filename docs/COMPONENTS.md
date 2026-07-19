@@ -417,11 +417,44 @@ since v5 and an artifact body is written by an agent or a tool.
 them. Bundling them tripled the library (85.64 kB → 262.98 kB), which is not a cost every
 consumer should pay for one renderer.
 
+### 18. `AspTooltip` — ✅ shipped
+
+The standardized tooltip: a short dark chip explaining the control it hangs off. Promoted out
+of Deferred (#2383) — the operator liked the system_3 health page's `[data-tip]` treatment and
+asked for it app-wide, and it is the delivery vehicle for the chart-hover x/y reading.
+
+The styling is that health-page chip in tokens; what changed is the *mechanism*. The original
+was a `::after` pseudo-element, and the deferral note ("browsers can carry text tooltips for
+now") held only while every trigger sat in open layout. A pseudo-element is trapped in its
+trigger's overflow and stacking context, so a chip inside a scroller or a card was clipped,
+and it has no way to flip, so a chip near a viewport edge ran off screen. The chip is
+therefore teleported to `<body>` and positioned in JS against the trigger's rect — once it
+lives there, no CSS rule can see where its trigger is, which is why the arithmetic is not a
+stylesheet.
+
+Props: `content`, `position` (`top` | `right` | `bottom` | `left`, flips to the opposite side
+when there is no room, then slides along the cross axis to stay on screen), `openDelay`,
+`disabled`. Slot `content` overrides the `content` prop for rich bodies.
+
+The open delay is **hover-only**. A pointer crossing a row of icons on its way somewhere else
+should not fire a chip under each one, but a deliberate Tab is not an accidental traverse, and
+making a keyboard user wait reads as broken. Focus opens immediately; `tests/e2e/tooltip.spec.js`
+asserts that on a 600 ms trigger so the two paths cannot be confused.
+
+Not a popover. The chip is `pointer-events: none` — it can overlap its own trigger at clamped
+edge positions, and eating that hover would flicker it — so it can hold no link or button.
+Nor should it hold information that appears nowhere else: hover does not exist on touch.
+
+Contrast role is **PAINTS**: the chip declares `--surface-card`, which is dark in *both*
+themes, so it declares `--text-on-dark` rather than inheriting the ambient ink. Inheriting is
+the #2415 failure — dark ink on a dark chip, 1:1. The hairline border is mixed from the chip's
+own ink; `--surface-card-inner` was the obvious pick and is wrong, being a *darkening* overlay
+in the light theme where the edge then vanishes.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.
 - `AsTabs` — no clear v0 requirement.
-- `AsTooltip` — nice-to-have; browsers can carry text tooltips for now.
 - `AsBreadcrumb` — no current use.
 - `AsAvatar` — no user-avatar surface today.
 - `AsToast` / `AsNotification` — belongs in v1 alongside a global feedback pattern.

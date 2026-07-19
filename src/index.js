@@ -26,6 +26,7 @@ export { default as AspListItem } from './components/AspListItem.vue'
 export { default as AspTimeSince } from './components/AspTimeSince.vue'
 export { default as AspChatArea } from './components/AspChatArea.vue'
 export { default as AspChatBubble } from './components/AspChatBubble.vue'
+export { default as AspTooltip } from './components/AspTooltip.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'

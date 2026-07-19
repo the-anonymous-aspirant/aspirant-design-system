@@ -159,6 +159,11 @@ const onClick = (event) => {
  */
 .list-item--active .list-item__inner {
   box-shadow: inset 2px 0 0 var(--brand-primary);
+  /* Square the leading edge so the inset bar reads as a bar. Against the row's
+     --radius-md the shadow follows the curve and renders as a crescent, which
+     looks like a rendering artefact rather than a selection marker. */
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
   font-weight: var(--font-weight-medium);
 }
 

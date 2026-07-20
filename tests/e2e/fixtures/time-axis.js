@@ -66,7 +66,7 @@ const CASES = [
   { key: 'day24_340_card', width: 340, series: DAY24, surface: 'card' },
   // Two slots exactly: the endpoint floor, where first and last are labelled
   // and nothing between them is.
-  { key: 'day24_endpoints', width: 232, series: DAY24, surface: 'page' },
+  { key: 'day24_endpoints', width: 160, series: DAY24, surface: 'page' },
   // Under two slots: not even the endpoints fit, so the range label carries
   // the whole reading. This is the case that drew `Mon 0Tue 00:00`.
   { key: 'day24_narrow', width: 96, series: DAY24, surface: 'page' },
@@ -78,6 +78,7 @@ const CASES = [
   { key: 'day24_340_category', width: 340, series: DAY24, surface: 'page', xAxis: 'category' },
 ]
 
+window.__ChartTA = Chart
 const app = createApp({
   render: () =>
     h(
@@ -162,6 +163,15 @@ const readAxis = (root) => {
     plotWidth: Math.round(scale.width || 0),
     fontSize: scale.options?.ticks?.font?.size || 12,
     tickCount: ticks.length,
+    // Canvas bounds, so the suite can tell whether an end label overhangs the
+    // drawable area. At a 6h ladder the first and last ticks carry the wide
+    // day-prefixed form and extend ~32px past their tick, into the padding
+    // Chart.js reserves outside chartArea. If that padding ever stops covering
+    // them the library clamps or shifts the text — which would move a label off
+    // its own tick and re-create the `06:17` defect from the other direction.
+    canvasWidth: Math.round(chart.width || 0),
+    areaLeft: Math.round(chart.chartArea?.left ?? 0),
+    areaRight: Math.round(chart.chartArea?.right ?? 0),
   }
 }
 

@@ -176,11 +176,42 @@ const clockOf = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 export const bandFor = (span) => (span <= 6 * HOUR ? 'clock' : span <= 72 * HOUR ? 'dayClock' : 'date')
 
 /**
- * The widest label each band can produce, for the budget's `max_label_width`.
+ * The label form that RECURS across each band — what the budget is measured
+ * against.
  *
- * Measured over every weekday/month name rather than assuming one is widest:
- * the answer is font-dependent, and guessing it is how a budget quietly
- * overcommits and lets two labels touch.
+ * Not the widest form, and that distinction is the whole correction here
+ * (design_agent ruling, #2482). §3.19 as originally written asked for a single
+ * scalar `max_label_width` while also specifying a repetition rule that makes
+ * label width POSITIONAL. Those cannot both be honoured by one number: pricing
+ * every slot as if it held the widest label charges the whole band for a form
+ * that, by construction, at most one slot per calendar day carries. The result
+ * is systematic under-labelling — which is the operator complaint that opened
+ * #2470 in the first place.
+ *
+ * In the middle band the recurring form is the BARE clock; the day-prefixed
+ * form appears only where the day changes. In the other two bands every label
+ * has the same shape, so recurring and widest coincide.
+ *
+ * Still measured over every weekday/month name rather than assuming one is
+ * widest — the answer is font-dependent, and guessing it is how a budget
+ * quietly overcommits.
+ */
+export const RECURRING_LABELS = {
+  clock: ['00:00'],
+  dayClock: ['00:00'],
+  date: MONTHS.map((m) => `30 ${m}`),
+}
+
+/**
+ * The widest form each band can produce. NOT used for the budget — kept for the
+ * pairwise gutter check, which is the rule that actually protects legibility.
+ *
+ * §3.19's 12px gutter is checked between labels that can genuinely be
+ * ADJACENT, not against a uniform worst case. At a 6h interval two
+ * day-prefixed labels are never neighbours: the repetition rule puts the day
+ * name on the first tick of a calendar day only, so those are >=24h apart
+ * while ticks are 6h apart. The pair that made the old arithmetic reject a 6h
+ * ladder — wide against wide — cannot occur.
  */
 export const WIDEST_LABELS = {
   clock: ['00:00'],
@@ -290,8 +321,10 @@ export const selectTimeTicks = ({ timestamps = [], plotWidth = 0, measureLabel }
   if (!(span > 0) || n < 2) return endpointsOnly()
 
   const measure = typeof measureLabel === 'function' ? measureLabel : estimateWidth
-  const maxLabelWidth = Math.max(...WIDEST_LABELS[band].map((s) => measure(s)))
-  const slot = maxLabelWidth + TICK_GUTTER
+  // The RECURRING form, per the corrected §3.19 formulation. See
+  // RECURRING_LABELS for why the widest form is the wrong scalar here.
+  const recurringWidth = Math.max(...RECURRING_LABELS[band].map((s) => measure(s)))
+  const slot = recurringWidth + TICK_GUTTER
   const budget = slot > 0 ? Math.floor(plotWidth / slot) : 0
 
   // Below two slots even the endpoints collide — a 96px chart drew

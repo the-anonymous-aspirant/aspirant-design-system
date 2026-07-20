@@ -13,9 +13,12 @@ import {
   BASELINE_HEIGHT,
   HEIGHTS,
   MIN_TICK_FONT_PX,
+  RECURRING_LABELS,
   STATE_TOKENS,
   TICKS,
+  TICK_GUTTER,
   TICK_LADDER,
+  WIDEST_LABELS,
   bandFor,
   buildBarOptions,
   selectTimeTicks,
@@ -190,7 +193,7 @@ test.describe('§3.19: ticks land on calendar boundaries', () => {
     const interval = stepH * HR
     expect(TICK_LADDER).toContain(interval)
 
-    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const slot = Math.max(...RECURRING_LABELS.dayClock.map(measure7)) + 12
     const budget = Math.floor(plotWidth / slot)
     expect(Math.floor((spanH * HR) / interval) + 1).toBeLessThanOrEqual(budget)
 
@@ -216,7 +219,7 @@ test.describe('§3.19: density is a budget, and the floor is derived', () => {
     // is chosen to drive budget under 3, and nothing in the implementation
     // branches on "is this narrow" directly.
     const timestamps = hourly(25)
-    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const slot = Math.max(...RECURRING_LABELS.dayClock.map(measure7)) + 12
     const plotWidth = slot * 2 // budget == 2, one under the floor
     expect(Math.floor(plotWidth / slot)).toBeLessThan(3)
 
@@ -229,7 +232,7 @@ test.describe('§3.19: density is a budget, and the floor is derived', () => {
     // room for a landmark the range label is the whole reading. Reproduces
     // compact's `display: false` by arithmetic instead of by variant.
     const timestamps = hourly(25)
-    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const slot = Math.max(...RECURRING_LABELS.dayClock.map(measure7)) + 12
     const chosen = pick(selectTimeTicks({ timestamps, plotWidth: slot, measureLabel: measure7 }))
     expect(chosen).toHaveLength(0)
   })
@@ -385,6 +388,72 @@ for (const theme of THEMES) {
       // was still an unreadable smear.
       const m = await timeAxis(page, theme)
       expect(m.day24_narrow.labelled).toHaveLength(0)
+    })
+
+    test('every adjacent pair clears the 12px gutter, not merely zero overlap', async ({ page }) => {
+      // The corrected §3.19 formulation: the gutter is checked between labels
+      // that can ACTUALLY be adjacent, not against a uniform worst case. The
+      // pair that made the old arithmetic reject a 6h ladder — two
+      // day-prefixed labels side by side — cannot occur, because the
+      // repetition rule puts the day name on the first tick of a calendar day
+      // only, so those are >=24h apart while ticks are 6h apart.
+      const m = await timeAxis(page, theme)
+      const tight = []
+      for (const [key, v] of Object.entries(m)) {
+        if (!v || key.endsWith('_category')) continue
+        for (let i = 1; i < v.labelled.length; i += 1) {
+          const prev = v.labelled[i - 1]
+          const cur = v.labelled[i]
+          const gap = cur.px - cur.w / 2 - (prev.px + prev.w / 2)
+          if (gap < TICK_GUTTER) {
+            tight.push(`${key}: "${prev.label}"/"${cur.label}" gap ${Math.round(gap)}px`)
+          }
+        }
+      }
+      expect(tight, `adjacent labels closer than the ${TICK_GUTTER}px floor`).toEqual([])
+    })
+
+    test('the wide day-prefixed form never lands next to another wide one', () => {
+      // States the property the budget now relies on, so a future change to the
+      // repetition rule cannot silently invalidate the sizing. If two wide
+      // labels could be adjacent, budgeting on the recurring form would be
+      // unsound and the old worst-case reading would be right after all.
+      const chosen = pick(
+        selectTimeTicks({ timestamps: hourly(25), plotWidth: 1000, measureLabel: measure7 })
+      )
+      const isWide = (l) => /^[A-Z][a-z]{2} /.test(l)
+      for (let i = 1; i < chosen.length; i += 1) {
+        expect(
+          isWide(chosen[i - 1].label) && isWide(chosen[i].label),
+          `"${chosen[i - 1].label}" and "${chosen[i].label}" are adjacent and both wide`
+        ).toBe(false)
+      }
+      // And the recurring form really is the narrower one, or the budget is
+      // measuring the wrong string.
+      expect(Math.max(...RECURRING_LABELS.dayClock.map(measure7))).toBeLessThan(
+        Math.max(...WIDEST_LABELS.dayClock.map(measure7))
+      )
+    })
+
+    test('end labels are not clamped, truncated, or shoved off their tick', async ({ page }) => {
+      // Asked for explicitly by design_agent on #2482. At a 6h ladder the first
+      // and last ticks carry the wide form and overhang their tick by ~32px. If
+      // Chart.js clamped or shifted that text the label would no longer sit on
+      // the instant it names — the `06:17` defect arriving from the other side.
+      const m = await timeAxis(page, theme)
+      const v = m.day24_340
+      const first = v.labelled[0]
+      const last = v.labelled[v.labelled.length - 1]
+
+      // Full text, not an ellipsis or a stub.
+      expect(first.label).toMatch(/^[A-Z][a-z]{2} \d{2}:\d{2}$/)
+      expect(last.label).toMatch(/^[A-Z][a-z]{2} \d{2}:\d{2}$/)
+
+      // And their painted extent stays inside the canvas.
+      expect(Math.round(first.px - first.w / 2), 'first label overflows the canvas left').toBeGreaterThanOrEqual(0)
+      expect(Math.round(last.px + last.w / 2), 'last label overflows the canvas right').toBeLessThanOrEqual(
+        v.canvasWidth
+      )
     })
 
     test('no two rendered labels overlap, on any case or surface', async ({ page }) => {

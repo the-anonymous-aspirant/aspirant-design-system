@@ -19,6 +19,21 @@ const cellData = {
 }
 
 const stateData = (data) => ({ labels: cellData.labels, datasets: [{ label: 'rate', data }] })
+
+// A 24h window opening at local midnight, so the day boundary the §3.19
+// repetition rule keys on is actually present in the demo rather than implied.
+const midnight = () => {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+const dayStamps = Array.from({ length: 25 }, (_, i) => midnight() + i * 3600_000)
+const dayData = {
+  // The category labels are what the TOOLTIP reads out; the axis reads the
+  // timestamps. Keeping them distinct is the point of the separate prop.
+  labels: dayStamps.map((t) => new Date(t).toLocaleString()),
+  datasets: [{ label: 'p95 latency', data: dayStamps.map((_, i) => 200 + ((i * 37) % 180)) }],
+}
 </script>
 
 <template>
@@ -28,6 +43,7 @@ const stateData = (data) => ({ labels: cellData.labels, datasets: [{ label: 'rat
       <p><strong>Axes are drawn, not implied.</strong> A 1px axis line runs along the baseline and the left edge; the plot grid is off. The y <em>unit</em> label sits at the axis and the x <em>range</em> label is centered under the baseline — both as real DOM text, replacing the muted <code>y: … / x: …</code> caption prose.</p>
       <p><strong>Operator feedback (P8)</strong> drove three of the defaults: charts are <em>shorter</em> ({{ HEIGHTS.regular }}px regular against AspChart's {{ BASELINE_HEIGHT }}px), the hover tooltip names <em>both</em> the x and the y value, and the x axis fits about 50% more labels than the default treatment — rotating them rather than dropping them, while Chart.js's collision avoidance still guarantees none overlap.</p>
       <p><strong>Contrast:</strong> tick text and axis lines are painted on a canvas, so they cannot inherit per surface. The component resolves the container's real background and <em>derives</em> an ink that clears AA against it — which is why it is legible on a dark <code>AspCard</code> in the light theme, the surface that breaks naive charts.</p>
+      <p><strong>Time axes (§3.19)</strong> are opt-in via <code>xAxis="time"</code> plus a <code>timestamps</code> array. Ticks land on wall-clock <em>landmarks</em> — <code>04:00</code>, never <code>03:47</code> — at the finest interval the measured width affords, and they are never rotated: a time label abbreviates naturally, so it earns density from a coarser interval rather than from a tilt. The format follows the span (<code>14:00</code> under 6h, <code>Tue 14:00</code> to 72h, <code>14 Jul</code> beyond), and the day name appears only where the day changes. Categorical axes are unaffected and still rotate.</p>
       <p><strong>chart.js</strong> is an optional peer dependency — install it in the consuming app.</p>
     </template>
 
@@ -38,6 +54,45 @@ const stateData = (data) => ({ labels: cellData.labels, datasets: [{ label: 'rat
           unit="ms"
           range="last 30 hours"
           aria-label="p95 latency over the last 30 hours"
+        />
+      </div>
+    </Variant>
+
+    <Variant title="Time axis (conventions §3.19)">
+      <div style="padding: 16px; background: var(--surface-page);">
+        <!--
+          Opt in with xAxis="time" and hand the axis the instants behind the
+          bars. The interval is not a prop: it is chosen from the ladder
+          (1m·5m·15m·30m·1h·3h·6h·12h·24h·7d) by measuring how many labels the
+          rendered width can carry, so the same chart labels more densely on a
+          wide card than in a narrow column without the caller retuning it.
+        -->
+        <AspBarChart
+          :data="dayData"
+          :timestamps="dayStamps"
+          x-axis="time"
+          unit="ms"
+          range="last 24 hours"
+          aria-label="p95 latency over the last 24 hours"
+        />
+      </div>
+    </Variant>
+
+    <Variant title="Time axis, narrow (the budget floor)">
+      <div style="padding: 16px; background: var(--surface-page); max-width: 240px;">
+        <!--
+          Same data, same component, less room. The budget rule drops to the
+          endpoints on its own; at narrower still it labels nothing and the
+          range label carries the whole reading. Neither is a special case —
+          both fall out of the width arithmetic.
+        -->
+        <AspBarChart
+          :data="dayData"
+          :timestamps="dayStamps"
+          x-axis="time"
+          unit="ms"
+          range="last 24 hours"
+          aria-label="p95 latency over the last 24 hours, narrow"
         />
       </div>
     </Variant>

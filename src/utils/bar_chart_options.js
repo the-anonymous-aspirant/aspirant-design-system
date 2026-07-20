@@ -160,6 +160,42 @@ export const MIN_TICK_FONT_PX = 10
 /** §3.19's floor: fewer than three slots means no interior landmark to offer. */
 export const MIN_INTERIOR_BUDGET = 3
 
+/**
+ * Horizontal space reserved OUTSIDE the plot for the end ticks' labels, in
+ * `time` mode only.
+ *
+ * The first and last ticks of the middle band carry the wide day-prefixed form
+ * — and they must, because the band boundary is usually exactly where the day
+ * changes, so it is the one tick whose day name carries the most information.
+ * `Mon 00:00 · … · 00:00` would show two identical-looking midnights with no
+ * way to tell they are 24h apart.
+ *
+ * A label centred on the outermost tick therefore overhangs the plot by about
+ * half its width. Measured on the real canvas at 340px: the wide form renders
+ * 65px, the last tick sits at px 304, and its right edge lands at 337 against
+ * a 340px canvas — **3px of headroom, and that headroom was Chart.js's own
+ * layout padding rather than anything this preset asked for.** A longer
+ * weekday abbreviation in another locale, a font-stack change, or a tick-size
+ * bump consumes it, and none of those are edits anyone would think to re-check
+ * an axis against.
+ *
+ * So the space is reserved explicitly: half the measured wide form, 33px. The
+ * geometry then holds because the layout committed to it, not because a
+ * library internal happened to leave room. The rendered-bounds assertion in
+ * `bar-chart.spec.js` stays as the guard, but it is no longer the only thing
+ * preventing a silent regression — which was too much weight for one test.
+ *
+ * Sized to the overhang and NOT padded further, because this constant is not
+ * free: padding is taken out of the plot, which shrinks `plot_width`, which
+ * lowers the budget, which coarsens the ladder. Reserving half-width plus the
+ * 12px gutter (45px each side) was measured and it cost a rung — the 340px/24h
+ * case fell from a 6h ladder back to 12h, re-breaking the density the budget
+ * correction had just restored. The gutter floor governs the space BETWEEN
+ * adjacent labels; the end label has no neighbour outward, so it needs its
+ * overhang and nothing more.
+ */
+export const TIME_AXIS_END_PADDING = 33
+
 /** The `xAxis` prop's closed set. `category` is the default — nothing existing shifts. */
 export const X_AXES = ['category', 'time']
 
@@ -467,6 +503,20 @@ export const buildBarOptions = ({
 
   return {
     maintainAspectRatio: false,
+    // Reserved only in `time` mode. `category` must stay byte-identical — its
+    // labels are rotated and autoskipped, so they never overhang the way a
+    // centred end tick does, and adding padding there would change a treatment
+    // this work is explicitly not allowed to touch.
+    // Reserved on the RIGHT only, and that asymmetry is measured rather than
+    // stylistic. The left end label overhangs into the y-axis tick column,
+    // which the layout already allocates (36px on the reference render, against
+    // a ~27px overhang). The right edge has no such structural allowance — it
+    // is where the borrowed Chart.js margin was. Reserving both sides was
+    // tried and costs a ladder rung: 33px each way leaves a 238px plot, and a
+    // 6h ladder needs 240px at the measured 36px bare label, so the 340px/24h
+    // case fell back to 12h over two pixels. The assertion in bar-chart.spec.js
+    // guards the left edge, which is the side this does not pay for.
+    ...(timeMode ? { layout: { padding: { right: TIME_AXIS_END_PADDING } } } : {}),
     animation: animate ? undefined : false,
     // The bar owns the hit box, but the tooltip should follow the cursor along
     // the category even when it is above the bar's top edge — a 48px compact

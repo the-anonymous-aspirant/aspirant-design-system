@@ -52,6 +52,33 @@ const props = defineProps({
     default: null,
     validator: (v) => v == null || STATES.includes(v),
   },
+  /**
+   * X-axis domain (conventions §3.19).
+   *
+   * `category` (default) keeps today's treatment exactly — dense, rotation-fed
+   * labels for strings with no natural abbreviation. `time` switches to the
+   * §3.19 grammar: unrotated labels on wall-clock boundaries, at whatever
+   * ladder interval the measured width affords.
+   *
+   * Opt-in rather than sniffed from the data. A chart whose labels merely LOOK
+   * like times ("14h", "6d") is a categorical chart, and guessing wrong would
+   * silently restyle a caller who never asked for it.
+   */
+  xAxis: {
+    type: String,
+    default: 'category',
+    validator: (v) => ['category', 'time'].includes(v),
+  },
+  /**
+   * One timestamp per bar (epoch ms, ISO string, or Date) — the domain `time`
+   * mode reads. Required by `time` mode and ignored by `category`.
+   *
+   * Separate from `data.labels` on purpose: the labels are what the TOOLTIP
+   * says ("14:00", "bucket 3"), and the axis needs the instant behind them.
+   * Overloading one field would force the caller to choose between a readable
+   * hover and a correct axis.
+   */
+  timestamps: { type: Array, default: null },
   /** Unit label stacked at the y axis, e.g. `ms`. */
   unit: { type: String, default: '' },
   /** Range label centered under the baseline, e.g. `last 30 hours`. */
@@ -185,6 +212,8 @@ const chartOptions = computed(() => {
     tooltipInk: p.tooltipInk,
     fontFamily: p.fontFamily,
     unit: props.unit,
+    xAxis: props.xAxis,
+    timestamps: props.timestamps,
   })
 
   if (typeof props.threshold === 'number') {

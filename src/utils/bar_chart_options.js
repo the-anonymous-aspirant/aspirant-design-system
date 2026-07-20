@@ -294,6 +294,16 @@ export const selectTimeTicks = ({ timestamps = [], plotWidth = 0, measureLabel }
   const slot = maxLabelWidth + TICK_GUTTER
   const budget = slot > 0 ? Math.floor(plotWidth / slot) : 0
 
+  // Below two slots even the endpoints collide — a 96px chart drew
+  // `Mon 0Tue 00:00`, two labels smeared into one string, which is the same
+  // illegibility the density comment above records rather than a lesser
+  // version of it. §3.19 stops at the budget<3 endpoint floor because the
+  // surfaces it enumerates stop there, but the rule it states carries one rung
+  // further on its own logic: when there is no room for a landmark, the range
+  // label under the baseline is the whole reading. That is exactly what
+  // compact's `x: { display: false }` already does, so this is the same limiting
+  // case reached by arithmetic instead of by variant.
+  if (budget < 2) return labels
   if (budget < MIN_INTERIOR_BUDGET) return endpointsOnly()
 
   // FINEST that fits, so the ladder is walked ascending and the first hit wins.

@@ -224,6 +224,16 @@ test.describe('§3.19: density is a budget, and the floor is derived', () => {
     expect(chosen.map((c) => c.index)).toEqual([0, 24])
   })
 
+  test('budget < 2 labels nothing rather than colliding the endpoints', () => {
+    // The rung past §3.19's stated floor, derived from the same rule: with no
+    // room for a landmark the range label is the whole reading. Reproduces
+    // compact's `display: false` by arithmetic instead of by variant.
+    const timestamps = hourly(25)
+    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth: slot, measureLabel: measure7 }))
+    expect(chosen).toHaveLength(0)
+  })
+
   test('a wider plot earns strictly more labels on the same data', () => {
     // The budget is a function of width, so widening must not leave density
     // unchanged. A hard-coded tick count would pass every test above and fail
@@ -359,12 +369,40 @@ for (const theme of THEMES) {
       expect(m.day24_340_category.rotation).toBeGreaterThan(0)
     })
 
-    test('the narrow chart renders endpoints only, by budget not by branch', async ({ page }) => {
+    test('at two slots the chart renders endpoints only, by budget not by branch', async ({
+      page,
+    }) => {
       const m = await timeAxis(page, theme)
-      const narrow = m.day24_narrow
-      expect(narrow.labelled).toHaveLength(2)
-      expect(narrow.labelled[0].index).toBe(0)
-      expect(narrow.labelled[1].index).toBe(narrow.tickCount - 1)
+      const v = m.day24_endpoints
+      expect(v.labelled).toHaveLength(2)
+      expect(v.labelled[0].index).toBe(0)
+      expect(v.labelled[1].index).toBe(v.tickCount - 1)
+    })
+
+    test('below two slots it labels nothing and lets the range label carry it', async ({ page }) => {
+      // The narrower limiting case, and the one a label COUNT could not see:
+      // two endpoints at 96px drew `Mon 0Tue 00:00`, a right-sized axis that
+      // was still an unreadable smear.
+      const m = await timeAxis(page, theme)
+      expect(m.day24_narrow.labelled).toHaveLength(0)
+    })
+
+    test('no two rendered labels overlap, on any case or surface', async ({ page }) => {
+      // The assertion the density suite already learned it needed once. Every
+      // rule above is about choosing an interval that FITS; this is the one
+      // that checks the choice was right, in pixels, on the painted axis.
+      const m = await timeAxis(page, theme)
+      const collisions = []
+      for (const [key, v] of Object.entries(m)) {
+        if (!v || key.endsWith('_category')) continue
+        const boxes = v.labelled.map((t) => [t.px - t.w / 2, t.px + t.w / 2, t.label])
+        for (let i = 1; i < boxes.length; i += 1) {
+          if (boxes[i][0] < boxes[i - 1][1]) {
+            collisions.push(`${key}: "${boxes[i - 1][2]}" / "${boxes[i][2]}"`)
+          }
+        }
+      }
+      expect(collisions, 'adjacent x labels share pixels — the smear defect').toEqual([])
     })
 
     test('rendered labels are wall-clock landmarks, never arbitrary instants', async ({ page }) => {

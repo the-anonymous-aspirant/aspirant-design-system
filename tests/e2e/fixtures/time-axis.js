@@ -52,10 +52,23 @@ const SIX_HOUR = series(13, HOUR / 2)
 // 29 six-hourly buckets = a 7-day span: the date band.
 const WEEK = series(29, 6 * HOUR)
 
+// The category control's own labels. Short strings like the Performance page's
+// real "last 30 hours" axis, NOT the ISO stamps the time cases carry — feeding
+// it ISO strings would make the control look broken in a screenshot and prove
+// nothing about the categorical treatment being preserved.
+const CATEGORY_DATA = {
+  labels: DAY24.timestamps.map((_, i) => `${i}h`),
+  datasets: [{ label: 'p95 latency', data: DAY24.data.datasets[0].data }],
+}
+
 const CASES = [
   { key: 'day24_340', width: 340, series: DAY24, surface: 'page' },
   { key: 'day24_340_card', width: 340, series: DAY24, surface: 'card' },
-  // Narrow enough that even `00:00` plus its gutter cannot fit three times.
+  // Two slots exactly: the endpoint floor, where first and last are labelled
+  // and nothing between them is.
+  { key: 'day24_endpoints', width: 232, series: DAY24, surface: 'page' },
+  // Under two slots: not even the endpoints fit, so the range label carries
+  // the whole reading. This is the case that drew `Mon 0Tue 00:00`.
   { key: 'day24_narrow', width: 96, series: DAY24, surface: 'page' },
   { key: 'sixhour_340', width: 340, series: SIX_HOUR, surface: 'page' },
   { key: 'week_340', width: 340, series: WEEK, surface: 'page' },
@@ -87,7 +100,7 @@ const app = createApp({
           },
           [
             h(AspBarChart, {
-              data: c.series.data,
+              data: c.xAxis === 'category' ? CATEGORY_DATA : c.series.data,
               timestamps: c.xAxis === 'category' ? null : c.series.timestamps,
               xAxis: c.xAxis || 'time',
               unit: 'ms',
@@ -118,12 +131,27 @@ const readAxis = (root) => {
   const scale = chart.scales.x
   const ticks = scale.ticks || []
 
+  // Measured in the scale's own font, so overlap is a fact about the painted
+  // axis rather than a guess from character counts. Without this the endpoint
+  // floor passed a 96px chart that drew `Mon 0Tue 00:00` — the label COUNT was
+  // right and the axis was still an unreadable smear.
+  const ctx = chart.ctx
+  ctx.save()
+  const f = scale.options?.ticks?.font || {}
+  ctx.font = `${f.size || 12}px ${f.family || 'sans-serif'}`
+
   const labelled = []
   ticks.forEach((t, i) => {
     const text = t.label == null ? '' : String(t.label)
     if (text === '') return
-    labelled.push({ index: i, label: text, px: Math.round(scale.getPixelForTick(i)) })
+    labelled.push({
+      index: i,
+      label: text,
+      px: Math.round(scale.getPixelForTick(i)),
+      w: Math.round(ctx.measureText(text).width),
+    })
   })
+  ctx.restore()
 
   return {
     labelled,

@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DS contrast probe — gradient wash regression</title>
+<!-- Theme is set BEFORE any stylesheet applies, from ?theme=dark, matching the
+     other fixtures. Every colour below is a LITERAL, not a token, so the
+     expected ratios are identical in both themes — the point of this fixture is
+     the probe's arithmetic, and a token would make the expected value move with
+     the theme and stop being hand-computable. The both-theme run instead proves
+     the probe itself carries no theme-dependent behaviour. -->
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; background: rgb(128, 128, 128); }
+  div { padding: 8px; font: 16px sans-serif; }
+
+  /* A: the flat-wash idiom this DS uses everywhere —
+     linear-gradient(c, c) over an opaque base.
+       surface = 255*0.2 + 40*0.8 = 83
+     Two things fail here if the probe is wrong:
+       - ignoring background-image measures rgb(40,40,40)  -> 14.74 (OVERSTATED)
+       - compositing both stops measures rgb(117.4,...)    -> 4.58 (understated)
+     Only single-compositing the layer yields 7.69. */
+  .wash-white {
+    background-color: rgb(40, 40, 40);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2));
+    color: rgb(255, 255, 255);
+  }
+
+  /* B: the light-theme direction — a black wash over a light base.
+       surface = 0*0.2 + 240*0.8 = 192 */
+  .wash-black {
+    background-color: rgb(240, 240, 240);
+    background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2));
+    color: rgb(0, 0, 0);
+  }
+
+  /* C: paint order. In `background-image: A, B`, A is TOPMOST, so the composite
+     runs base -> B -> A:
+       black 0.5 over 40   = 19.92  (alpha 0.5 quantises to 128/255, measured
+                                     off the canvas -- NOT 127, which is the
+                                     arithmetic that first disagreed here)
+       white 0.2 over 19.92 = 66.94     -> 9.90
+     Compositing in declaration order instead gives 41.6 -> 14.48, so this case
+     fails loudly if the reversal is dropped. */
+  .wash-order {
+    background-color: rgb(40, 40, 40);
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+      linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5));
+    color: rgb(255, 255, 255);
+  }
+
+  /* D: a wash on a TRANSLUCENT base, so the composite must stay translucent and
+     keep walking to the ancestor. body is rgb(128,128,128):
+       white 0.2 over (transparent -> body 128) : base is rgba(0,0,0,0) so the
+       node paints white@0.2 alone, which composites over 128 = 0.2*255+0.8*128
+       = 153.4                                   -> 2.83
+     Flattening the node's own alpha to 1 early would measure against
+     rgb(255,255,255) and report 1.00. */
+  .wash-translucent {
+    background-color: rgba(0, 0, 0, 0);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2));
+    color: rgb(255, 255, 255);
+  }
+
+  /* E: a non-gradient background-image must be ignored, not guessed at.
+     Expected surface is the backgroundColor alone: rgb(40,40,40) -> 14.74. */
+  .wash-url {
+    background-color: rgb(40, 40, 40);
+    background-image: url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
+    color: rgb(255, 255, 255);
+  }
+
+  /* F: a genuinely VARYING gradient has no single effective background. The two
+     stops give two candidate surfaces:
+       white 0.2 over 40 = 83    -> 7.69
+       black 0.2 over 40 = 32    -> 16.29
+     The probe must report the WORST of them, 7.69, not an average or the first. */
+  .wash-varying {
+    background-color: rgb(40, 40, 40);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.2));
+    color: rgb(255, 255, 255);
+  }
+</style>
+<div data-surface="wash-white" class="wash-white">white wash</div>
+<div data-surface="wash-black" class="wash-black">black wash</div>
+<div data-surface="wash-order" class="wash-order">layer order</div>
+<div data-surface="wash-translucent" class="wash-translucent">translucent base</div>
+<div data-surface="wash-url" class="wash-url">url image</div>
+<div data-surface="wash-varying" class="wash-varying">varying stops</div>

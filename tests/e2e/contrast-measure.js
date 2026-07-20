@@ -22,7 +22,10 @@
  *     prefix the heuristic did not know -- which read as near-black and
  *     reported a false sub-AA failure. See the comment on `norm`.
  */
-export const MEASURE = () => {
+// `root` optionally scopes the sweep to one subtree (a CSS selector, passed
+// through page.evaluate). Callers that need the ramp inside a single specimen
+// use it instead of re-implementing the colour maths; see content.spec.js.
+export const MEASURE = (root) => {
   const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
 
   // PAINT the colour and read the pixel back, rather than parsing the string
@@ -73,17 +76,129 @@ export const MEASURE = () => {
     ]
   }
 
-  const effectiveBg = (el) => {
-    const stack = []
-    for (let n = el; n; n = n.parentElement) {
-      const c = norm(getComputedStyle(n).backgroundColor)
-      if (c[3] === 0) continue
-      stack.push(c)
-      if (c[3] === 1) break
+  // Alpha-preserving source-over. `over` above flattens to alpha 1, which is
+  // right for the final composite onto an opaque surface but wrong while
+  // stacking one node's own layers: a translucent wash over a transparent
+  // background is still translucent, and must keep its alpha so the ancestor
+  // walk knows to keep going.
+  const overKeepAlpha = (fg, bg) => {
+    const a = fg[3] + bg[3] * (1 - fg[3])
+    if (a === 0) return [0, 0, 0, 0]
+    const ch = (i) => (fg[i] * fg[3] + bg[i] * bg[3] * (1 - fg[3])) / a
+    return [ch(0), ch(1), ch(2), a]
+  }
+
+  // Split on top-level separators only, ignoring any nested inside parens.
+  // `linear-gradient(rgb(1, 2, 3), rgb(1, 2, 3))` is ONE layer; a naive split
+  // on "," would read it as four.
+  const splitTop = (s, byComma) => {
+    const out = []
+    let depth = 0
+    let cur = ''
+    for (const chr of s) {
+      if (chr === '(') depth++
+      else if (chr === ')') depth--
+      if (depth === 0 && (byComma ? chr === ',' : /\s/.test(chr))) {
+        if (cur.trim()) out.push(cur.trim())
+        cur = ''
+        continue
+      }
+      cur += chr
     }
-    let base = stack.pop() || [255, 255, 255, 1]
-    while (stack.length) base = over(stack.pop(), base)
-    return base
+    if (cur.trim()) out.push(cur.trim())
+    return out
+  }
+
+  // The distinct colours a single gradient layer paints.
+  //
+  // Defect 6 (this task, #2467): `effectiveBg` composited backgroundColor only
+  // and never read background-image, so any component painting a translucent
+  // wash as a gradient layer was measured against the wrong surface. The
+  // direction is what made it dangerous: in the light theme the wash is black,
+  // so the probe read a lighter surface than reality and was merely
+  // conservative; in the dark theme the wash is WHITE, so it read #2a2a2a where
+  // the screen shows #373737 and OVERSTATED contrast, passing colours that are
+  // sub-AA on screen.
+  //
+  // Structure is parsed here; colour never is. Every extracted substring goes
+  // through `norm()` and is rasterised, so this stays format-agnostic per
+  // defect 5 — there is no scale heuristic and no syntax list to fall behind.
+  // Non-colour parts (`to right`, `45deg`, `in oklab`) simply fail to rasterise
+  // and fall out through norm()'s existing unparseable sentinel.
+  //
+  // Colours are de-duplicated per layer. `linear-gradient(c, c)` — the flat-wash
+  // idiom this codebase uses — names the same colour at both stops, and
+  // compositing it twice would paint an 0.06 alpha as ~0.12 and overstate
+  // darkness. One composite per layer, not one per stop.
+  const gradientStops = (layer) => {
+    const open = layer.indexOf('(')
+    if (open < 0 || !layer.endsWith(')')) return []
+    const seen = new Map()
+    for (const part of splitTop(layer.slice(open + 1, -1), true)) {
+      // A stop is `<color> <position>?`. Try the whole part, then drop trailing
+      // tokens until something rasterises, so `rgba(0,0,0,.3) 50%` still reads.
+      const toks = splitTop(part, false)
+      for (let n = toks.length; n > 0; n--) {
+        const c = norm(toks.slice(0, n).join(' '))
+        if (c[3] > 0) {
+          seen.set(c.join(','), c)
+          break
+        }
+      }
+    }
+    return [...seen.values()]
+  }
+
+  const dedupe = (surfaces) => {
+    const seen = new Map()
+    for (const s of surfaces) seen.set(s.map((v) => Math.round(v * 1000)).join(','), s)
+    return [...seen.values()]
+  }
+
+  // What one node actually paints: its backgroundColor with its background-image
+  // gradient layers composited on top.
+  //
+  // Paint order matters and is easy to get backwards. In `background-image: A, B`
+  // layer **A is topmost**, so compositing runs base -> B -> A. That is invisible
+  // while every layer is the same colour (true across this DS today) and wrong
+  // the moment one is not.
+  //
+  // Returns an ARRAY: a gradient whose stops differ has no single effective
+  // background, it has a range. Rather than averaging into a false pass — the
+  // exact fault class this comment block exists to fix — each distinct stop
+  // becomes a candidate surface and the caller measures the WORST of them. Flat
+  // washes collapse to one candidate, so today's numbers are unchanged.
+  //
+  // `url()` and other non-gradient images yield no stops and are skipped: they
+  // cannot be rasterised from here, so they are ignored rather than guessed at.
+  // background-blend-mode is likewise not modelled; nothing in this DS uses it.
+  const paintOf = (n) => {
+    const cs = getComputedStyle(n)
+    const base = norm(cs.backgroundColor)
+    const img = cs.backgroundImage
+    if (!img || img === 'none') return [base]
+    let surfaces = [base]
+    for (const layer of splitTop(img, true).reverse()) {
+      const stops = gradientStops(layer)
+      if (!stops.length) continue
+      const next = []
+      for (const s of surfaces) for (const stop of stops) next.push(overKeepAlpha(stop, s))
+      surfaces = dedupe(next)
+    }
+    return surfaces
+  }
+
+  // Candidate painted surfaces beneath `el`, nearest ancestor first.
+  const effectiveBgs = (el) => {
+    let surfaces = [[0, 0, 0, 0]]
+    for (let n = el; n; n = n.parentElement) {
+      const next = []
+      for (const acc of surfaces) for (const p of paintOf(n)) next.push(overKeepAlpha(acc, p))
+      surfaces = dedupe(next)
+      if (surfaces.every((s) => s[3] === 1)) break
+    }
+    // Anything still translucent at the root composites onto the canvas white.
+    return surfaces.map((s) => (s[3] === 1 ? s : over(s, [255, 255, 255, 1])))
   }
 
   const surfaceOf = (el) => {
@@ -92,7 +207,7 @@ export const MEASURE = () => {
   }
 
   const out = []
-  for (const el of document.querySelectorAll('body *')) {
+  for (const el of document.querySelectorAll(root ? `${root} *` : 'body *')) {
     const text = [...el.childNodes]
       .filter((n) => n.nodeType === Node.TEXT_NODE)
       .map((n) => n.textContent.trim())
@@ -101,14 +216,27 @@ export const MEASURE = () => {
     const cs = getComputedStyle(el)
     if (cs.visibility === 'hidden' || cs.display === 'none') continue
 
-    const bg = effectiveBg(el)
-    const fg = over(norm(cs.color), bg)
-    const [hi, lo] = [luminance(fg), luminance(bg)].sort((a, b) => b - a)
+    // Worst candidate wins: a varying gradient must not average into a pass.
+    let ratio = Infinity
+    let worstBg = null
+    for (const bg of effectiveBgs(el)) {
+      const fg = over(norm(cs.color), bg)
+      const [hi, lo] = [luminance(fg), luminance(bg)].sort((a, b) => b - a)
+      const r = (hi + 0.05) / (lo + 0.05)
+      if (r < ratio) {
+        ratio = r
+        worstBg = bg
+      }
+    }
     out.push({
       surface: surfaceOf(el),
       selector: String(el.className || el.tagName),
       text: text.slice(0, 24),
-      ratio: +((hi + 0.05) / (lo + 0.05)).toFixed(2),
+      ratio: +ratio.toFixed(2),
+      // The surface the ratio was actually measured against. Reported so a
+      // failure names the painted colour rather than leaving the reader to
+      // re-derive it — and so a wrong composite is visible in the message.
+      bg: worstBg.slice(0, 3).map(Math.round),
     })
   }
   return out

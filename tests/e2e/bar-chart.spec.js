@@ -12,9 +12,13 @@ import {
   BAR_THICKNESS,
   BASELINE_HEIGHT,
   HEIGHTS,
+  MIN_TICK_FONT_PX,
   STATE_TOKENS,
   TICKS,
+  TICK_LADDER,
+  bandFor,
   buildBarOptions,
+  selectTimeTicks,
 } from '../../src/utils/bar_chart_options.js'
 
 const THEMES = ['light', 'dark']
@@ -126,6 +130,316 @@ test.describe('P8: denser axis labels', () => {
     expect(TICKS.compact.y.maxTicksLimit).toBeGreaterThanOrEqual(2)
   })
 })
+
+// ---------------------------------------------------------------------------
+// §3.19 time-axis tick grammar.
+//
+// Asserted the same way P8's density was, and for the same recorded reason: on
+// what RENDERS, not on the flag. A flag assertion cannot tell a landmark axis
+// from an arbitrary-instant one — both set `maxRotation: 0` — so every test
+// here reads back the label text AND the pixel it landed on.
+//
+// The unit half injects a deterministic measurer (7px per character) so the
+// ladder arithmetic is pinned independent of the font the browser resolves.
+// The rendered half then checks the real canvas agrees. Neither alone is
+// enough: the unit tests cannot see a scale that never laid out, and the
+// browser tests cannot isolate which rule produced a given interval.
+// ---------------------------------------------------------------------------
+const MIN = 60_000
+const HR = 60 * MIN
+
+/** Local wall-clock series, so the boundary maths is tested in the zone it runs in. */
+const at = (h, m = 0) => new Date(2026, 6, 20, h, m, 0, 0).getTime()
+const hourly = (count, startHour = 0) =>
+  Array.from({ length: count }, (_, i) => at(startHour) + i * HR)
+
+/** 7px/char — wide enough to be realistic, fixed enough to compute against. */
+const measure7 = (s) => s.length * 7
+const pick = (labels) =>
+  labels.map((label, index) => ({ index, label })).filter((e) => e.label !== '')
+
+test.describe('§3.19: ticks land on calendar boundaries', () => {
+  test('a window opening off-boundary still ticks ON the boundary', () => {
+    // The rule that makes a tick worth labelling. Starting at 00:17 must not
+    // produce 00:17 / 01:17 / 02:17 — those are instants, not landmarks. This
+    // is the assertion that would fail if the ticks were ever computed as
+    // equal divisions of the window, which is the natural wrong implementation.
+    const start = at(0, 17)
+    const timestamps = Array.from({ length: 25 }, (_, i) => start + i * HR)
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth: 1000, measureLabel: measure7 }))
+
+    const interior = chosen.slice(1, -1)
+    expect(interior.length).toBeGreaterThan(0)
+    for (const { label } of interior) {
+      expect(label, `${label} is an arbitrary instant, not a wall-clock landmark`).toMatch(
+        /(^|\s)\d{2}:00$/
+      )
+    }
+  })
+
+  test('the finest ladder interval that fits is the one chosen', () => {
+    // Decision 2 resolves ties UPWARD in density — the complaint was too few
+    // labels. Coarsest-available would satisfy "fits" and miss the point, so
+    // the test pins that the next finer rung genuinely would NOT have fit.
+    const timestamps = hourly(25)
+    const plotWidth = 1000
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth, measureLabel: measure7 }))
+
+    const spanH = 24
+    const stepH = (chosen[1].index - chosen[0].index) * 1
+    const interval = stepH * HR
+    expect(TICK_LADDER).toContain(interval)
+
+    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const budget = Math.floor(plotWidth / slot)
+    expect(Math.floor((spanH * HR) / interval) + 1).toBeLessThanOrEqual(budget)
+
+    const finer = TICK_LADDER[TICK_LADDER.indexOf(interval) - 1]
+    expect(
+      Math.floor((spanH * HR) / finer) + 1,
+      'a finer rung also fitted the budget — the ladder walk is not taking the finest'
+    ).toBeGreaterThan(budget)
+  })
+
+  test('ticks are evenly spaced in category index, not merely present', () => {
+    const chosen = pick(
+      selectTimeTicks({ timestamps: hourly(25), plotWidth: 1000, measureLabel: measure7 })
+    )
+    const gaps = chosen.slice(1).map((c, i) => c.index - chosen[i].index)
+    expect(new Set(gaps).size, `uneven tick spacing: ${gaps}`).toBe(1)
+  })
+})
+
+test.describe('§3.19: density is a budget, and the floor is derived', () => {
+  test('budget < 3 renders endpoints only', () => {
+    // Criterion 2. Asserted as the OUTCOME of the budget arithmetic: the width
+    // is chosen to drive budget under 3, and nothing in the implementation
+    // branches on "is this narrow" directly.
+    const timestamps = hourly(25)
+    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const plotWidth = slot * 2 // budget == 2, one under the floor
+    expect(Math.floor(plotWidth / slot)).toBeLessThan(3)
+
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth, measureLabel: measure7 }))
+    expect(chosen.map((c) => c.index)).toEqual([0, 24])
+  })
+
+  test('budget < 2 labels nothing rather than colliding the endpoints', () => {
+    // The rung past §3.19's stated floor, derived from the same rule: with no
+    // room for a landmark the range label is the whole reading. Reproduces
+    // compact's `display: false` by arithmetic instead of by variant.
+    const timestamps = hourly(25)
+    const slot = Math.max(...['Wed 00:00'].map(measure7)) + 12
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth: slot, measureLabel: measure7 }))
+    expect(chosen).toHaveLength(0)
+  })
+
+  test('a wider plot earns strictly more labels on the same data', () => {
+    // The budget is a function of width, so widening must not leave density
+    // unchanged. A hard-coded tick count would pass every test above and fail
+    // this one.
+    const timestamps = hourly(25)
+    const narrow = pick(selectTimeTicks({ timestamps, plotWidth: 300, measureLabel: measure7 }))
+    const wide = pick(selectTimeTicks({ timestamps, plotWidth: 1200, measureLabel: measure7 }))
+    expect(wide.length).toBeGreaterThan(narrow.length)
+  })
+
+  test('an empty or single-point series does not throw', () => {
+    expect(selectTimeTicks({ timestamps: [], plotWidth: 400 })).toEqual([])
+    expect(pick(selectTimeTicks({ timestamps: [at(0)], plotWidth: 400 }))).toHaveLength(1)
+  })
+
+  test('unparseable timestamps yield no labels rather than Invalid Date', () => {
+    // The failure this prevents is cosmetic-looking and total: `new Date(NaN)`
+    // formats as "Invalid Date" and would paint that string across the axis.
+    const labels = selectTimeTicks({ timestamps: ['not-a-time', 'also-not'], plotWidth: 400 })
+    expect(labels.every((l) => l === '')).toBe(true)
+  })
+})
+
+test.describe('§3.19: format follows the span, in three bands', () => {
+  test('a span at or under 6h reads as a bare 24-hour clock', () => {
+    expect(bandFor(6 * HR)).toBe('clock')
+    const timestamps = Array.from({ length: 13 }, (_, i) => at(0) + i * (HR / 2))
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth: 600, measureLabel: measure7 }))
+    for (const { label } of chosen) expect(label).toMatch(/^\d{2}:\d{2}$/)
+  })
+
+  test('a span over 72h reads as a date', () => {
+    expect(bandFor(96 * HR)).toBe('date')
+    const timestamps = Array.from({ length: 25 }, (_, i) => at(0) + i * (6 * HR))
+    const chosen = pick(selectTimeTicks({ timestamps, plotWidth: 900, measureLabel: measure7 }))
+    for (const { label } of chosen) expect(label).toMatch(/^\d{1,2} [A-Z][a-z]{2}$/)
+  })
+
+  test('the middle band names the day only where the day changes', () => {
+    // The repetition rule, and the reason it exists: a day name on every tick
+    // is noise that pushes the clock reading out of the slot. Midnight always
+    // carries its day so the flip is visible without counting.
+    const chosen = pick(
+      selectTimeTicks({ timestamps: hourly(25), plotWidth: 1000, measureLabel: measure7 })
+    )
+    expect(chosen.length).toBeGreaterThan(2)
+
+    const named = chosen.filter((c) => /^[A-Z][a-z]{2} /.test(c.label))
+    const bare = chosen.filter((c) => /^\d{2}:\d{2}$/.test(c.label))
+    expect(named.length + bare.length).toBe(chosen.length)
+
+    // Exactly the two midnights in a 24h window opening at midnight.
+    expect(named.map((c) => c.label)).toEqual([
+      expect.stringMatching(/^[A-Z][a-z]{2} 00:00$/),
+      expect.stringMatching(/^[A-Z][a-z]{2} 00:00$/),
+    ])
+    expect(named[0].index).toBe(0)
+    expect(named[1].index).toBe(24)
+    // And the day actually advanced between them, rather than repeating.
+    expect(named[0].label).not.toBe(named[1].label)
+  })
+})
+
+test.describe('§3.19: the preset wiring', () => {
+  test('time mode does not rotate, and category mode still does', () => {
+    // Decision 2 rules rotation out for time. The paired assertion is the
+    // guard on criterion 3: the categorical treatment must be untouched, so
+    // both halves are stated together and a diff that "fixed" rotation
+    // globally turns this red.
+    const timeX = buildBarOptions({ xAxis: 'time', timestamps: hourly(25) }).scales.x.ticks
+    expect(timeX.maxRotation).toBe(0)
+    expect(timeX.autoSkip).toBe(false)
+
+    expect(TICKS.regular.x.maxRotation).toBe(90)
+    expect(buildBarOptions({}).scales.x.ticks).toMatchObject(TICKS.regular.x)
+  })
+
+  test('compact keeps its hidden x axis even in time mode', () => {
+    // §3.19 derives this from the budget floor: a 48px cell has no interior
+    // landmark to offer, and the range label carries the reading. Reaching in
+    // to add ticks here would break the rule this mode implements.
+    const x = buildBarOptions({
+      variant: 'compact',
+      xAxis: 'time',
+      timestamps: hourly(25),
+    }).scales.x.ticks
+    expect(x.display).toBe(false)
+  })
+
+  test('time mode without timestamps falls back rather than drawing nothing', () => {
+    // A caller who sets the mode and forgets the data gets today's axis, not
+    // a blank one. Silently blank is the worse failure: it looks deliberate.
+    expect(buildBarOptions({ xAxis: 'time' }).scales.x.ticks).toMatchObject(TICKS.regular.x)
+  })
+
+  test('tick text stays at or above the 10px readable floor', () => {
+    // §3.19 sets 10px as the floor. Nothing here RAISES a size — canvas ticks
+    // take Chart.js's 12px default and the DOM chrome takes --text-xs (12px),
+    // so both already clear it. This pins the floor so a future token retune
+    // cannot drop under it silently, which is the failure §3.19 describes.
+    expect(MIN_TICK_FONT_PX).toBe(10)
+    const size = buildBarOptions({ fontFamily: 'monospace' }).scales.x.ticks.font.size ?? 12
+    expect(size).toBeGreaterThanOrEqual(MIN_TICK_FONT_PX)
+  })
+})
+
+// The rendered half: the real canvas, the real font, the real layout.
+async function timeAxis(page, theme = 'light') {
+  const q = theme === 'dark' ? '?theme=dark' : ''
+  await page.goto(`/tests/e2e/fixtures/time-axis.html${q}`, { waitUntil: 'networkidle' })
+  await page.waitForFunction(() => window.__timeAxisReady === true, null, { timeout: 15_000 })
+  return page.evaluate(() => window.__timeAxis)
+}
+
+for (const theme of THEMES) {
+  test.describe(`§3.19 rendered (${theme})`, () => {
+    test('no time axis is rotated, on either surface', async ({ page }) => {
+      const m = await timeAxis(page, theme)
+      const rotated = Object.entries(m)
+        .filter(([k]) => !k.endsWith('_category'))
+        .filter(([, v]) => v && v.rotation !== 0)
+      expect(
+        rotated.map(([k, v]) => `${k}: ${v.rotation.toFixed(1)}deg`),
+        'a time axis rotated its labels — §3.19 Decision 2 rules that out'
+      ).toEqual([])
+    })
+
+    test('the category control still rotates, proving the split is real', async ({ page }) => {
+      // Criterion 3's teeth. If this ever reads 0 the diff has reached
+      // categorical behaviour, and every "time is unrotated" assertion above
+      // would still pass while the component silently changed for everyone.
+      const m = await timeAxis(page, theme)
+      expect(m.day24_340_category.rotation).toBeGreaterThan(0)
+    })
+
+    test('at two slots the chart renders endpoints only, by budget not by branch', async ({
+      page,
+    }) => {
+      const m = await timeAxis(page, theme)
+      const v = m.day24_endpoints
+      expect(v.labelled).toHaveLength(2)
+      expect(v.labelled[0].index).toBe(0)
+      expect(v.labelled[1].index).toBe(v.tickCount - 1)
+    })
+
+    test('below two slots it labels nothing and lets the range label carry it', async ({ page }) => {
+      // The narrower limiting case, and the one a label COUNT could not see:
+      // two endpoints at 96px drew `Mon 0Tue 00:00`, a right-sized axis that
+      // was still an unreadable smear.
+      const m = await timeAxis(page, theme)
+      expect(m.day24_narrow.labelled).toHaveLength(0)
+    })
+
+    test('no two rendered labels overlap, on any case or surface', async ({ page }) => {
+      // The assertion the density suite already learned it needed once. Every
+      // rule above is about choosing an interval that FITS; this is the one
+      // that checks the choice was right, in pixels, on the painted axis.
+      const m = await timeAxis(page, theme)
+      const collisions = []
+      for (const [key, v] of Object.entries(m)) {
+        if (!v || key.endsWith('_category')) continue
+        const boxes = v.labelled.map((t) => [t.px - t.w / 2, t.px + t.w / 2, t.label])
+        for (let i = 1; i < boxes.length; i += 1) {
+          if (boxes[i][0] < boxes[i - 1][1]) {
+            collisions.push(`${key}: "${boxes[i - 1][2]}" / "${boxes[i][2]}"`)
+          }
+        }
+      }
+      expect(collisions, 'adjacent x labels share pixels — the smear defect').toEqual([])
+    })
+
+    test('rendered labels are wall-clock landmarks, never arbitrary instants', async ({ page }) => {
+      const m = await timeAxis(page, theme)
+      const bad = []
+      for (const [key, v] of Object.entries(m)) {
+        if (!v || key.endsWith('_category')) continue
+        for (const t of v.labelled) {
+          // Every band's output is a boundary form: HH:00, Ddd HH:00, or D Mon.
+          if (!/^(\d{1,2} [A-Z][a-z]{2}|([A-Z][a-z]{2} )?\d{2}:(00|30))$/.test(t.label)) {
+            bad.push(`${key}: "${t.label}"`)
+          }
+        }
+      }
+      expect(bad, 'a rendered tick is not on a calendar boundary').toEqual([])
+    })
+
+    test('tick positions are evenly spaced across the plot', async ({ page }) => {
+      // Labels on boundaries but positions bunched would mean the label was
+      // attached to the wrong bucket. Only a position assertion catches it.
+      const m = await timeAxis(page, theme)
+      const v = m.day24_340
+      const gaps = v.labelled.slice(1).map((t, i) => t.px - v.labelled[i].px)
+      const spread = Math.max(...gaps) - Math.min(...gaps)
+      expect(spread, `tick spacing varies by ${spread}px: ${gaps}`).toBeLessThanOrEqual(2)
+    })
+
+    test('the same data on a dark card renders the same axis as the page', async ({ page }) => {
+      // §3.18: AspCard is a dark surface even in the light theme. The GRAMMAR
+      // must not vary with the surface — only the derived ink does.
+      const m = await timeAxis(page, theme)
+      expect(m.day24_340_card.labelled.map((t) => t.label)).toEqual(
+        m.day24_340.labelled.map((t) => t.label)
+      )
+    })
+  })
+}
 
 test.describe('axes are drawn, not implied', () => {
   for (const axis of ['x', 'y']) {

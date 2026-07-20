@@ -66,7 +66,7 @@ const CASES = [
   { key: 'day24_340_card', width: 340, series: DAY24, surface: 'card' },
   // Two slots exactly: the endpoint floor, where first and last are labelled
   // and nothing between them is.
-  { key: 'day24_endpoints', width: 160, series: DAY24, surface: 'page' },
+  { key: 'day24_endpoints', width: 180, series: DAY24, surface: 'page' },
   // Under two slots: not even the endpoints fit, so the range label carries
   // the whole reading. This is the case that drew `Mon 0Tue 00:00`.
   { key: 'day24_narrow', width: 96, series: DAY24, surface: 'page' },

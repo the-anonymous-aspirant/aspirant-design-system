@@ -315,8 +315,14 @@ export const selectTimeTicks = ({ timestamps = [], plotWidth = 0, measureLabel }
   for (const mark of boundariesIn(start, end, interval)) {
     const i = nearestIndex(mark)
     if (i < 0) continue
-    labels[i] = formatTick(ts[i], band, prev)
-    prev = ts[i]
+    // Format the BOUNDARY, not the bucket it attaches to. Buckets need not be
+    // aligned to the wall clock — a window opening at 00:17 has its 06:00
+    // landmark sitting on the 06:17 bucket — and formatting the bucket puts
+    // `06:17` on the axis, which is the exact arbitrary instant Decision 1
+    // exists to forbid. The bucket chooses the POSITION; the boundary supplies
+    // the TEXT.
+    labels[i] = formatTick(mark, band, prev)
+    prev = mark
   }
 
   // A ladder that produced nothing placeable still owes the reader the frame.

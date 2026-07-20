@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { AA } from './contrast-measure.js'
+import { AA, MEASURE } from './contrast-measure.js'
 
 // AspContent was filed against three logged defects (#2382). Each one gets an
 // assertion that would have FAILED before the component existed, rather than an
@@ -166,82 +166,28 @@ test('raw HTML in the body is escaped, not executed', async ({ page }) => {
 /**
  * Measures the highlight ramp against the code block's REAL painted surface.
  *
- * This does not reuse the shared MEASURE probe, and the reason is a genuine
- * blind spot rather than a preference: `effectiveBg` composites `backgroundColor`
- * up the ancestor chain and never reads `background-image`. The code block paints
- * in two layers — an opaque `--surface-card` plus a translucent
- * `--surface-card-inner` wash as a gradient — because the inner token is
- * translucent in BOTH themes and alone would inherit whatever sits beneath it.
+ * This used to re-implement the colour maths locally, because the shared probe
+ * had a genuine blind spot: `effectiveBg` composited `backgroundColor` up the
+ * ancestor chain and never read `background-image`. The code block paints in two
+ * layers — an opaque `--surface-card` plus a translucent `--surface-card-inner`
+ * wash as a gradient — because the inner token is translucent in BOTH themes and
+ * alone would inherit whatever sits beneath it. So the shared probe measured
+ * against the bare card: conservative in the light theme, and OVERSTATING
+ * contrast in the dark one, where the wash is white and the real surface is
+ * #373737 against a measured #2a2a2a.
  *
- * So the shared probe would measure against the bare card. In the light theme
- * that understates contrast (the wash is black, the real surface is darker) and
- * is merely conservative. In the DARK theme it overstates it: the wash is white,
- * the real surface is #373737 against a measured #2a2a2a. That direction can
- * pass a colour that is sub-AA on screen, which is the failure mode the
- * amendment exists to prevent — so the wash is composited explicitly here.
+ * #2467 fixed that in the shared probe, so the duplicate is gone and this is now
+ * a scoped call into `MEASURE`. Keeping a second implementation would mean two
+ * places to fix the next probe defect, and only one of them would get fixed.
  */
-const rampRatios = async (page) =>
-  page.evaluate(() => {
-    // Colour is read as a RASTERISED PIXEL, not parsed out of the string.
-    // Same technique and same reason as `contrast-measure.js` defect 5: a
-    // regex over the computed value has to guess the component scale, and
-    // Chromium reports `color-mix(... currentColor 60% ...)` as
-    // `color(srgb 1 1 1 / 0.6)` — 0-1 components. A 0-255 parser reads that as
-    // near-black, which is how the comment token first measured sub-AA against
-    // a surface it is in fact perfectly legible on. Letting the browser do the
-    // conversion is format-agnostic by construction.
-    const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
-    const parse = (c) => {
-      cv.clearRect(0, 0, 1, 1)
-      cv.fillStyle = '#000'
-      cv.fillStyle = c
-      cv.fillRect(0, 0, 1, 1)
-      const [r, g, b, a] = cv.getImageData(0, 0, 1, 1).data
-      return [r, g, b, a / 255]
-    }
-    const over = (fg, bg) => {
-      const a = fg[3] ?? 1
-      return [0, 1, 2].map((i) => fg[i] * a + bg[i] * (1 - a))
-    }
-    const lum = ([r, g, b]) => {
-      const f = (v) => {
-        const s = v / 255
-        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-      }
-      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
-    }
-    const ratio = (a, b) => {
-      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
-      return +((hi + 0.05) / (lo + 0.05)).toFixed(2)
-    }
-
-    const pre = document.querySelector('#probe-fenced pre')
-    const cs = getComputedStyle(pre)
-    let surface = parse(cs.backgroundColor)
-    // The wash is ONE painted layer, so it is composited once — not once per
-    // gradient stop. `linear-gradient(c, c)` has two stops naming the same
-    // colour; applying both would double-darken the surface and overstate every
-    // ratio measured against it.
-    const stop = (cs.backgroundImage.match(/(?:rgba?|color)\([^)]*\)/) || [])[0]
-    if (stop) surface = over(parse(stop), surface)
-
-    const out = []
-    // The block's own ink, plus every highlighted token in it.
-    const targets = [
-      ['pre', pre],
-      ...[...pre.querySelectorAll('[class*="hljs-"]')].map((e) => [e.className, e]),
-    ]
-    for (const [name, el] of targets) {
-      const text = [...el.childNodes]
-        .filter((n) => n.nodeType === Node.TEXT_NODE)
-        .map((n) => n.textContent.trim())
-        .join('')
-      if (!text) continue
-      const fg = over(parse(getComputedStyle(el).color), surface)
-      out.push({ name, text: text.slice(0, 20), ratio: ratio(fg, surface) })
-    }
-    return { surface: surface.map(Math.round), sites: out }
-  })
+const rampRatios = async (page) => {
+  const rows = await page.evaluate(MEASURE, '#probe-fenced')
+  // The block's own ink plus every highlighted token in it.
+  const sites = rows
+    .filter((r) => r.selector === 'PRE' || /hljs-/.test(r.selector))
+    .map((r) => ({ name: r.selector, text: r.text.slice(0, 20), ratio: r.ratio, bg: r.bg }))
+  return { surface: sites[0]?.bg ?? [], sites }
+}
 
 for (const theme of THEMES) {
   test(`highlight ramp clears AA on the painted code surface (${theme})`, async ({ page }) => {

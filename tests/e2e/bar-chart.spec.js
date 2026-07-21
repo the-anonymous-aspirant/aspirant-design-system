@@ -18,10 +18,12 @@ import {
   TICKS,
   TICK_GUTTER,
   TICK_LADDER,
+  TIME_AXIS_END_PADDING,
   WIDEST_LABELS,
   bandFor,
   buildBarOptions,
   selectTimeTicks,
+  timeAxisEndPadding,
 } from '../../src/utils/bar_chart_options.js'
 
 const THEMES = ['light', 'dark']
@@ -542,6 +544,59 @@ test.describe('it is a preset, not a fork', () => {
     // Compared against TICKS.regular rather than a literal, so retuning the
     // density policy cannot leave this asserting a value nothing uses.
     expect(buildBarOptions({ variant: 'nonsense' }).scales.x.ticks).toMatchObject(TICKS.regular.x)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The end reservation, asserted as a derivation rather than as two numbers.
+//
+// The values are only half the claim. The other half is WHY the left is zero —
+// because the y-axis column is wider than the overhang, not because the left
+// edge is special. Asserting `{left: 0, right: 33}` alone would pass just as
+// happily if someone hard-coded a zero, and would keep passing after the y axis
+// is hidden, which is exactly when the left stops being safe.
+// ---------------------------------------------------------------------------
+test.describe('time-axis end reservation', () => {
+  test('today: the y-axis column absorbs the left overhang, the right pays in full', () => {
+    // ceil(65/2) = 33. Left: max(0, 33-36) = 0. Right: max(0, 33-0) = 33.
+    expect(TIME_AXIS_END_PADDING).toEqual({ left: 0, right: 33 })
+  })
+
+  test('the applied layout padding is the derivation, not a separate literal', () => {
+    const opts = buildBarOptions({
+      variant: 'regular',
+      xAxis: 'time',
+      timestamps: [0, 3600e3, 7200e3],
+    })
+    expect(opts.layout.padding).toEqual(TIME_AXIS_END_PADDING)
+  })
+
+  test('category mode reserves nothing — its labels rotate and autoskip', () => {
+    expect(buildBarOptions({ variant: 'regular' }).layout).toBeUndefined()
+  })
+
+  // The case the previous hard-coded 33 could not express. A hidden y axis
+  // allocates no tick column, so the left overhang has nothing absorbing it and
+  // the reservation must appear there. Under the old constant the left stayed
+  // 0 and the first label clipped, with no test able to notice.
+  test('a hidden y axis moves the reservation to the left rather than clipping', () => {
+    expect(timeAxisEndPadding({ yAxisColumnWidth: 0 })).toEqual({ left: 33, right: 33 })
+  })
+
+  test('a narrowed y-axis column is paid for proportionally', () => {
+    // A single-digit maximum narrows the column; 33-20 = 13 is owed on the left.
+    expect(timeAxisEndPadding({ yAxisColumnWidth: 20 })).toEqual({ left: 13, right: 33 })
+  })
+
+  test('structure on the right reduces the right side the same way', () => {
+    // Symmetric treatment: neither side is privileged by the expression.
+    expect(timeAxisEndPadding({ rightStructureWidth: 40 })).toEqual({ left: 0, right: 0 })
+  })
+
+  test('a wider label in another locale raises both sides, not just the right', () => {
+    // ceil(81/2) = 41. Left: 41-36 = 5. This is the locale case the borrowed
+    // Chart.js margin used to swallow silently.
+    expect(timeAxisEndPadding({ wideLabelWidth: 81 })).toEqual({ left: 5, right: 41 })
   })
 })
 

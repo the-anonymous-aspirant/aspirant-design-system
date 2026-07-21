@@ -185,7 +185,7 @@ export const MIN_INTERIOR_BUDGET = 3
  * `bar-chart.spec.js` stays as the guard, but it is no longer the only thing
  * preventing a silent regression — which was too much weight for one test.
  *
- * Sized to the overhang and NOT padded further, because this constant is not
+ * Sized to the overhang and NOT padded further, because this reservation is not
  * free: padding is taken out of the plot, which shrinks `plot_width`, which
  * lowers the budget, which coarsens the ladder. Reserving half-width plus the
  * 12px gutter (45px each side) was measured and it cost a rung — the 340px/24h
@@ -193,8 +193,47 @@ export const MIN_INTERIOR_BUDGET = 3
  * correction had just restored. The gutter floor governs the space BETWEEN
  * adjacent labels; the end label has no neighbour outward, so it needs its
  * overhang and nothing more.
+ *
+ * Each side is DERIVED from what that side already provides, rather than the
+ * right being set to 33 and the left asserted to need nothing. Both sides carry
+ * the same overhang; they differ only in what structure already absorbs it. The
+ * left ends up at 0 today because the y-axis tick column is wider than the
+ * overhang — an arithmetic result, not a property of the left edge. It stops
+ * being 0 the moment that column narrows or the y axis is hidden
+ * (`y.display: false`, a single-digit maximum, a tick-font change), and none of
+ * those are edits anyone would think to re-check an x axis against. That is the
+ * same failure shape as the borrowed Chart.js margin this replaced: correct
+ * until something unrelated moves, silently clipped after.
  */
-export const TIME_AXIS_END_PADDING = 33
+
+/** Wide form (`Mon 00:00`) measured on the reference render at 340px. */
+export const TIME_AXIS_WIDE_LABEL_WIDTH = 65
+
+/** The y-axis tick column the layout already allocates on that same render. */
+export const TIME_AXIS_Y_AXIS_COLUMN = 36
+
+/**
+ * Per-side end reservation: half the wide label, minus whatever structure that
+ * side already allocates, floored at zero.
+ *
+ * Parameterised rather than inlined so the counterfactual is testable — a
+ * caller can ask what the padding becomes when the y-axis column narrows or
+ * disappears, which is the case the constant below cannot express.
+ */
+export function timeAxisEndPadding({
+  wideLabelWidth = TIME_AXIS_WIDE_LABEL_WIDTH,
+  yAxisColumnWidth = TIME_AXIS_Y_AXIS_COLUMN,
+  rightStructureWidth = 0,
+} = {}) {
+  const half = Math.ceil(wideLabelWidth / 2)
+  return {
+    left: Math.max(0, half - yAxisColumnWidth),
+    right: Math.max(0, half - rightStructureWidth),
+  }
+}
+
+/** Today: `{ left: 0, right: 33 }` — byte-identical to the previous scalar. */
+export const TIME_AXIS_END_PADDING = timeAxisEndPadding()
 
 /** The `xAxis` prop's closed set. `category` is the default — nothing existing shifts. */
 export const X_AXES = ['category', 'time']
@@ -507,16 +546,17 @@ export const buildBarOptions = ({
     // labels are rotated and autoskipped, so they never overhang the way a
     // centred end tick does, and adding padding there would change a treatment
     // this work is explicitly not allowed to touch.
-    // Reserved on the RIGHT only, and that asymmetry is measured rather than
-    // stylistic. The left end label overhangs into the y-axis tick column,
-    // which the layout already allocates (36px on the reference render, against
-    // a ~27px overhang). The right edge has no such structural allowance — it
-    // is where the borrowed Chart.js margin was. Reserving both sides was
-    // tried and costs a ladder rung: 33px each way leaves a 238px plot, and a
-    // 6h ladder needs 240px at the measured 36px bare label, so the 340px/24h
-    // case fell back to 12h over two pixels. The assertion in bar-chart.spec.js
-    // guards the left edge, which is the side this does not pay for.
-    ...(timeMode ? { layout: { padding: { right: TIME_AXIS_END_PADDING } } } : {}),
+    // Both sides are derived from the same expression; the asymmetry is the
+    // result, not the rule. The left end label overhangs into the y-axis tick
+    // column the layout already allocates (36px on the reference render against
+    // a ~27px overhang), so its reservation floors at 0. The right edge has no
+    // such structural allowance — it is where the borrowed Chart.js margin was
+    // — so it carries the full 33px. Reserving 33px on BOTH sides was tried and
+    // costs a ladder rung: it leaves a 238px plot, and a 6h ladder needs 240px
+    // at the measured 36px bare label, so the 340px/24h case fell back to 12h
+    // over two pixels. Deriving per side is what buys the density back without
+    // making "the left needs nothing" a standing assumption.
+    ...(timeMode ? { layout: { padding: { ...TIME_AXIS_END_PADDING } } } : {}),
     animation: animate ? undefined : false,
     // The bar owns the hit box, but the tooltip should follow the cursor along
     // the category even when it is above the bar's top edge — a 48px compact

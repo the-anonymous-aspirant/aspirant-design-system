@@ -21,6 +21,20 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   // Contrast is deterministic; a single worker keeps the dev server predictable.
   workers: 1,
+  /*
+   * 60s, not the 30s default. The contrast probe rasterises every text-bearing
+   * element on the page through a canvas, walking each one's ancestor chain to
+   * composite the surface beneath it — and it runs that sweep once per hover
+   * target plus once per opened panel. The cost scales with the matrix, and the
+   * matrix grows every time a component ships.
+   *
+   * The AA passes were already running at ~25s against the 30s default, so
+   * AspBreadcrumb (#2576) tipped them over and the whole suite failed as five
+   * timeouts that looked nothing like a contrast defect. Raising the ceiling is
+   * the honest fix: the alternative is capping what the matrix measures, which
+   * trades a slow suite for a blind one.
+   */
+  timeout: 60_000,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://127.0.0.1:5174',

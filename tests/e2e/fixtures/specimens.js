@@ -155,11 +155,18 @@ export const chatSurfaces = () => [
 /**
  * A path deep enough that it cannot fit the narrow container below, so the
  * middle collapses and the overflow control appears for the spec to open.
- * Twelve items is acceptance criterion 1's case.
+ *
+ * Seven items, not the twelve of acceptance criterion 1. Depth beyond the
+ * collapse threshold buys this fixture nothing — the panel's ink is the same
+ * whether it lists four hidden ancestors or nine — and it is not free: the
+ * probe rasterises every text-bearing element on the page, and a breadcrumb
+ * contributes a label AND a separator glyph per item on five surfaces. The
+ * twelve-item case is asserted in breadcrumb.spec.js, which measures no colour
+ * and can afford it.
  */
 const DEEP_CRUMBS = [
   { label: 'lake', to: '#' },
-  ...Array.from({ length: 9 }, (_, i) => ({ label: `crumb ancestor ${i + 1}`, to: '#' })),
+  ...Array.from({ length: 4 }, (_, i) => ({ label: `crumb ancestor ${i + 1}`, to: '#' })),
   { label: 'crumb deep parent', to: '#' },
   { label: 'crumb deep current' },
 ]

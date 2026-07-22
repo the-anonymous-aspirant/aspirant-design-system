@@ -9,7 +9,19 @@ const THEMES = ['light', 'dark']
 // invisible to a static pass. Anything with a :hover colour belongs here.
 // `.back-btn` earns its place here: its hover ink is the #2419 amber-on-any-surface
 // trap, and a static pass cannot see it.
-const HOVER_TARGETS = ['.sidebar__toggle', '.app-shell__menu', '.data-table__sort', '.back-btn', '.list-item__inner']
+// `.breadcrumb__label--link` and `.breadcrumb__overflow` both paint a wash of
+// currentColor on hover, which is a background the resting state does not have.
+// The row is otherwise an ink-inheritor, so hover is the only state where it
+// sets a surface — exactly the case a static pass cannot see.
+const HOVER_TARGETS = [
+  '.sidebar__toggle',
+  '.app-shell__menu',
+  '.data-table__sort',
+  '.back-btn',
+  '.list-item__inner',
+  '.breadcrumb__label--link',
+  '.breadcrumb__overflow',
+]
 
 async function subAaSites(page, fixture, theme) {
   // ?theme= is read by the fixture before any stylesheet applies. Setting the
@@ -22,6 +34,13 @@ async function subAaSites(page, fixture, theme) {
   // A dropdown's panel is a surface no closed specimen reaches; leaving them
   // shut would let invisible option text pass.
   for (const trigger of await page.locator('[data-surface$="-select-open"] .select__trigger').all()) {
+    await trigger.click()
+  }
+  // Same reasoning for the breadcrumb's overflow panel: it is a --surface-card
+  // panel inside a component that otherwise INHERITS its ink, and it does not
+  // render until the row overflows and someone opens it. Left shut, the one
+  // part of AspBreadcrumb that sets a surface would never be measured.
+  for (const trigger of await page.locator('[data-surface$="-breadcrumb-open"] .breadcrumb__overflow').all()) {
     await trigger.click()
   }
   await page.waitForTimeout(80)
@@ -108,6 +127,28 @@ test.describe('the probe itself', () => {
       modalSites.length,
       'no text measured on the modal surface — the trigger or the data-surface tag broke, and the AA pass above is measuring nothing'
     ).toBeGreaterThan(3)
+  })
+
+  // The breadcrumb panel is reached through TWO things that can break silently:
+  // the row must actually overflow (or no overflow control is rendered) and the
+  // click must land. Either failure leaves the AA pass green having measured no
+  // panel — the same green-by-construction hole the modal check closes.
+  test('actually measures the open breadcrumb overflow panel', async ({ page }) => {
+    await page.goto('/tests/e2e/fixtures/matrix.html', { waitUntil: 'networkidle' })
+    const trigger = page.locator('[data-surface$="-breadcrumb-open"] .breadcrumb__overflow').first()
+    await expect(
+      trigger,
+      'no overflow control rendered — the deep specimen stopped collapsing, so the panel is unreachable and its ink is unmeasured'
+    ).toBeVisible()
+    await trigger.click()
+    await page.waitForTimeout(80)
+    const panelSites = (await page.evaluate(MEASURE)).filter((r) =>
+      String(r.selector).includes('breadcrumb__panel-link')
+    )
+    expect(
+      panelSites.length,
+      'no text measured inside the breadcrumb overflow panel — the panel did not open and the AA pass above is measuring nothing for this surface'
+    ).toBeGreaterThan(0)
   })
 
   // Same failure mode as the modal check above: the chat surfaces could vanish

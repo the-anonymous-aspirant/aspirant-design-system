@@ -117,10 +117,12 @@ import { AspButton } from '@aspirant/design-system'
 createApp({ render: () => h(AspButton, { variant: 'primary' }, () => 'Probe') }).mount('#app')
 JS
 
+# minify off so a failure is readable in the built output rather than a
+# single-letter identifier soup.
 cat > "$WORK/app/vite.config.js" <<'JS'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-export default defineConfig({ plugins: [vue()], build: { minify: false } })
+export default defineConfig({ base: './', plugins: [vue()], build: { minify: false } })
 JS
 
 "${NPM[@]}" exec --yes -- vite build --logLevel error \
@@ -138,57 +140,24 @@ if [ ! -d "$REPO_ROOT/node_modules/playwright" ] && [ ! -d "$REPO_ROOT/node_modu
   exit 0
 fi
 
-cat > "$WORK/check-computed.mjs" <<'JS'
-import { chromium } from 'playwright'
+# Over HTTP, not file://. Chromium refuses `<script type="module">` from a
+# file:// origin on CORS grounds, so the page would load, render nothing, and
+# report no error — a false red indistinguishable from the true one this
+# harness exists to catch.
+PREVIEW_PORT=5199
+"${NPM[@]}" exec --yes -- vite preview --port "$PREVIEW_PORT" --strictPort \
+  >"$WORK/preview.log" 2>&1 &
+PREVIEW_PID=$!
+trap 'kill "$PREVIEW_PID" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
-const dist = process.argv[2]
-const browser = await chromium.launch()
-const page = await browser.newPage()
-const errors = []
-page.on('pageerror', (e) => errors.push(String(e)))
-await page.goto(`file://${dist}/index.html`)
-await page.waitForSelector('button', { timeout: 10_000 })
+for _ in $(seq 1 60); do
+  if curl -sf "http://127.0.0.1:$PREVIEW_PORT/" >/dev/null 2>&1; then break; fi
+  sleep 0.5
+done
+curl -sf "http://127.0.0.1:$PREVIEW_PORT/" >/dev/null 2>&1 \
+  || { cat "$WORK/preview.log" >&2; fail "consumer preview server never came up"; }
 
-const probe = await page.evaluate(() => {
-  const root = getComputedStyle(document.documentElement)
-  const el = document.querySelector('button')
-  const cs = getComputedStyle(el)
-  return {
-    tokenOnRoot: root.getPropertyValue('--brand-primary').trim(),
-    background: cs.backgroundColor,
-    color: cs.color,
-    padding: cs.padding,
-  }
-})
-await browser.close()
-
-const problems = []
-if (errors.length) problems.push(`page errors: ${errors.join(' | ')}`)
-
-// The token must exist as a resolved custom property on :root. Absent means
-// tokens.css never made it into the bundle — the silent case.
-if (!probe.tokenOnRoot) problems.push('--brand-primary does not resolve on :root')
-
-// And the component must actually be WEARING it. An unstyled button computes
-// to a transparent/default background; a tokenised one does not.
-const unstyled = ['rgba(0, 0, 0, 0)', 'transparent', '']
-if (unstyled.includes(probe.background)) {
-  problems.push(`button background computed to ${probe.background || '<empty>'} — component rendered untokenised`)
-}
-if (probe.padding === '0px') problems.push('button padding computed to 0px — component stylesheet absent')
-
-console.log('  computed --brand-primary :', probe.tokenOnRoot || '<unresolved>')
-console.log('  computed background      :', probe.background)
-console.log('  computed color           :', probe.color)
-console.log('  computed padding         :', probe.padding)
-
-if (problems.length) {
-  console.error(`FAIL: ${problems.join('; ')}`)
-  process.exit(1)
-}
-JS
-
-NODE_PATH="$REPO_ROOT/node_modules" node "$WORK/check-computed.mjs" "$WORK/app/dist" \
+(cd "$REPO_ROOT" && node scripts/verify-install-computed.mjs "http://127.0.0.1:$PREVIEW_PORT/") \
   || fail "components installed but render untokenised"
 
 echo

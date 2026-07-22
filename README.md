@@ -77,6 +77,20 @@ exist is the lifecycle script, not the repository.
 consumer, real install, real browser, computed styles. Run it after touching
 anything in this section.
 
+### Peer dependencies
+
+`vue`, `chart.js`, `marked` and `highlight.js` are peers and npm installs them
+for you. None is marked optional, and that is deliberate: the barrel
+(`src/index.js`) re-exports `AspChart` and `AspContent`, which import those
+three at module scope, so *any* named import from the package pulls them in.
+They were declared optional until #2567, which made a bare consumer build fail
+with `"marked" is not exported by "__vite-optional-peer-dep:marked"` — the
+metadata described an optionality the code does not have.
+
+Making it true rather than merely stated means teaching those two components to
+load their heavy dependency lazily; that is system_3 #2636, and out of scope
+here. Until then the honest declaration is a required peer.
+
 ### Which install specifiers work
 
 | Specifier | Builds? | |

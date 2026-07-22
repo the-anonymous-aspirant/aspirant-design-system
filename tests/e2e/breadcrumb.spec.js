@@ -41,11 +41,15 @@ test('separators are hidden from the accessibility tree', async ({ page }) => {
   for (const sep of await separators.all()) {
     await expect(sep).toHaveAttribute('aria-hidden', 'true')
   }
-  // The name a screen reader builds must not contain the glyph. This is the
-  // assertion that catches someone "simplifying" the separator back into the
-  // label text, which reads as "Home chevron Level 1".
-  const name = await crumb(page, 'mid').locator('ol').evaluate((el) => el.innerText)
-  expect(name).not.toContain('›')
+  // What a screen reader builds must not contain the glyph. Asserted against
+  // the ACCESSIBILITY TREE, not innerText: `aria-hidden` does not remove text
+  // from the DOM, so an innerText check would fail on correct markup and prove
+  // nothing about the thing being claimed. This is the assertion that catches
+  // someone "simplifying" the separator back into the label text, which reads
+  // as "Home chevron Level 1".
+  const tree = await crumb(page, 'mid').locator('ol').ariaSnapshot()
+  expect(tree).not.toContain('›')
+  expect(tree).toContain('Level 1')
 })
 
 test('distinguishes ancestors from the current item by more than colour', async ({ page }) => {

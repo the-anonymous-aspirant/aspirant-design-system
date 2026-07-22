@@ -33,14 +33,21 @@ async function subAaSites(page, fixture, theme) {
   // Open every select in the dedicated open-panel surfaces before measuring.
   // A dropdown's panel is a surface no closed specimen reaches; leaving them
   // shut would let invisible option text pass.
-  for (const trigger of await page.locator('[data-surface$="-select-open"] .select__trigger').all()) {
-    await trigger.click()
-  }
   // Same reasoning for the breadcrumb's overflow panel: it is a --surface-card
   // panel inside a component that otherwise inherits its ink, and it does not
   // exist in the DOM's rendered form until the row overflows and someone opens
   // it. Left shut, the panel's ink would never be measured.
+  //
+  // It opens BEFORE the selects, and the order is load-bearing. The breadcrumb
+  // surfaces sit after the select surfaces in the matrix, and a select panel
+  // opens downward — so opening the selects first drops a listbox over the
+  // breadcrumb's overflow control and the click never lands. The reverse cannot
+  // happen: the breadcrumb panels reserve their own height below the row, so
+  // they overlay nothing the later steps need.
   for (const trigger of await page.locator('[data-surface$="-breadcrumb-open"] .breadcrumb__overflow').all()) {
+    await trigger.click()
+  }
+  for (const trigger of await page.locator('[data-surface$="-select-open"] .select__trigger').all()) {
     await trigger.click()
   }
   await page.waitForTimeout(80)

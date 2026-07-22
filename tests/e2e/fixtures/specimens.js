@@ -20,6 +20,16 @@ const SELECT_OPTIONS = [
   { value: 'c', label: 'option c', disabled: true },
 ]
 
+// A shallow trail — the #2367-A3 case. Ancestors are links, the last item is
+// the current page and renders as inherited ink. Both inks are measured on
+// every surface, which is the only way the accent derivation is actually
+// checked: raw --brand-accent is ~1.7:1 on the light page.
+const CRUMBS = [
+  { label: 'crumb root', to: '#' },
+  { label: 'crumb parent', to: '#' },
+  { label: 'crumb current' },
+]
+
 /** One block of every text-rendering component in the library. */
 export const specimens = () => [
   h(DS.AspDataTable, { columns: COLUMNS, rows: ROWS, caption: 'table caption' }),
@@ -37,6 +47,7 @@ export const specimens = () => [
   h(DS.AspCheckbox, { label: 'checkbox mixed', modelValue: false, indeterminate: true }),
   h(DS.AspEmptyState, { heading: 'empty heading', message: 'empty message' }),
   h(DS.AspBackButton),
+  h(DS.AspBreadcrumb, { items: CRUMBS }),
   h(DS.AspTimeSince, { datetime: '2026-07-19T11:58:00.000Z', now: Date.parse('2026-07-19T12:00:00.000Z') }),
   h(DS.AspHeading, { level: 2 }, () => 'heading inherit'),
   h(DS.AspHeading, { level: 3, color: 'body' }, () => 'heading body'),
@@ -141,12 +152,35 @@ export const chatSurfaces = () => [
   ]),
 ]
 
+/**
+ * A path deep enough that it cannot fit the narrow container below, so the
+ * middle collapses and the overflow control appears for the spec to open.
+ * Twelve items is acceptance criterion 1's case.
+ */
+const DEEP_CRUMBS = [
+  { label: 'lake', to: '#' },
+  ...Array.from({ length: 9 }, (_, i) => ({ label: `crumb ancestor ${i + 1}`, to: '#' })),
+  { label: 'crumb deep parent', to: '#' },
+  { label: 'crumb deep current' },
+]
+
 export const openPanels = () => [
   h('div', { class: 'probe-surface', 'data-surface': 'page-select-open' }, [
     h(DS.AspSelect, { label: 'open on page', modelValue: 'a', options: SELECT_OPTIONS, ref: 'openA' }),
   ]),
   h(DS.AspCard, { 'data-surface': 'card-select-open' }, () => [
     h(DS.AspSelect, { label: 'open on card', modelValue: 'b', options: SELECT_OPTIONS }),
+  ]),
+  // The breadcrumb overflow panel, on both polarities. Like the select panel it
+  // declares --surface-card — dark in BOTH themes — so it is the one part of an
+  // otherwise ink-inheriting component that must pair its own ink, and no
+  // closed specimen reaches it. The container is narrow on purpose: the panel
+  // only exists once the row overflows and the middle collapses.
+  h('div', { class: 'probe-surface probe-surface--narrow', 'data-surface': 'page-breadcrumb-open' }, [
+    h(DS.AspBreadcrumb, { items: DEEP_CRUMBS }),
+  ]),
+  h(DS.AspCard, { class: 'probe-narrow', 'data-surface': 'card-breadcrumb-open' }, () => [
+    h(DS.AspBreadcrumb, { items: DEEP_CRUMBS }),
   ]),
 ]
 
@@ -220,8 +254,15 @@ export const shell = (extra = []) =>
 
 export const injectProbeCss = () => {
   const st = document.createElement('style')
+  // The breadcrumb surfaces reserve room BELOW the row for the open overflow
+  // panel. The panel is absolutely positioned and up to 15rem tall, so without
+  // the reservation it would overlay whatever the matrix renders next — and the
+  // next thing is the modal trigger, whose click the spec depends on. A panel
+  // that silently intercepts another pass's click is worse than one that is not
+  // measured at all.
   st.textContent = `.probe-root{display:flex;flex-direction:column;gap:24px;padding:16px}
 .probe-surface{padding:16px;background:var(--surface-page)}
-.probe-surface--elevated{background:var(--surface-elevated)}`
+.probe-surface--elevated{background:var(--surface-elevated)}
+.probe-surface--narrow,.probe-narrow{max-width:320px;padding-bottom:16rem}`
   document.head.appendChild(st)
 }

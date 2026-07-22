@@ -53,6 +53,67 @@ aspirant-design-system/
 └── package.json                TBD when we start implementing
 ```
 
+## Installing (consumers)
+
+```
+npm install git+https://github.com/the-anonymous-aspirant/aspirant-design-system.git
+```
+
+```js
+import '@aspirant/design-system/tokens.css'   // custom properties on :root
+import '@aspirant/design-system/styles.css'   // component styles
+import { AspButton, AspCard } from '@aspirant/design-system'
+```
+
+That is the whole procedure. No second build command, no sibling checkout, no
+step that only works if someone already ran something here. `prepare` runs the
+token build and the library build at install time, so the two artefacts the
+`exports` map points at — `dist/` and `build/` — exist by the time the install
+finishes. Both stay gitignored: they are generated, and tracking generated
+output invites drift between the source and the artefact. What guarantees they
+exist is the lifecycle script, not the repository.
+
+`scripts/verify-install.sh` proves it end to end — clean clone, scratch
+consumer, real install, real browser, computed styles. Run it after touching
+anything in this section.
+
+### Peer dependencies
+
+`vue`, `chart.js`, `marked` and `highlight.js` are peers and npm installs them
+for you. None is marked optional, and that is deliberate: the barrel
+(`src/index.js`) re-exports `AspChart` and `AspContent`, which import those
+three at module scope, so *any* named import from the package pulls them in.
+They were declared optional until #2567, which made a bare consumer build fail
+with `"marked" is not exported by "__vite-optional-peer-dep:marked"` — the
+metadata described an optionality the code does not have.
+
+Making it true rather than merely stated means teaching those two components to
+load their heavy dependency lazily; that is system_3 #2636, and out of scope
+here. Until then the honest declaration is a required peer.
+
+### Which install specifiers work
+
+| Specifier | Builds? | |
+|---|---|---|
+| `git+https://…`, `git+file://…` | yes | npm packs the ref and runs `prepare`. **Use this.** |
+| a published tarball / registry version | yes | `prepare` ran at pack time. |
+| `file:../aspirant-design-system` | **no** | npm *symlinks* a local directory dependency and runs no lifecycle scripts for it. `prepare` cannot fire. |
+| `file:` + `--install-links` | yes | the flag makes npm pack the directory instead of linking it. |
+
+The `file:` row is npm behaviour, not something this repo can fix from the
+inside — a symlinked dependency is the checkout, so it is built exactly when
+the checkout is. If you need a local path during development, either pass
+`--install-links` or run `npm install` once inside this repo (which fires
+`prepare`) before installing it elsewhere.
+
+### For contributors
+
+`npm install` here runs `prepare` too, so a fresh clone is ready after one
+command. `npm run build` always builds tokens first — the ordering lives in the
+script, not in anyone's memory, because the failure it prevents is silent:
+components whose CSS resolves to nothing still import, still mount, and still
+render.
+
 ## Histoire on the cell (publish pipeline)
 
 The component workbench is served in production at

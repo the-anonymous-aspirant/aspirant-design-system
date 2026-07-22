@@ -13,8 +13,19 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts, deliberately: `prepare` (#2567) builds the library and the
+# tokens, and at this layer only the manifest has been copied — no src/, no
+# style-dictionary.config.js. Without the flag this layer fails. The build the
+# flag skips is not lost; it runs below, after the sources arrive.
+RUN npm ci --ignore-scripts
 COPY . .
+# Tokens before stories: stories/histoire.setup.js imports ../build/tokens.css,
+# which style-dictionary generates and .gitignore excludes. Until #2567 this
+# line did not exist and the image built anyway — because .dockerignore listed
+# `dist` but not `build`, so `COPY . .` swept the host's untracked build/ into
+# the context. The image was reproducible on exactly one machine, and a passing
+# build was the bug (the #2409 shape, fourth instance).
+RUN npm run tokens:build
 # Baked base path: the image serves the app at this same path (see
 # scripts/histoire-nginx.conf), so the client-nginx edge proxies
 # without rewriting and local runs browse identically to production.

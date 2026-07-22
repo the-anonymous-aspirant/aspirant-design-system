@@ -37,6 +37,7 @@ export { default as AspChatArea } from './components/AspChatArea.vue'
 export { default as AspChatBubble } from './components/AspChatBubble.vue'
 export { default as AspTooltip } from './components/AspTooltip.vue'
 export { default as AspSplitPane } from './components/AspSplitPane.vue'
+export { default as AspSkeleton } from './components/AspSkeleton.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'

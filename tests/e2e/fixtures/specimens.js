@@ -155,18 +155,11 @@ export const chatSurfaces = () => [
 /**
  * A path deep enough that it cannot fit the narrow container below, so the
  * middle collapses and the overflow control appears for the spec to open.
- *
- * Seven items, not the twelve of acceptance criterion 1. Depth beyond the
- * collapse threshold buys this fixture nothing — the panel's ink is the same
- * whether it lists four hidden ancestors or nine — and it is not free: the
- * probe rasterises every text-bearing element on the page, and a breadcrumb
- * contributes a label AND a separator glyph per item on five surfaces. The
- * twelve-item case is asserted in breadcrumb.spec.js, which measures no colour
- * and can afford it.
+ * Twelve items is acceptance criterion 1's case.
  */
 const DEEP_CRUMBS = [
   { label: 'lake', to: '#' },
-  ...Array.from({ length: 4 }, (_, i) => ({ label: `crumb ancestor ${i + 1}`, to: '#' })),
+  ...Array.from({ length: 9 }, (_, i) => ({ label: `crumb ancestor ${i + 1}`, to: '#' })),
   { label: 'crumb deep parent', to: '#' },
   { label: 'crumb deep current' },
 ]
@@ -183,10 +176,10 @@ export const openPanels = () => [
   // otherwise ink-inheriting component that must pair its own ink, and no
   // closed specimen reaches it. The container is narrow on purpose: the panel
   // only exists once the row overflows and the middle collapses.
-  h('div', { class: 'probe-surface probe-surface--narrow', 'data-surface': 'page-breadcrumb-open' }, [
+  h('div', { class: 'probe-surface', 'data-surface': 'page-breadcrumb-open' }, [
     h(DS.AspBreadcrumb, { items: DEEP_CRUMBS }),
   ]),
-  h(DS.AspCard, { class: 'probe-narrow', 'data-surface': 'card-breadcrumb-open' }, () => [
+  h(DS.AspCard, { 'data-surface': 'card-breadcrumb-open' }, () => [
     h(DS.AspBreadcrumb, { items: DEEP_CRUMBS }),
   ]),
 ]
@@ -261,15 +254,30 @@ export const shell = (extra = []) =>
 
 export const injectProbeCss = () => {
   const st = document.createElement('style')
-  // The breadcrumb surfaces reserve room BELOW the row for the open overflow
-  // panel. The panel is absolutely positioned and up to 15rem tall, so without
-  // the reservation it would overlay whatever the matrix renders next — and the
-  // next thing is the modal trigger, whose click the spec depends on. A panel
-  // that silently intercepts another pass's click is worse than one that is not
-  // measured at all.
+  // Every surface that OPENS A PANEL reserves room below itself for it.
+  //
+  // These panels are absolutely positioned, up to 15rem tall, and drop downward
+  // out of flow — so without the reservation each one lands on the surface that
+  // follows it and swallows that surface's pointer events. The spec opens the
+  // panels first and hovers afterwards, and `subAaSites` wraps its hovers in
+  // `.catch()`, so an intercepted hover does not fail loudly: it burns the
+  // full actionability timeout and the whole test dies as a timeout that looks
+  // nothing like a contrast defect. That is exactly how the select panel took
+  // out the breadcrumb below it (#2576) — twice, once on the click and once on
+  // the hover, having been diagnosed as a slow probe the first time.
+  //
+  // Reserving the space is what makes the sweep order-independent. The
+  // alternative — sequencing the opens so each panel lands on something
+  // harmless — encodes the surface order into the spec and breaks silently the
+  // next time a component is inserted between two of them.
+  //
+  // Selector is `.probe-root [data-surface]` rather than a class so it outranks
+  // AspCard's own `.card--padding-md` padding, which the card surfaces set.
   st.textContent = `.probe-root{display:flex;flex-direction:column;gap:24px;padding:16px}
 .probe-surface{padding:16px;background:var(--surface-page)}
 .probe-surface--elevated{background:var(--surface-elevated)}
-.probe-surface--narrow,.probe-narrow{max-width:320px;padding-bottom:16rem}`
+.probe-root [data-surface$="-select-open"],
+.probe-root [data-surface$="-breadcrumb-open"]{padding-bottom:16rem}
+.probe-root [data-surface$="-breadcrumb-open"]{max-width:320px}`
   document.head.appendChild(st)
 }

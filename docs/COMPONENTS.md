@@ -499,6 +499,42 @@ rather than a fixed colour that inverts) and the overflow panel (`--surface-card
 the panel is opened there — a closed specimen never reaches its surface and would be green by
 construction.
 
+### 20. `AspSkeleton` — ✅ shipped
+
+Loading placeholder. Replaces system_3's `frontend/templates/_partials/skeleton.html`, which
+`docs/design/2026-07-20-partials-to-ds-mapping.md` flagged as a partial with no DS component.
+A precondition for #2367-A3 (#2575).
+
+Stands for **content whose shape is known and whose value is not yet loaded** — content that
+does not exist on the client at all. That is deliberately *not* §3.21's provisional state (an
+item that exists and has not landed): §3.21 marks its meaning with a dashed border plus a text
+suffix and *forbids* itself opacity, so the skeleton is free to modulate its own fill and
+borrows neither of those channels. The two therefore cannot be confused as "a real item,
+dimmed" — by construction, not by eyeballing them side by side.
+
+Props: `variant` (`text` | `block` | `row`), `lines` (text), `height` (block, any CSS length),
+`rows` + `columns` (row). No emits.
+
+Contrast role is **PAINTS**: it draws its own bars, so it owns their shade and *derives* it
+from the surface via `color-mix(in srgb, currentColor 65%, transparent)` — a mix of the ink
+the surface already established, so it darkens on the light page and lightens on a dark card
+without ever naming a colour (the #2415 trap). Bars are not text, so the 3:1 non-text floor
+(WCAG 1.4.11) applies rather than 4.5:1; the binding case is the light page, where
+`--text-body` is a mid-grey, and 65% measures ~3.3:1 there with headroom. `skeleton.spec.js`
+measures all four surface×theme combinations rather than trusting the arithmetic.
+
+**Motion is a background-colour pulse, never opacity.** An opacity trough would drop the bar
+below 3:1 for part of every cycle and read as *disabled*; both fills here are ≥3:1 by
+construction, so the guarantee holds at every instant. It is the only animation on the element
+and moves no box. `prefers-reduced-motion: reduce` removes it entirely, leaving a static,
+still-visible placeholder — an acceptance criterion, not a nicety.
+
+**No layout shift.** Text lines are full line boxes of the inherited type scale (`1lh`), so N
+skeleton lines occupy exactly N real lines and the swap to real content cannot reflow — the
+defect this component most easily causes, asserted rather than eyeballed. `aria-busy` on the
+container, decorative shapes `aria-hidden`; the `role="status"` live region belongs to the
+consumer, not to every skeleton.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

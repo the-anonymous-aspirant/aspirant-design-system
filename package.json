@@ -1,6 +1,6 @@
 {
   "name": "@aspirant/design-system",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Design system for the aspirant ecosystem \u2014 Vue 3 components, hand-drawn iconography, design tokens with Penpot round-tripping",
   "type": "module",
   "main": "./dist/aspirant-design-system.umd.cjs",
@@ -23,7 +23,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run tokens:build && vite build",
+    "prepare": "npm run build",
     "story:dev": "histoire dev",
     "story:build": "histoire build",
     "story:preview": "histoire preview",

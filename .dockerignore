@@ -2,3 +2,10 @@ node_modules
 .histoire
 .git
 dist
+# `build` belongs here for the same reason `dist` does: both are generated and
+# gitignored. Omitting it (until #2567) let `COPY . .` sweep the host's stale
+# build/tokens.css into the context, so the image built on the one machine that
+# had run `tokens:build` by hand and nowhere else. Excluding it forces the
+# Dockerfile to generate what it needs, which is the only way the build stays
+# honest.
+build

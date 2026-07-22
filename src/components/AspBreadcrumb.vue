@@ -91,8 +91,11 @@ const hiddenItems = computed(() =>
  * takes the position of the ancestors it stands in for: straight after root.
  */
 const nodes = computed(() => {
-  const out = shown.value.map((s) => ({ kind: 'item', ...s }))
-  if (hidden.value > 0) out.splice(1, 0, { kind: 'overflow' })
+  // Each node carries its own `key` so the template's two branches key off the
+  // same loop variable. An index-derived key would re-use a DOM node across a
+  // collapse, which is how a stale tooltip ends up attached to a new label.
+  const out = shown.value.map((s) => ({ kind: 'item', key: `item-${s.index}`, ...s }))
+  if (hidden.value > 0) out.splice(1, 0, { kind: 'overflow', key: 'overflow' })
   return out
 })
 
@@ -204,7 +207,7 @@ const onNavigate = (entry, event) => {
   <nav ref="root" class="breadcrumb" :aria-label="ariaLabel" @keydown="onKeydown">
     <ol ref="list" class="breadcrumb__list">
       <template v-for="(node, position) in nodes">
-        <li v-if="node.kind === 'overflow'" :key="`${uid}-overflow`" class="breadcrumb__item breadcrumb__item--overflow">
+        <li v-if="node.kind === 'overflow'" :key="node.key" class="breadcrumb__item breadcrumb__item--overflow">
           <!-- Decorative: the screen reader reads "Home, Reports, Q3", not
                "Home chevron Reports". AspIcon is aria-hidden whenever no
                `label` is passed. -->
@@ -235,7 +238,7 @@ const onNavigate = (entry, event) => {
           </ul>
         </li>
 
-        <li v-else :key="node.index" class="breadcrumb__item">
+        <li v-else :key="node.key" class="breadcrumb__item">
           <AspIcon v-if="position > 0" class="breadcrumb__sep" name="separator" size="sm" />
 
           <!-- `disabled` rather than a conditional wrapper: a label that fits
@@ -256,7 +259,9 @@ const onNavigate = (entry, event) => {
               class="breadcrumb__label breadcrumb__label--link"
               :data-index="node.index"
               @click="onNavigate(node, $event)"
-            >{{ node.item.label }}</component>
+            >
+              {{ node.item.label }}
+            </component>
           </AspTooltip>
         </li>
       </template>

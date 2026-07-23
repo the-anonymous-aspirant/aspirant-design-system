@@ -33,11 +33,11 @@ export const iconRegistry = {
   // Glyph-only names — no aspirant asset yet; upgrade silently once the
   // reMarkable SVG pipeline serves `${VITE_ICON_BASE}/${name}.svg`.
   back: { glyph: '←', asset: null },
-  // The breadcrumb separator. Registered rather than hard-coded in the markup
-  // so it takes the same progressive-enhancement path as every other icon:
-  // the glyph renders immediately and upgrades silently once the SVG pipeline
-  // serves it. Decorative — AspBreadcrumb renders it without a `label`, which
-  // is what makes AspIcon mark it aria-hidden.
+  // A path separator glyph. Registered rather than hard-coded so it takes the
+  // same progressive-enhancement path as every other icon: the glyph renders
+  // immediately and upgrades silently once the SVG pipeline serves it.
+  // Decorative — rendered without a `label`, which is what makes AspIcon mark
+  // it aria-hidden.
   separator: { glyph: '›', asset: null },
   search: { glyph: '⌕', asset: null },
   trusted: { glyph: '✧', asset: null },

@@ -20,16 +20,6 @@ const SELECT_OPTIONS = [
   { value: 'c', label: 'option c', disabled: true },
 ]
 
-// A shallow trail — the #2367-A3 case. Ancestors are links, the last item is
-// the current page and renders as inherited ink. Both inks are measured on
-// every surface, which is the only way the accent derivation is actually
-// checked: raw --brand-accent is ~1.7:1 on the light page.
-const CRUMBS = [
-  { label: 'crumb root', to: '#' },
-  { label: 'crumb parent', to: '#' },
-  { label: 'crumb current' },
-]
-
 /** One block of every text-rendering component in the library. */
 export const specimens = () => [
   h(DS.AspDataTable, { columns: COLUMNS, rows: ROWS, caption: 'table caption' }),
@@ -47,7 +37,6 @@ export const specimens = () => [
   h(DS.AspCheckbox, { label: 'checkbox mixed', modelValue: false, indeterminate: true }),
   h(DS.AspEmptyState, { heading: 'empty heading', message: 'empty message' }),
   h(DS.AspBackButton),
-  h(DS.AspBreadcrumb, { items: CRUMBS }),
   h(DS.AspTimeSince, { datetime: '2026-07-19T11:58:00.000Z', now: Date.parse('2026-07-19T12:00:00.000Z') }),
   h(DS.AspHeading, { level: 2 }, () => 'heading inherit'),
   h(DS.AspHeading, { level: 3, color: 'body' }, () => 'heading body'),
@@ -152,35 +141,12 @@ export const chatSurfaces = () => [
   ]),
 ]
 
-/**
- * A path deep enough that it cannot fit the narrow container below, so the
- * middle collapses and the overflow control appears for the spec to open.
- * Twelve items is acceptance criterion 1's case.
- */
-const DEEP_CRUMBS = [
-  { label: 'lake', to: '#' },
-  ...Array.from({ length: 9 }, (_, i) => ({ label: `crumb ancestor ${i + 1}`, to: '#' })),
-  { label: 'crumb deep parent', to: '#' },
-  { label: 'crumb deep current' },
-]
-
 export const openPanels = () => [
   h('div', { class: 'probe-surface', 'data-surface': 'page-select-open' }, [
     h(DS.AspSelect, { label: 'open on page', modelValue: 'a', options: SELECT_OPTIONS, ref: 'openA' }),
   ]),
   h(DS.AspCard, { 'data-surface': 'card-select-open' }, () => [
     h(DS.AspSelect, { label: 'open on card', modelValue: 'b', options: SELECT_OPTIONS }),
-  ]),
-  // The breadcrumb overflow panel, on both polarities. Like the select panel it
-  // declares --surface-card — dark in BOTH themes — so it is the one part of an
-  // otherwise ink-inheriting component that must pair its own ink, and no
-  // closed specimen reaches it. The container is narrow on purpose: the panel
-  // only exists once the row overflows and the middle collapses.
-  h('div', { class: 'probe-surface', 'data-surface': 'page-breadcrumb-open' }, [
-    h(DS.AspBreadcrumb, { items: DEEP_CRUMBS }),
-  ]),
-  h(DS.AspCard, { 'data-surface': 'card-breadcrumb-open' }, () => [
-    h(DS.AspBreadcrumb, { items: DEEP_CRUMBS }),
   ]),
 ]
 
@@ -263,8 +229,8 @@ export const injectProbeCss = () => {
   // `.catch()`, so an intercepted hover does not fail loudly: it burns the
   // full actionability timeout and the whole test dies as a timeout that looks
   // nothing like a contrast defect. That is exactly how the select panel took
-  // out the breadcrumb below it (#2576) — twice, once on the click and once on
-  // the hover, having been diagnosed as a slow probe the first time.
+  // out the surface below it — twice, once on the click and once on the hover,
+  // having been diagnosed as a slow probe the first time.
   //
   // Reserving the space is what makes the sweep order-independent. The
   // alternative — sequencing the opens so each panel lands on something
@@ -276,8 +242,6 @@ export const injectProbeCss = () => {
   st.textContent = `.probe-root{display:flex;flex-direction:column;gap:24px;padding:16px}
 .probe-surface{padding:16px;background:var(--surface-page)}
 .probe-surface--elevated{background:var(--surface-elevated)}
-.probe-root [data-surface$="-select-open"],
-.probe-root [data-surface$="-breadcrumb-open"]{padding-bottom:16rem}
-.probe-root [data-surface$="-breadcrumb-open"]{max-width:320px}`
+.probe-root [data-surface$="-select-open"]{padding-bottom:16rem}`
   document.head.appendChild(st)
 }

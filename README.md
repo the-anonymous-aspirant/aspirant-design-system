@@ -79,17 +79,25 @@ anything in this section.
 
 ### Peer dependencies
 
-`vue`, `chart.js`, `marked` and `highlight.js` are peers and npm installs them
-for you. None is marked optional, and that is deliberate: the barrel
-(`src/index.js`) re-exports `AspChart` and `AspContent`, which import those
-three at module scope, so *any* named import from the package pulls them in.
-They were declared optional until #2567, which made a bare consumer build fail
-with `"marked" is not exported by "__vite-optional-peer-dep:marked"` — the
-metadata described an optionality the code does not have.
+`vue` is a required peer. `chart.js`, `marked` and `highlight.js` are **optional**
+peers: install them only if you use the components that need them —
+`AspChart` / `AspBarChart` (chart.js) or `AspContent` (marked + highlight.js). A
+consumer that only wants, say, `AspButton` installs none of the three.
 
-Making it true rather than merely stated means teaching those two components to
-load their heavy dependency lazily; that is system_3 #2636, and out of scope
-here. Until then the honest declaration is a required peer.
+That optionality is real, not just declared (system_3 #2636). The barrel
+re-exports those three components through `defineAsyncComponent(() => import(…))`,
+so their module subgraph — and its chart.js / marked / highlight.js edges — sits
+in a lazily-fetched chunk the package entry does not statically import. Importing
+the barrel therefore pulls in none of the three; each is fetched only when its
+component first renders (which is also why those three mount asynchronously). It
+was not always so: they were declared optional but statically imported until
+#2567 made a bare consumer build fail with `"marked" is not exported by
+"__vite-optional-peer-dep:marked"`; #2567 made the peers required to match the
+code, and #2636 made the code match the optional declaration instead.
+
+`scripts/verify-install.sh` holds the claim to the wall — its probe app installs
+none of the three and fails if any appears in the consumer's `node_modules` or
+if the build cannot resolve.
 
 ### Which install specifiers work
 

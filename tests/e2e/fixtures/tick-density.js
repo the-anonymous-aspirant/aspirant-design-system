@@ -69,18 +69,28 @@ createApp({
     const presetEl = ref(null)
     const baselineEl = ref(null)
 
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          const pick = (host) => host?.querySelector('canvas')
-          window.__tickDensity = {
-            preset: measure(pick(presetEl.value?.$el || presetEl.value)),
-            baseline: measure(pick(baselineEl.value?.$el || baselineEl.value)),
-          }
-          window.__tickDensityReady = true
-        }, 300)
-      })
-    )
+    // chart.js loads at RUNTIME now (#2636): wait for both charts to signal
+    // `data-rendered` before reading their canvases, then keep the original
+    // two-frame + 300ms settle for autoskip to converge.
+    const whenChartsDrawn = (fn) => {
+      const charts = [...document.querySelectorAll('.asp-chart')]
+      if (charts.length && charts.every((el) => el.dataset.rendered === 'true')) {
+        requestAnimationFrame(() => requestAnimationFrame(fn))
+      } else {
+        requestAnimationFrame(() => whenChartsDrawn(fn))
+      }
+    }
+
+    whenChartsDrawn(() => {
+      setTimeout(() => {
+        const pick = (host) => host?.querySelector('canvas')
+        window.__tickDensity = {
+          preset: measure(pick(presetEl.value?.$el || presetEl.value)),
+          baseline: measure(pick(baselineEl.value?.$el || baselineEl.value)),
+        }
+        window.__tickDensityReady = true
+      }, 300)
+    })
 
     // Identical widths. A density comparison across different widths would
     // measure the layout, not the tick policy.

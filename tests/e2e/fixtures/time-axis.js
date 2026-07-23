@@ -165,16 +165,25 @@ const readAxis = (root) => {
   }
 }
 
-// Chart.js lays out asynchronously; two frames is enough for the scale to have
-// real pixel positions. Reading earlier reports a zero-width plot and every
-// budget collapses to the endpoint floor — a false pass on criterion 2.
-requestAnimationFrame(() =>
-  requestAnimationFrame(() => {
-    const out = {}
-    for (const el of document.querySelectorAll('[data-case]')) {
-      out[el.dataset.case] = readAxis(el)
-    }
-    window.__timeAxis = out
-    window.__timeAxisReady = true
-  })
-)
+// chart.js is now loaded at RUNTIME (#2636), so a chart draws after its engine
+// chunk resolves, not synchronously on mount. Wait for every AspChart to signal
+// `data-rendered` before reading; then keep the original two-frame settle so
+// the scale has real pixel positions (reading earlier reports a zero-width plot
+// and every budget collapses to the endpoint floor — a false pass on criterion 2).
+const whenChartsDrawn = (fn) => {
+  const charts = [...document.querySelectorAll('.asp-chart')]
+  if (charts.length && charts.every((el) => el.dataset.rendered === 'true')) {
+    requestAnimationFrame(() => requestAnimationFrame(fn))
+  } else {
+    requestAnimationFrame(() => whenChartsDrawn(fn))
+  }
+}
+
+whenChartsDrawn(() => {
+  const out = {}
+  for (const el of document.querySelectorAll('[data-case]')) {
+    out[el.dataset.case] = readAxis(el)
+  }
+  window.__timeAxis = out
+  window.__timeAxisReady = true
+})

@@ -23,41 +23,34 @@
 //     once instead of once per theme. See the <style> block for the measured
 //     ratios and for why a stock highlight.js theme is NOT vendored.
 
-import { computed } from 'vue'
-import { marked } from 'marked'
-import hljs from 'highlight.js/lib/core'
+import { computed, ref, watch, onMounted } from 'vue'
 
-// Curated language set rather than `highlight.js/lib/common`. The full common
-// bundle registers ~40 grammars; these are the ones an aspirant artifact
-// actually carries, and each one is ~2-8KB of the consumer's bundle.
-import javascript from 'highlight.js/lib/languages/javascript'
-import typescript from 'highlight.js/lib/languages/typescript'
-import python from 'highlight.js/lib/languages/python'
-import bash from 'highlight.js/lib/languages/bash'
-import json from 'highlight.js/lib/languages/json'
-import yaml from 'highlight.js/lib/languages/yaml'
-import xml from 'highlight.js/lib/languages/xml'
-import css from 'highlight.js/lib/languages/css'
-import sql from 'highlight.js/lib/languages/sql'
-import diff from 'highlight.js/lib/languages/diff'
-import markdownLang from 'highlight.js/lib/languages/markdown'
-
-const LANGUAGES = {
-  javascript,
-  typescript,
-  python,
-  bash,
-  json,
-  yaml,
-  xml,
-  css,
-  sql,
-  diff,
-  markdown: markdownLang,
-}
-for (const [name, grammar] of Object.entries(LANGUAGES)) {
-  if (!hljs.getLanguage(name)) hljs.registerLanguage(name, grammar)
-}
+// marked and highlight.js are OPTIONAL peers (package.json). A module-scope
+// `import { marked } from 'marked'` / `import hljs from 'highlight.js/lib/core'`
+// would make them mandatory for anyone importing the barrel — the static edge
+// that breaks a consumer who installed neither ("marked is not exported by
+// __vite-optional-peer-dep:marked"; system_3 #2636). Both engines, and the
+// eleven highlight grammars, are therefore loaded at RUNTIME with `import()`: a
+// bundler resolves a dynamic import of an absent optional peer to a stub that
+// rejects at load time, so the consumer BUILDS without them and only pays for
+// them when an AspContent that needs them is mounted.
+//
+// Curated grammar set rather than `highlight.js/lib/common` (~40 grammars);
+// these are the ones an aspirant artifact carries, each ~2-8KB of the lazy
+// chunk. A thunk per grammar so the loader can fetch them in one Promise.all.
+const GRAMMARS = [
+  ['javascript', () => import('highlight.js/lib/languages/javascript')],
+  ['typescript', () => import('highlight.js/lib/languages/typescript')],
+  ['python', () => import('highlight.js/lib/languages/python')],
+  ['bash', () => import('highlight.js/lib/languages/bash')],
+  ['json', () => import('highlight.js/lib/languages/json')],
+  ['yaml', () => import('highlight.js/lib/languages/yaml')],
+  ['xml', () => import('highlight.js/lib/languages/xml')],
+  ['css', () => import('highlight.js/lib/languages/css')],
+  ['sql', () => import('highlight.js/lib/languages/sql')],
+  ['diff', () => import('highlight.js/lib/languages/diff')],
+  ['markdown', () => import('highlight.js/lib/languages/markdown')],
+]
 
 const props = defineProps({
   /** The artifact body, as text. */
@@ -129,7 +122,11 @@ const sniffType = (text) => {
 const resolvedType = computed(() => (props.type === 'auto' ? sniffType(props.content) : props.type))
 
 // --- highlighting -----------------------------------------------------------
-const highlight = (code, language) => {
+const escapeHtml = (s) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+// A highlight function bound to a loaded hljs instance.
+const makeHighlight = (hljs) => (code, language) => {
   const lang = (language || '').toLowerCase()
   if (lang && hljs.getLanguage(lang)) {
     // `ignoreIllegals` — a grammar that hits an illegal construct throws by
@@ -143,9 +140,6 @@ const highlight = (code, language) => {
   // and a wrong grammar mis-colours code that reads fine uncoloured.
   return escapeHtml(code)
 }
-
-const escapeHtml = (s) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 // --- markdown ---------------------------------------------------------------
 // Raw HTML in the source is ESCAPED, not passed through. marked has shipped no
@@ -161,27 +155,96 @@ const escapeHtml = (s) =>
 // is disabled for this file in `.eslintrc.cjs` rather than by an in-template
 // comment, because a template comment is emitted into the rendered DOM as a
 // comment node in every consumer's app.
-const renderer = {
-  html(token) {
-    return escapeHtml(typeof token === 'string' ? token : token.raw)
-  },
-  code(token) {
-    const lang = (token.lang || '').split(/\s+/)[0]
-    const cls = lang ? ` class="language-${escapeHtml(lang)}"` : ''
-    return `<pre class="asp-content__code"><code${cls}>${highlight(token.text, lang)}</code></pre>`
-  },
+
+// Load marked + highlight.js + the grammars once, on demand. Cached at module
+// scope so N mounts share a single engine load. The marked singleton is
+// configured with the DS renderer here (once), the renderer closing over the
+// highlight fn bound to the loaded hljs.
+let contentLibsPromise = null
+const loadContentLibs = () => {
+  if (!contentLibsPromise) {
+    contentLibsPromise = Promise.all([
+      import('marked'),
+      import('highlight.js/lib/core'),
+      ...GRAMMARS.map(([, load]) => load()),
+    ]).then(([markedMod, coreMod, ...grammarMods]) => {
+      const marked = markedMod.marked
+      const hljs = coreMod.default
+      grammarMods.forEach((mod, i) => {
+        const [name] = GRAMMARS[i]
+        if (!hljs.getLanguage(name)) hljs.registerLanguage(name, mod.default)
+      })
+      const highlight = makeHighlight(hljs)
+      marked.use({
+        renderer: {
+          html(token) {
+            return escapeHtml(typeof token === 'string' ? token : token.raw)
+          },
+          code(token) {
+            const lang = (token.lang || '').split(/\s+/)[0]
+            const cls = lang ? ` class="language-${escapeHtml(lang)}"` : ''
+            return `<pre class="asp-content__code"><code${cls}>${highlight(token.text, lang)}</code></pre>`
+          },
+        },
+        gfm: true,
+        breaks: false,
+      })
+      return { marked, highlight }
+    })
+  }
+  return contentLibsPromise
 }
 
-marked.use({ renderer, gfm: true, breaks: false })
+// Reactive engine state. `libs` is null until loaded; `libsFailed` is set when
+// the optional peers are genuinely absent at runtime (dynamic import rejects) —
+// in which case the body still renders, as readable escaped plain text.
+const libs = ref(null)
+const libsFailed = ref(false)
+
+// Only the markdown and code branches need an engine. `text` (and the sniff
+// itself) do not, so a plain-text body pays nothing and is ready immediately.
+const needsLibs = computed(
+  () => resolvedType.value === 'markdown' || resolvedType.value === 'code'
+)
+
+const ensureLibs = () => {
+  if (libs.value || libsFailed.value) return
+  loadContentLibs().then(
+    (l) => {
+      libs.value = l
+    },
+    () => {
+      libsFailed.value = true
+    }
+  )
+}
+
+onMounted(() => {
+  if (needsLibs.value) ensureLibs()
+})
+
+// A body whose type flips to markdown/code after mount (e.g. `content` changes
+// under `type="auto"`) triggers the load then.
+watch(needsLibs, (need) => {
+  if (need) ensureLibs()
+})
+
+// True once the rendered output is settled: a text body is always settled; a
+// markdown/code body once the engines load or are known absent. The e2e suite
+// and any consumer can wait on `[data-ready="true"]` before measuring layout.
+const ready = computed(() => !needsLibs.value || libs.value !== null || libsFailed.value)
 
 const renderedHtml = computed(() => {
-  if (resolvedType.value !== 'markdown') return ''
-  return marked.parse(props.content)
+  if (resolvedType.value !== 'markdown' || !libs.value) return ''
+  return libs.value.marked.parse(props.content)
 })
 
 const highlightedSource = computed(() => {
   if (resolvedType.value !== 'code') return ''
-  return highlight(props.content, props.language)
+  // Before the engine loads (or if it is absent), fall back to escaped plain
+  // text — readable, unhighlighted, and safe to v-html.
+  if (!libs.value) return escapeHtml(props.content)
+  return libs.value.highlight(props.content, props.language)
 })
 
 const bodyStyle = computed(() => {
@@ -204,8 +267,18 @@ const scrollable = computed(() => props.maxHeight !== null)
     :tabindex="scrollable ? 0 : undefined"
     :role="scrollable ? 'region' : undefined"
     :aria-label="scrollable ? 'Artifact body' : undefined"
+    :data-ready="ready ? 'true' : 'false'"
+    :aria-busy="ready ? undefined : 'true'"
   >
-    <div v-if="resolvedType === 'markdown'" class="asp-content__prose" v-html="renderedHtml" />
+    <template v-if="resolvedType === 'markdown'">
+      <!-- Rendered once the markdown engine loads. -->
+      <div v-if="libs" class="asp-content__prose" v-html="renderedHtml" />
+      <!-- marked is an optional peer and is absent: degrade to readable plain
+           text rather than showing nothing. -->
+      <pre v-else-if="libsFailed" class="asp-content__plain">{{ content }}</pre>
+      <!-- Engine loading (near-instant once its chunk is cached). -->
+      <p v-else class="asp-content__loading" aria-hidden="true">Loading…</p>
+    </template>
 
     <pre v-else-if="resolvedType === 'code'" class="asp-content__code"><code
       :class="language ? `language-${language}` : undefined"
@@ -235,6 +308,14 @@ const scrollable = computed(() => props.maxHeight !== null)
 
 .asp-content--measured .asp-content__prose {
   max-width: 70ch;
+}
+
+/* Shown only while the markdown engine loads (an optional peer, fetched on
+   first use). Inherits ink; sets no colour of its own. */
+.asp-content__loading {
+  margin: 0;
+  opacity: 0.6;
+  font-size: var(--text-sm);
 }
 
 /*

@@ -27,6 +27,16 @@ const open = async (page, theme) => {
   // the server. Waiting on the component's own root removes the dependence on
   // which spec happens to go first.
   await page.locator('.asp-content').first().waitFor({ state: 'attached' })
+  // marked and highlight.js are optional peers now loaded at RUNTIME (#2636),
+  // so a markdown/code body renders in two steps: mount, then engine-load. The
+  // component exposes `data-ready="true"` once its output is settled (a text
+  // body immediately; a markdown/code body once the engines resolve or are
+  // known absent). Geometry and highlight assertions must run after that, or
+  // they measure the loading placeholder. Wait for EVERY mount point, not just
+  // the first — this fixture has eight.
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('.asp-content')].every((el) => el.dataset.ready === 'true')
+  )
 }
 
 // --- defect 1: highlighting -------------------------------------------------

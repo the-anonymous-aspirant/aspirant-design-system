@@ -40,6 +40,17 @@
     "marked": "^18.0.0",
     "vue": "^3.4.0"
   },
+  "peerDependenciesMeta": {
+    "chart.js": {
+      "optional": true
+    },
+    "highlight.js": {
+      "optional": true
+    },
+    "marked": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@fontsource/iosevka": "^5.2.5",
     "@histoire/plugin-vue": "^0.17.17",

@@ -2,6 +2,15 @@
 // Consumers:
 //   import { AspCard, AspButton, AspSidebar, AspSidebarLink, AspIcon } from '@aspirant/design-system'
 //   import '@aspirant/design-system/tokens.css'
+//
+// Every component is exported statically here — the barrel stays a plain,
+// single import path. Three peers (chart.js, marked, highlight.js) are declared
+// OPTIONAL in package.json; the components that use them (AspChart, AspBarChart,
+// AspContent) keep them out of the module graph by importing them at RUNTIME
+// (`await import()`), not at module scope. A static re-export here is therefore
+// safe: it pulls in the component code, not its heavy dependency. See those
+// components for why a static `import` would break a consumer that installed
+// none of the three (system_3 #2636).
 export { default as AspCard } from './components/AspCard.vue'
 export { default as AspButton } from './components/AspButton.vue'
 export { default as AspSelect } from './components/AspSelect.vue'

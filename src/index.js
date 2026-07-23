@@ -28,6 +28,7 @@ export { default as AspChatArea } from './components/AspChatArea.vue'
 export { default as AspChatBubble } from './components/AspChatBubble.vue'
 export { default as AspTooltip } from './components/AspTooltip.vue'
 export { default as AspBreadcrumb } from './components/AspBreadcrumb.vue'
+export { default as AspPathTitle } from './components/AspPathTitle.vue'
 
 export { useMobile } from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'

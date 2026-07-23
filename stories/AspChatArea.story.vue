@@ -120,9 +120,13 @@ const onSend = (text) => {
         still varying with the backdrop, and that variance is the defect.
       </p>
       <p>
-        <strong><code>order</code> ships as a capability, not a default.</strong> Newest-first is
-        round-2 P1 and is not yet confirmed by the operator, so the prop exists and the default
-        stays chronological rather than pre-empting the decision.
+        <strong>The monitoring surface (§3.20 P1).</strong> The agent pane is a monitoring surface,
+        not a chat: the stream runs <code>order="newest-first"</code> and
+        <code>composer-position="top"</code> together, so the newest message and the reply
+        affordance are both above the fold without a scroll. The two are one ratified decision
+        (operator sign-off 2026-07-20); the defaults stay <code>chronological</code> / bottom
+        because P1 is scoped to that surface, and §3.12 makes the pairing parity-definitional across
+        both mounts, so a caller sets the same pair on each.
       </p>
     </template>
 
@@ -148,6 +152,17 @@ const onSend = (text) => {
 
     <Variant title="Newest first">
       <AspChatArea :messages="MESSAGES" :comments="COMMENTS" order="newest-first" />
+    </Variant>
+
+    <Variant title="Monitoring surface (§3.20 P1: newest-first + composer on top)">
+      <AspChatArea
+        v-model="draft"
+        :messages="MESSAGES"
+        :comments="COMMENTS"
+        order="newest-first"
+        composer-position="top"
+        @send="onSend"
+      />
     </Variant>
 
     <Variant title="Streaming">

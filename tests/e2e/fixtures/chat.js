@@ -90,6 +90,7 @@ createApp({
     const sent = ref('none')
     const kinds = ref(null)
     const order = ref('chronological')
+    const composerPosition = ref('bottom')
 
     return () =>
       h('div', { style: 'padding:24px' }, [
@@ -98,6 +99,7 @@ createApp({
           comments: COMMENTS,
           filterOptions: FILTERS,
           order: order.value,
+          composerPosition: composerPosition.value,
           visibleKinds: kinds.value,
           streamingId: 'm3',
           modelValue: draft.value,
@@ -131,6 +133,20 @@ createApp({
           'button',
           { id: 'drive-filter-none', type: 'button', onClick: () => (kinds.value = []) },
           'filter to nothing'
+        ),
+        h(
+          'button',
+          {
+            id: 'drive-composer-top',
+            type: 'button',
+            // The §3.20 P1 monitoring surface: newest-first stream + the
+            // composer moved above it.
+            onClick: () => {
+              order.value = 'newest-first'
+              composerPosition.value = 'top'
+            },
+          },
+          'monitoring surface'
         ),
       ])
   },

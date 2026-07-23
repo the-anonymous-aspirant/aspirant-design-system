@@ -121,3 +121,42 @@ test('send is refused when the composer holds only whitespace', async ({ page })
   await page.locator('.chat-area__composer input').fill('   ')
   await expect(page.locator('.chat-area__composer button[type="submit"]')).toBeDisabled()
 })
+
+test('composer sits below the stream by default (conventional chat)', async ({ page }) => {
+  const composerBox = await page.locator('.chat-area__composer').boundingBox()
+  const streamBox = await page.locator('.chat-area__stream').boundingBox()
+  // Default mount is unchanged: the reply field is under the messages.
+  expect(composerBox.y).toBeGreaterThan(streamBox.y)
+})
+
+test('the monitoring surface moves the composer above the stream (§3.20 P1)', async ({ page }) => {
+  await page.locator('#drive-composer-top').click()
+
+  const composer = page.locator('.chat-area__composer')
+  const stream = page.locator('.chat-area__stream')
+  const composerBox = await composer.boundingBox()
+  const streamBox = await stream.boundingBox()
+  // Visually above: the reply affordance is the first thing, not the last.
+  expect(composerBox.y).toBeLessThan(streamBox.y)
+
+  // And ABOVE IN THE DOM, not merely repositioned with CSS `order` — so keyboard
+  // focus order matches reading order (WCAG 2.4.3): the composer's input must
+  // precede the first message bubble in document order.
+  const composerBeforeStream = await page.evaluate(() => {
+    const c = document.querySelector('.chat-area__composer')
+    const s = document.querySelector('.chat-area__stream')
+    // Node.DOCUMENT_POSITION_FOLLOWING (4) => s comes after c.
+    return Boolean(c.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+  expect(composerBeforeStream).toBe(true)
+
+  // Exactly one composer renders — the guard must not double-mount it.
+  await expect(composer).toHaveCount(1)
+})
+
+test('the monitoring surface pairs composer-top with newest-first', async ({ page }) => {
+  await page.locator('#drive-composer-top').click()
+  // The two are one decision (§3.20 P1): newest at the top of the stream, right
+  // under the composer, so neither needs a scroll.
+  await expect(bodies(page).first()).toHaveText('transcript undated')
+})

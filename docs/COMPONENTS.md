@@ -451,54 +451,6 @@ the #2415 failure — dark ink on a dark chip, 1:1. The hairline border is mixed
 own ink; `--surface-card-inner` was the obvious pick and is wrong, being a *darkening* overlay
 in the light theme where the edge then vanishes.
 
-### 19. `AspBreadcrumb` — ✅ shipped
-
-Path navigation. Replaces system_3's `frontend/templates/_partials/breadcrumb.html`, which
-`docs/design/2026-07-20-partials-to-ds-mapping.md` flagged as a Jinja partial with no DS
-component. Promoted out of Deferred (#2576): corpus §3.3 makes auto breadcrumbs a chrome
-*invariant* rather than a per-page choice, so "no current use" stopped being true — a DS
-without one cannot satisfy its own chrome rule, and every consuming page would re-implement
-it and drift.
-
-Specified for two consumers at once. #2367-A3 is the shallow route-derived system_3 case;
-#2536 is a deep user-driven browse over the data lake, where the breadcrumb is the *primary*
-navigation affordance rather than secondary orientation. Depth is designed in from the start
-because retrofitting it is where these components break.
-
-Props: `items` (`[{ label, to? }]`, root first, current last — an item with no `to` renders
-as plain text) and `ariaLabel`. Emits `navigate`. Router-agnostic, same runtime `$router`
-detection as `AspSidebarLink`.
-
-**Collapse is measured, not counted.** A count threshold would collapse a five-item path of
-short labels that fits and leave a three-item path of long ones overflowing. The row is
-clipped rather than scrolled, so `scrollWidth > clientWidth` reports "does not fit", and
-ancestors are hidden one at a time from index 1 until it does. The first item and the last
-two always survive — root and current are the orientation anchors, the parent is what makes
-"up one" reachable. That is a floor, not a fixed shape: a wide viewport keeps more. A single
-long label truncates and exposes its full text through `AspTooltip` instead of costing the
-user the rest of the path.
-
-**The overflow control is a real control**, not a static ellipsis: keyboard-reachable,
-`aria-expanded`, panel dismissible on Escape with focus returned to the trigger. A static
-ellipsis renders identically and looks correct in every screenshot, and it is exactly what
-would make a deep lake path unnavigable and fail #2536.
-
-**Ancestor ink deviates from the spec deliberately.** The brief asked for `--brand-accent` on
-links, calling it that token's sanctioned role. That token is `#82b1ff` in both themes and
-measures ~1.7:1 on the light page — under the 4.5:1 the same brief's acceptance criteria
-require, and the same shape as #2419. It reuses `AspProse`'s link derivation verbatim
-(`color-mix(in srgb, var(--brand-accent-800) 30%, currentColor)`) rather than deriving a
-second one, so the library's two link treatments cannot drift. The link/current distinction
-is a persistent underline, not colour, and it is on in the *resting* state — a distinction
-that only appears on hover is invisible to a reader who never hovers (WCAG 1.4.1, #2416).
-
-Contrast role is **INHERITS**, with two exceptions that **PAINT** and therefore declare their
-own ink: the hover/focus wash (`currentColor` at 10%, a tint of whatever surface it is on
-rather than a fixed colour that inverts) and the overflow panel (`--surface-card` +
-`--text-on-dark`, the pairing `AspSelect`'s panel uses). Both are in the contrast matrix and
-the panel is opened there — a closed specimen never reaches its surface and would be green by
-construction.
-
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

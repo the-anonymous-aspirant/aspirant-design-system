@@ -32,14 +32,29 @@ const props = defineProps({
    */
   comments: { type: Array, default: () => [] },
   /**
-   * Stream order. Newest-first is round-2 P1 and is NOT yet confirmed by the
-   * operator, so it ships as a capability with chronological as the default --
-   * the prop exists, the default does not pre-empt the decision.
+   * Stream order. Newest-first is round-2 P1, now ratified for the agent-pane
+   * monitoring surface (conventions §3.20 P1, operator sign-off 2026-07-20).
+   * The default stays `chronological` because P1 is SCOPED to that surface --
+   * a caller doing the monitoring job opts in; every other mount is unchanged.
    */
   order: {
     type: String,
     default: 'chronological',
     validator: (v) => ['chronological', 'newest-first'].includes(v),
+  },
+  /**
+   * Where the composer sits. `bottom` is the conventional chat position and the
+   * default, so every existing mount is untouched. `top` is the §3.20 P1
+   * monitoring surface: the composer moves above the (newest-first) stream so
+   * the latest message and the reply affordance are both above the fold and
+   * neither needs a scroll. Pair it with `order="newest-first"` -- the two are
+   * one decision (§3.20 P1), and §3.12 makes the pairing parity-definitional
+   * across both mounts, so a caller sets the same pair on each.
+   */
+  composerPosition: {
+    type: String,
+    default: 'bottom',
+    validator: (v) => ['top', 'bottom'].includes(v),
   },
   /** Kinds currently shown. `null` disables filtering entirely. */
   visibleKinds: { type: Array, default: null },
@@ -125,6 +140,26 @@ const submit = () => {
       />
     </div>
 
+    <!-- The composer renders ABOVE the stream on the monitoring surface (§3.20
+         P1). It is placed in the DOM at its visual position rather than moved
+         with CSS `order`, so keyboard focus order matches reading order (WCAG
+         2.4.3): on the monitoring surface the operator tabs to the reply field
+         first. `bottom` (the default) keeps the composer last, unchanged. -->
+    <form v-if="composerPosition === 'top'" class="chat-area__composer" @submit.prevent="submit">
+      <div class="chat-area__composer-field">
+        <AspInput
+          :model-value="modelValue"
+          :placeholder="composerPlaceholder"
+          :disabled="disabled"
+          :aria-label="composerPlaceholder"
+          @update:model-value="(v) => emit('update:modelValue', v)"
+        />
+      </div>
+      <AspButton type="submit" variant="primary" :disabled="disabled || !modelValue.trim()">
+        {{ sendLabel }}
+      </AspButton>
+    </form>
+
     <!-- aria-live so a message arriving while the operator is elsewhere on the
          page is announced rather than silently appended. `polite`, not
          `assertive`: a chat stream must not interrupt. -->
@@ -160,7 +195,7 @@ const submit = () => {
       </ul>
     </div>
 
-    <form class="chat-area__composer" @submit.prevent="submit">
+    <form v-if="composerPosition === 'bottom'" class="chat-area__composer" @submit.prevent="submit">
       <div class="chat-area__composer-field">
         <AspInput
           :model-value="modelValue"

@@ -50,28 +50,38 @@ createApp({
     const refs = CASES.map(() => ref(null))
 
     // Publish after paint, so getComputedStyle sees settled backgrounds.
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        CASES.forEach((c, i) => {
-          const inst = refs[i].value
-          if (!inst) return
-          const p = inst.paint
-          published[`${c.surface}|${c.state ?? 'none'}`] = {
-            surface: c.surface,
-            state: c.state,
-            background: p.bg,
-            axisInk: p.axisInk,
-            axisLine: p.axisLine,
-            barFill: p.barFill,
-            tooltipBg: p.tooltipBg,
-            tooltipInk: p.tooltipInk,
-            fontFamily: p.fontFamily,
-          }
-        })
-        window.__aspBarChart = published
-        window.__aspBarChartReady = true
+    // chart.js loads at RUNTIME now (#2636), so wait for every AspChart to
+    // signal `data-rendered` before reading `inst.paint`; then keep the
+    // original two-frame settle for the backgrounds.
+    const whenChartsDrawn = (fn) => {
+      const charts = [...document.querySelectorAll('.asp-chart')]
+      if (charts.length && charts.every((el) => el.dataset.rendered === 'true')) {
+        requestAnimationFrame(() => requestAnimationFrame(fn))
+      } else {
+        requestAnimationFrame(() => whenChartsDrawn(fn))
+      }
+    }
+
+    whenChartsDrawn(() => {
+      CASES.forEach((c, i) => {
+        const inst = refs[i].value
+        if (!inst) return
+        const p = inst.paint
+        published[`${c.surface}|${c.state ?? 'none'}`] = {
+          surface: c.surface,
+          state: c.state,
+          background: p.bg,
+          axisInk: p.axisInk,
+          axisLine: p.axisLine,
+          barFill: p.barFill,
+          tooltipBg: p.tooltipBg,
+          tooltipInk: p.tooltipInk,
+          fontFamily: p.fontFamily,
+        }
       })
-    )
+      window.__aspBarChart = published
+      window.__aspBarChartReady = true
+    })
 
     return () =>
       h(

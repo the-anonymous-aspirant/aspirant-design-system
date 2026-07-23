@@ -1,6 +1,25 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import Chart from 'chart.js/auto'
+
+// chart.js is an OPTIONAL peer (package.json). Importing it at module scope
+// would make it mandatory for every consumer of the barrel — a static
+// `import Chart from 'chart.js/auto'` inside a package that declares the peer
+// optional is exactly the edge that breaks a consumer who did not install it
+// ("chart.js is not exported by __vite-optional-peer-dep:chart.js"; system_3
+// #2636). So it is loaded at RUNTIME instead: a bundler resolves a dynamic
+// `import()` of an absent optional peer to a stub that rejects at load time, so
+// the consumer BUILDS without chart.js and only pays for it when a chart is
+// actually rendered.
+//
+// The loader promise is cached at module scope so a page with many charts
+// imports the library once.
+let chartCtorPromise = null
+const loadChartCtor = () => {
+  if (!chartCtorPromise) {
+    chartCtorPromise = import('chart.js/auto').then((m) => m.default)
+  }
+  return chartCtorPromise
+}
 
 const props = defineProps({
   /** Chart.js chart type. */
@@ -49,6 +68,19 @@ const props = defineProps({
 const canvas = ref(null)
 let chart = null
 let themeObserver = null
+// Renders are async now (the chart engine loads on first draw). `renderSeq`
+// lets a later render supersede an earlier one whose `await` is still pending,
+// so a burst of prop changes cannot leave two chart instances on one canvas.
+let renderSeq = 0
+// Set when chart.js could not be loaded at runtime (an optional peer the
+// consumer did not install). Swaps the canvas for a readable text fallback
+// instead of throwing.
+const loadFailed = ref(false)
+// True once a chart has been drawn at least once. Exposed on the wrapper as
+// `data-rendered` so a consumer (or the e2e suite) can wait for the async
+// engine load + first paint before measuring the canvas, the way `data-ready`
+// works on AspContent.
+const drawn = ref(false)
 
 const heightStyle = () =>
   typeof props.height === 'number' ? `${props.height}px` : props.height
@@ -186,18 +218,34 @@ const mergeDeep = (target, source) => {
 }
 
 // --- lifecycle --------------------------------------------------------------
-const render = () => {
+const render = async () => {
+  const seq = (renderSeq += 1)
   if (!canvas.value) return
+
+  let ChartCtor
+  try {
+    ChartCtor = await loadChartCtor()
+  } catch {
+    // chart.js is an optional peer and is not installed. Degrade to the text
+    // fallback rather than throw — the component is usable, it just cannot draw.
+    loadFailed.value = true
+    return
+  }
+
+  // The await above yields; bail if a newer render started or we unmounted.
+  if (seq !== renderSeq || !canvas.value) return
+
   if (chart) {
     chart.destroy()
     chart = null
   }
-  chart = new Chart(canvas.value, {
+  chart = new ChartCtor(canvas.value, {
     type: props.type,
     data: themedData(),
     options: mergeDeep(themedDefaults(), props.options),
     plugins: props.plugins,
   })
+  drawn.value = true
 }
 
 onMounted(async () => {
@@ -228,8 +276,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="asp-chart" :style="{ height: heightStyle() }">
-    <canvas ref="canvas" role="img" :aria-label="ariaLabel || undefined" />
+  <div
+    class="asp-chart"
+    :style="{ height: heightStyle() }"
+    :data-rendered="drawn || loadFailed ? 'true' : 'false'"
+  >
+    <!-- chart.js is an optional peer; when it is absent the canvas is replaced
+         by a readable message that keeps the chart's accessible name. -->
+    <p v-if="loadFailed" class="asp-chart__fallback" role="img" :aria-label="ariaLabel || undefined">
+      {{ ariaLabel || 'Chart unavailable — the chart.js peer dependency is not installed.' }}
+    </p>
+    <canvas v-else ref="canvas" role="img" :aria-label="ariaLabel || undefined" />
   </div>
 </template>
 
@@ -245,5 +302,20 @@ onBeforeUnmount(() => {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Shown only when the optional chart.js peer is absent. Inherits ink from the
+   surface (no colour of its own), so it reads on the light page and a dark card
+   alike. */
+.asp-chart__fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  padding: var(--space-md);
+  font-size: var(--text-sm);
+  text-align: center;
+  opacity: 0.7;
 }
 </style>

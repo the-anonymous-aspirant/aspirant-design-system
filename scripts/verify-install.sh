@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
 #
-# Adversarial install check (system_3 #2567).
+# Adversarial install check (system_3 #2567, tightened by #2636).
 #
-# Asks one question: can someone who has never built this repo install it into
-# a bare app and get STYLED components? Not "does it import" — the failure this
-# guards against imports fine, mounts fine, renders fine, and is unstyled. So
-# the assertion is on computed styles in a real browser, resolved from a real
-# install, in a scratch directory outside every checkout.
+# Asks two questions of a consumer who has never built this repo:
+#   1. can they install it into a bare app and get STYLED components? Not "does
+#      it import" — the failure #2567 guarded against imports fine, mounts fine,
+#      renders fine, and is unstyled, so the assertion is on computed styles in
+#      a real browser, resolved from a real install, in a scratch directory
+#      outside every checkout.
+#   2. can they do it WITHOUT installing chart.js, marked or highlight.js — the
+#      three peers package.json declares optional (#2636)? The bare app below
+#      imports AspButton and nothing chart- or content-shaped, so a genuinely
+#      optional peer must never appear in its node_modules and the build must
+#      still succeed.
 #
 #   ./scripts/verify-install.sh [ref]      # default: the current HEAD
 #   ./scripts/verify-install.sh origin/main
 #
-# It must FAIL on any ref before #2567 and PASS after. A check that passes on
-# both proves nothing, and this whole task exists because a passing build was
-# the bug.
+# It must FAIL on any ref before #2636 and PASS after. Before #2567 it fails on
+# the unstyled render; on the #2567..#2636 range it fails on the optional-peer
+# check, because those refs declared the three REQUIRED (npm auto-installs
+# required peers) or kept the static barrel edge that made them mandatory. A
+# check that passes on both sides proves nothing, and this whole task exists
+# because a passing build was the bug.
 #
 # Install specifier: a git URL, not a filesystem path. npm SYMLINKS a `file:`
 # directory dependency and runs no lifecycle scripts for it, so `prepare` can
@@ -95,6 +104,28 @@ grep -q -- '--brand-primary' "$PKG/build/tokens.css" \
   || fail "build/tokens.css carries no --brand-primary custom property"
 echo "  ok  build/tokens.css declares --brand-primary"
 echo "  resolved tokens.css: $PKG/build/tokens.css"
+
+say "optional heavy peers are genuinely absent"
+# The whole of system_3 #2636. package.json declares chart.js, marked and
+# highlight.js OPTIONAL. That is only true if a consumer who installs none of
+# them can still build against the barrel — which is exactly the app assembled
+# below (it imports AspButton and nothing chart- or content-shaped, and this
+# probe never lists the three).
+#
+# This block is the discriminator, and it is on npm's own resolution: npm 7+
+# auto-installs REQUIRED peers, so on any ref where these three are required
+# (the honest declaration #2567 shipped) they land in node_modules here and the
+# assertion below FAILS. It passes only on a ref that both declares them
+# optional AND removed the static barrel edge that made them mandatory — so the
+# build step that follows never has to resolve them. An artefact-existence check
+# cannot see this: the failure it guards against installs fine and only breaks
+# at the consumer's build.
+for peer in chart.js marked highlight.js; do
+  if [ -e "$WORK/app/node_modules/$peer" ]; then
+    fail "optional peer '$peer' was installed into the consumer — it is not genuinely optional (a required-peer ref, or a static barrel edge dragged it in)"
+  fi
+  printf '  ok  %-14s absent — consumer installed none of the heavy peers\n' "$peer"
+done
 
 say "consumer app builds against the install"
 "${NPM[@]}" install --no-audit --no-fund --silent vue@^3.4.0 vite@^5.0.0 @vitejs/plugin-vue@^5.0.0 \

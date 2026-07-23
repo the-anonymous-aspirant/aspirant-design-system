@@ -47,13 +47,23 @@ if ! printf '%s' "$scopes" | grep -q "write:packages"; then
 fi
 
 sha="$(git rev-parse --short HEAD)"
+sha_full="$(git rev-parse HEAD)"
 
 echo "build-and-push-image.sh: logging into $REGISTRY as $gh_user"
 echo "$token" | docker login "$REGISTRY" -u "$gh_user" --password-stdin
 
+# Stamp the OCI provenance labels at build time so the running container can
+# answer "what commit am I built from" even when GHCR is unreadable (the
+# digest-identity check degrades to unknown for private packages). Standard
+# org.opencontainers.image.* keys — the full SHA, distinct from the short-sha
+# tag. image.source points at THIS repo (aspirant-design-system), which is where
+# Dockerfile.histoire lives; the image is named aspirant-histoire (#2218) but is
+# not itself a repo.
 echo "build-and-push-image.sh: building $REGISTRY/$IMAGE_NAME:latest (sha $sha) from $DOCKERFILE"
 docker build \
   -f "$DOCKERFILE" \
+  --label "org.opencontainers.image.revision=$sha_full" \
+  --label "org.opencontainers.image.source=https://github.com/the-anonymous-aspirant/aspirant-design-system" \
   -t "$REGISTRY/$IMAGE_NAME:latest" \
   -t "$REGISTRY/$IMAGE_NAME:sha-$sha" \
   .

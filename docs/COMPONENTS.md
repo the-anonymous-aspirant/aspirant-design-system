@@ -451,6 +451,49 @@ the #2415 failure — dark ink on a dark chip, 1:1. The hairline border is mixed
 own ink; `--surface-card-inner` was the obvious pick and is wrong, being a *darkening* overlay
 in the light theme where the edge then vanishes.
 
+### 19. `AspSplitPane` — ✅ shipped
+
+The list-plus-detail container (#2582): a primary pane the user scans and a secondary pane
+holding the detail for the selected item — side by side above `md`, stacked below it. It exists
+as a primitive rather than explorer-local layout because the same shape is wanted in at least
+three places (the browse surface #2580, Datasets table-plus-schema #2407, and task-list-plus-detail
+§3.12) — three consumers is the bar.
+
+Decided a **pane, not a modal or a route** (#2536, §3.22): a modal blocks the list being
+scanned, a route loses the list's scroll position and makes Back the only way home. The pane
+keeps both on screen, which is what "reveal" asks for.
+
+API — two named slots and a controlled `open`:
+
+```
+<AspSplitPane :open="open" ratio="1:1" @close="open = false">
+  <template #primary>   <!-- always rendered --> </template>
+  <template #secondary> <!-- rendered when open --> </template>
+</AspSplitPane>
+```
+
+Props: `open` (Boolean), `ratio` (`1:1` default | `2:1` primary-weighted — a closed set, because
+arbitrary widths are how surfaces drift apart), `secondaryLabel` (accessible name for the detail
+region), `closeLabel`. Emits `close` on Escape and on the ✕ control.
+
+Layout: mobile-first, `min-width` queries only. **< `md`** it is a stacked column — the secondary
+is a full-width sheet below the primary, and opening it scrolls it into view. **≥ `md`** it is a
+row: two panes split by the ratio with a `--space-lg` gutter, **each scrolling independently**.
+The primary is always rendered and never re-created, so its scroll position survives an
+open → close → open cycle (AC3) — the defect the pane exists to avoid. Closed, the primary is the
+sole child and `flex:1` gives it the full width with no reserved gap (AC5).
+
+Contrast role is **INHERITOR** (§3.18): the container paints no background. Each pane's content
+sets its own surface (an `AspCard` for the secondary); separation comes from those surfaces and
+the `--border-subtle` divider, not from a background painted here — painting one would add a
+compositing case for every consumer. `tests/e2e/split-pane.spec.js` measures the **open** state
+(AC2) on the page surface and inside a dark card in both themes with the #2420 probe, since a
+closed specimen never reaches the secondary pane.
+
+Not a modal: it does **not** trap focus — both panes stay usable at once. It does the two
+courtesies a disclosure owes — it moves focus into the labelled secondary region on open so
+assistive tech announces it (AC7), and returns focus to the opener on close (AC6).
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

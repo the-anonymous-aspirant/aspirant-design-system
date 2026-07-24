@@ -160,6 +160,81 @@ export const MIN_TICK_FONT_PX = 10
 /** §3.19's floor: fewer than three slots means no interior landmark to offer. */
 export const MIN_INTERIOR_BUDGET = 3
 
+/**
+ * Horizontal space reserved OUTSIDE the plot for the end ticks' labels, in
+ * `time` mode only.
+ *
+ * The first and last ticks of the middle band carry the wide day-prefixed form
+ * — and they must, because the band boundary is usually exactly where the day
+ * changes, so it is the one tick whose day name carries the most information.
+ * `Mon 00:00 · … · 00:00` would show two identical-looking midnights with no
+ * way to tell they are 24h apart.
+ *
+ * A label centred on the outermost tick therefore overhangs the plot by about
+ * half its width. Measured on the real canvas at 340px: the wide form renders
+ * 65px, the last tick sits at px 304, and its right edge lands at 337 against
+ * a 340px canvas — **3px of headroom, and that headroom was Chart.js's own
+ * layout padding rather than anything this preset asked for.** A longer
+ * weekday abbreviation in another locale, a font-stack change, or a tick-size
+ * bump consumes it, and none of those are edits anyone would think to re-check
+ * an axis against.
+ *
+ * So the space is reserved explicitly: half the measured wide form, 33px. The
+ * geometry then holds because the layout committed to it, not because a
+ * library internal happened to leave room. The rendered-bounds assertion in
+ * `bar-chart.spec.js` stays as the guard, but it is no longer the only thing
+ * preventing a silent regression — which was too much weight for one test.
+ *
+ * Sized to the overhang and NOT padded further, because this reservation is not
+ * free: padding is taken out of the plot, which shrinks `plot_width`, which
+ * lowers the budget, which coarsens the ladder. Reserving half-width plus the
+ * 12px gutter (45px each side) was measured and it cost a rung — the 340px/24h
+ * case fell from a 6h ladder back to 12h, re-breaking the density the budget
+ * correction had just restored. The gutter floor governs the space BETWEEN
+ * adjacent labels; the end label has no neighbour outward, so it needs its
+ * overhang and nothing more.
+ *
+ * Each side is DERIVED from what that side already provides, rather than the
+ * right being set to 33 and the left asserted to need nothing. Both sides carry
+ * the same overhang; they differ only in what structure already absorbs it. The
+ * left ends up at 0 today because the y-axis tick column is wider than the
+ * overhang — an arithmetic result, not a property of the left edge. It stops
+ * being 0 the moment that column narrows or the y axis is hidden
+ * (`y.display: false`, a single-digit maximum, a tick-font change), and none of
+ * those are edits anyone would think to re-check an x axis against. That is the
+ * same failure shape as the borrowed Chart.js margin this replaced: correct
+ * until something unrelated moves, silently clipped after.
+ */
+
+/** Wide form (`Mon 00:00`) measured on the reference render at 340px. */
+export const TIME_AXIS_WIDE_LABEL_WIDTH = 65
+
+/** The y-axis tick column the layout already allocates on that same render. */
+export const TIME_AXIS_Y_AXIS_COLUMN = 36
+
+/**
+ * Per-side end reservation: half the wide label, minus whatever structure that
+ * side already allocates, floored at zero.
+ *
+ * Parameterised rather than inlined so the counterfactual is testable — a
+ * caller can ask what the padding becomes when the y-axis column narrows or
+ * disappears, which is the case the constant below cannot express.
+ */
+export function timeAxisEndPadding({
+  wideLabelWidth = TIME_AXIS_WIDE_LABEL_WIDTH,
+  yAxisColumnWidth = TIME_AXIS_Y_AXIS_COLUMN,
+  rightStructureWidth = 0,
+} = {}) {
+  const half = Math.ceil(wideLabelWidth / 2)
+  return {
+    left: Math.max(0, half - yAxisColumnWidth),
+    right: Math.max(0, half - rightStructureWidth),
+  }
+}
+
+/** Today: `{ left: 0, right: 33 }` — byte-identical to the previous scalar. */
+export const TIME_AXIS_END_PADDING = timeAxisEndPadding()
+
 /** The `xAxis` prop's closed set. `category` is the default — nothing existing shifts. */
 export const X_AXES = ['category', 'time']
 
@@ -176,11 +251,42 @@ const clockOf = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 export const bandFor = (span) => (span <= 6 * HOUR ? 'clock' : span <= 72 * HOUR ? 'dayClock' : 'date')
 
 /**
- * The widest label each band can produce, for the budget's `max_label_width`.
+ * The label form that RECURS across each band — what the budget is measured
+ * against.
  *
- * Measured over every weekday/month name rather than assuming one is widest:
- * the answer is font-dependent, and guessing it is how a budget quietly
- * overcommits and lets two labels touch.
+ * Not the widest form, and that distinction is the whole correction here
+ * (design_agent ruling, #2482). §3.19 as originally written asked for a single
+ * scalar `max_label_width` while also specifying a repetition rule that makes
+ * label width POSITIONAL. Those cannot both be honoured by one number: pricing
+ * every slot as if it held the widest label charges the whole band for a form
+ * that, by construction, at most one slot per calendar day carries. The result
+ * is systematic under-labelling — which is the operator complaint that opened
+ * #2470 in the first place.
+ *
+ * In the middle band the recurring form is the BARE clock; the day-prefixed
+ * form appears only where the day changes. In the other two bands every label
+ * has the same shape, so recurring and widest coincide.
+ *
+ * Still measured over every weekday/month name rather than assuming one is
+ * widest — the answer is font-dependent, and guessing it is how a budget
+ * quietly overcommits.
+ */
+export const RECURRING_LABELS = {
+  clock: ['00:00'],
+  dayClock: ['00:00'],
+  date: MONTHS.map((m) => `30 ${m}`),
+}
+
+/**
+ * The widest form each band can produce. NOT used for the budget — kept for the
+ * pairwise gutter check, which is the rule that actually protects legibility.
+ *
+ * §3.19's 12px gutter is checked between labels that can genuinely be
+ * ADJACENT, not against a uniform worst case. At a 6h interval two
+ * day-prefixed labels are never neighbours: the repetition rule puts the day
+ * name on the first tick of a calendar day only, so those are >=24h apart
+ * while ticks are 6h apart. The pair that made the old arithmetic reject a 6h
+ * ladder — wide against wide — cannot occur.
  */
 export const WIDEST_LABELS = {
   clock: ['00:00'],
@@ -290,8 +396,10 @@ export const selectTimeTicks = ({ timestamps = [], plotWidth = 0, measureLabel }
   if (!(span > 0) || n < 2) return endpointsOnly()
 
   const measure = typeof measureLabel === 'function' ? measureLabel : estimateWidth
-  const maxLabelWidth = Math.max(...WIDEST_LABELS[band].map((s) => measure(s)))
-  const slot = maxLabelWidth + TICK_GUTTER
+  // The RECURRING form, per the corrected §3.19 formulation. See
+  // RECURRING_LABELS for why the widest form is the wrong scalar here.
+  const recurringWidth = Math.max(...RECURRING_LABELS[band].map((s) => measure(s)))
+  const slot = recurringWidth + TICK_GUTTER
   const budget = slot > 0 ? Math.floor(plotWidth / slot) : 0
 
   // Below two slots even the endpoints collide — a 96px chart drew
@@ -434,6 +542,21 @@ export const buildBarOptions = ({
 
   return {
     maintainAspectRatio: false,
+    // Reserved only in `time` mode. `category` must stay byte-identical — its
+    // labels are rotated and autoskipped, so they never overhang the way a
+    // centred end tick does, and adding padding there would change a treatment
+    // this work is explicitly not allowed to touch.
+    // Both sides are derived from the same expression; the asymmetry is the
+    // result, not the rule. The left end label overhangs into the y-axis tick
+    // column the layout already allocates (36px on the reference render against
+    // a ~27px overhang), so its reservation floors at 0. The right edge has no
+    // such structural allowance — it is where the borrowed Chart.js margin was
+    // — so it carries the full 33px. Reserving 33px on BOTH sides was tried and
+    // costs a ladder rung: it leaves a 238px plot, and a 6h ladder needs 240px
+    // at the measured 36px bare label, so the 340px/24h case fell back to 12h
+    // over two pixels. Deriving per side is what buys the density back without
+    // making "the left needs nothing" a standing assumption.
+    ...(timeMode ? { layout: { padding: { ...TIME_AXIS_END_PADDING } } } : {}),
     animation: animate ? undefined : false,
     // The bar owns the hit box, but the tooltip should follow the cursor along
     // the category even when it is above the bar's top edge — a 48px compact

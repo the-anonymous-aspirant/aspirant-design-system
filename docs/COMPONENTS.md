@@ -529,6 +529,39 @@ skeleton lines occupy exactly N real lines and the swap to real content cannot r
 defect this component most easily causes, asserted rather than eyeballed. `aria-busy` on the
 container, decorative shapes `aria-hidden`; the `role="status"` live region belongs to the
 consumer, not to every skeleton.
+### 21. `AspPathTitle` — ✅ shipped
+
+A browse surface's folder path, rendered **as the page title** (system_3 #2581, consumed by the
+explorer browse surface #2580). Recorded as precedent in corpus §3.22.
+
+**Why this is not `AspBreadcrumb`.** §3.8 removed breadcrumbs everywhere as page *chrome* — "the
+page title is the only header." A folder path is not chrome: it is the surface's own mutable
+state, the one element saying where you are, and no static title can carry it because it changes
+on every click. So the path occupies the title slot §3.8 preserved — one header, still the only
+header — at the page-title type scale (`--text-3xl` bold), not a small breadcrumb row. Do not
+reintroduce a breadcrumb bar for a browse surface.
+
+Props: `segments` (`[{ label, href? }]`, root first, current last), `separator` (default `/`),
+`ariaLabel`. Emits `navigate` for any ancestor with an `href`. Router-agnostic (same runtime
+`$router` detection as `AspSidebarLink`).
+
+**The last segment is always current** — heading ink, never a link, regardless of any `href`.
+Currentness is *positional*, not a caller-supplied flag: a caller that gets a flag wrong ships a
+title that navigates to itself. The root is an `<h1>` so a screen reader announces the location as
+the page heading.
+
+Contrast role is **INHERITS** (§3.18): it paints no background and must be legible on the page
+**and** on `AspCard` (dark in the light theme). Ancestors are blue links (§1.3) but derived —
+`color-mix(in srgb, var(--brand-accent-800) 30%, currentColor)`, the same resolution `AspProse`
+and `AspBreadcrumb` use, because raw `--text-hint` (`#82b1ff`) measures ~1.7:1 on the light page
+(#2419). The link/current distinction is not colour alone: hover adds an underline (WCAG 1.4.1,
+#2416). The one part that **PAINTS** is the ancestor hover wash (`currentColor` at 10%), measured
+on both surfaces in both themes.
+
+**Overflow** collapses the middle to a single `…`, keeping the first (root) and last (current)
+anchors and revealing tail segments while they fit — width-measured, not count-thresholded. It
+never wraps or scrolls the header sideways, and the elided segments are announced to assistive
+tech (an `sr-only` span), not silently dropped.
 
 ## Deferred (not in v0 10)
 

@@ -790,3 +790,30 @@ test.describe('the probe itself', () => {
     expect(unresolved, 'state tokens that do not exist in build/tokens.css').toEqual([])
   })
 })
+
+// ---------------------------------------------------------------------------
+// §3.12's metric-state colour map is a COLOUR-IDENTITY contract, and every
+// assertion above measures a DERIVED colour — so a token that is wrong but
+// still legible (green for great, a translucent amber for normal) passes all of
+// them. That is exactly how #2752's green-for-good defect survived: the fills
+// cleared every contrast threshold while painting the state the operator did
+// not ratify. These pin the token NAMES so the identity itself is under test.
+// ---------------------------------------------------------------------------
+test.describe('§3.12 metric-state colour map (operator round-2, comment 8784)', () => {
+  test('great is the soft-blue accent, not feedback-success green', () => {
+    // §1.3 reserves soft-blue for links/hints; §3.12 elevates it to the
+    // great-state signal (its one explicit deviation) because amber cannot also
+    // read "great" and green-for-good fights the 60/30/10 amber identity.
+    expect(STATE_TOKENS.great).toBe('--brand-accent')
+  })
+
+  test('normal is the solid brand amber, not the translucent alpha', () => {
+    // The stateless default stays --brand-primary-alpha (§3.10); a chart making
+    // a metric-state claim reads at full strength.
+    expect(STATE_TOKENS.normal).toBe('--brand-primary')
+  })
+
+  test('unhealthy is feedback red', () => {
+    expect(STATE_TOKENS.unhealthy).toBe('--feedback-error')
+  })
+})

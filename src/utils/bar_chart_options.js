@@ -39,14 +39,26 @@ export const VARIANTS = Object.keys(HEIGHTS)
 export const STATES = ['great', 'normal', 'unhealthy']
 
 /**
- * State to the token each state's bars are filled from. `normal` is the brand
- * amber the default (stateless) chart already uses, so a chart that switches
- * from stateless to state-coloured does not change appearance until the data
- * actually leaves the normal band.
+ * State to the token each state's bars are filled from — §3.12's metric-state
+ * colour map, ratified by the operator in round-2 (comment 8784): `great` is
+ * the soft-blue accent (ideal range), `normal` the brand amber (acceptable but
+ * not ideal), `unhealthy` red (outside the band).
+ *
+ * Soft-blue is elevated to the great-state signal here, which is §3.12's one
+ * explicit deviation from §1.3's "links and hints only": amber is already the
+ * brand midpoint and cannot simultaneously read "great", and green-for-good
+ * would fight the 60/30/10 amber identity (§1.3). The deviation is scoped to
+ * metric-state colouring — soft-blue's link/hint role everywhere else is
+ * unchanged.
+ *
+ * `normal` is the SOLID `--brand-primary`, not the `--brand-primary-alpha` that
+ * the stateless default (AspBarChart's no-state fill) paints: a chart carrying a
+ * metric state is making a threshold claim and reads at full strength, where a
+ * plain stateless chart stays translucent per §3.10.
  */
 export const STATE_TOKENS = {
-  great: '--feedback-success',
-  normal: '--brand-primary-alpha',
+  great: '--brand-accent',
+  normal: '--brand-primary',
   unhealthy: '--feedback-error',
 }
 

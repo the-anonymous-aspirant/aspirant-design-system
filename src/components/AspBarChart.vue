@@ -44,8 +44,9 @@ const props = defineProps({
     validator: (v) => VARIANTS.includes(v),
   },
   /**
-   * Health state. When set, bars take the state colour instead of brand amber;
-   * `normal` is brand amber, so a stateless chart and a normal one match.
+   * Health state. When set, bars take the §3.12 metric-state colour
+   * (`great` soft-blue, `normal` solid brand amber, `unhealthy` red — see
+   * STATE_TOKENS) instead of the stateless default's alpha amber.
    */
   state: {
     type: String,

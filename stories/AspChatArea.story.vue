@@ -127,6 +127,17 @@ const onSend = (text) => {
   sent.value = [text, ...sent.value].slice(0, 3)
   draft.value = ''
 }
+
+// A long thread (over the default windowSize of 50) for the §3.25/§3.29 render
+// window: only the newest 50 render, older load on the "Load N earlier" button.
+const LONG_THREAD = Array.from({ length: 120 }, (_, i) => ({
+  id: `L${i + 1}`,
+  created_at: `2026-07-19T${String(9 + Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}:00Z`,
+  kind: i % 3 === 0 ? 'tool' : 'agent',
+  sender: 'aspirant_engineer',
+  body: `Turn ${i + 1} of a long transcript.`,
+  timestamp: '',
+}))
 </script>
 
 <template>
@@ -265,6 +276,17 @@ const onSend = (text) => {
           </AspChatBubble>
         </ul>
       </div>
+    </Variant>
+
+    <Variant title="Windowed thread (§3.25 render window)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A 120-turn transcript. Only the newest <code>windowSize</code> (default 50) render; the
+        rest load on the real, focusable <strong>Load N earlier</strong> button (≥44px, absent —
+        not disabled — once nothing older remains). The "showing X–Y of Z" line reads the canonical
+        total, never a running counter. Open devtools: ~50 bubbles are in the DOM, not 120. A thread
+        of 50 or fewer renders whole with no button and no position line.
+      </p>
+      <AspChatArea :messages="LONG_THREAD" aria-label="Long transcript" />
     </Variant>
   </Story>
 </template>

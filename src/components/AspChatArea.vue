@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import AspBubble from './AspChatBubble.vue'
 import AspButton from './AspButton.vue'
@@ -71,6 +71,15 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   emptyHeading: { type: String, default: 'No messages' },
   ariaLabel: { type: String, default: 'Conversation' },
+  /**
+   * Render-window size (crash-safety §3.25/§3.29, task #2779-A2). Only the newest
+   * `windowSize` entries are materialised as bubbles; older ones load on a real
+   * "Load N earlier" button. This is the RENDER window and is independent of the
+   * FETCH window a consumer's limit dropdown sets — the two coexist. A thread of
+   * `windowSize` or fewer renders whole, with no button and no position line, so
+   * every existing mount is untouched.
+   */
+  windowSize: { type: Number, default: 50 },
 })
 
 const emit = defineEmits(['update:modelValue', 'update:visibleKinds', 'send'])
@@ -115,6 +124,59 @@ const visible = computed(() =>
 // and get different copy -- "no messages" in front of an active filter reads as
 // a bug. AspEmptyState carries the distinction as a variant.
 const isFiltered = computed(() => merged.value.length > 0 && visible.value.length === 0)
+
+// --- Tail-anchored render window (§3.25/§3.29, #2779-A2) ---------------------
+// Only the newest `shown` of the `visible` entries are materialised as bubbles;
+// the rest load on the button below. New entries at the live edge appear
+// automatically because the slice is always taken from the newest end, so the
+// window stays anchored to the bottom (chronological) / top (newest-first)
+// without a re-anchor step.
+const streamEl = ref(null)
+const shown = ref(props.windowSize)
+
+const total = computed(() => visible.value.length)
+const isWindowed = computed(() => total.value > props.windowSize)
+
+const windowedVisible = computed(() => {
+  if (total.value <= shown.value) return visible.value
+  // The live edge is the newest end; slice keeps the newest `shown`. In
+  // chronological order the newest sit at the tail, in newest-first at the head.
+  return props.order === 'newest-first'
+    ? visible.value.slice(0, shown.value)
+    : visible.value.slice(total.value - shown.value)
+})
+
+const olderCount = computed(() => total.value - windowedVisible.value.length)
+// Honest position from the canonical total (§3.25 / §3.23-rule-7): the newest
+// `shown` are positions (total-shown+1)…total whichever way the stream is
+// ordered, so a reader sees where the window sits, never a running counter.
+const firstShown = computed(() =>
+  total.value ? total.value - windowedVisible.value.length + 1 : 0,
+)
+const loadLabel = computed(() => `Load ${Math.min(props.windowSize, olderCount.value)} earlier`)
+
+// Materialise the next chunk of older entries WITHOUT moving the reading
+// position (§3.25). Older entries prepend ABOVE the view only in chronological
+// order, so the scroll compensation is applied there; in newest-first they
+// append below the (top-anchored) newest, leaving the reading position put.
+async function loadEarlier() {
+  const el = streamEl.value
+  const prependsAbove = props.order !== 'newest-first'
+  const beforeH = el ? el.scrollHeight : 0
+  const beforeTop = el ? el.scrollTop : 0
+  shown.value += props.windowSize
+  await nextTick()
+  if (el && prependsAbove) {
+    el.scrollTop = beforeTop + (el.scrollHeight - beforeH)
+  }
+}
+
+// A shrinking thread (filter toggle, source swap) must not strand `shown` above
+// a set it no longer covers — clamp it back so olderCount reads honestly. Growth
+// is never clamped, so loaded context survives new arrivals at the live edge.
+watch(total, (n) => {
+  if (shown.value > Math.max(props.windowSize, n)) shown.value = Math.max(props.windowSize, n)
+})
 
 const toggleKind = (value, on) => {
   const current = props.visibleKinds ?? []
@@ -163,7 +225,13 @@ const submit = () => {
     <!-- aria-live so a message arriving while the operator is elsewhere on the
          page is announced rather than silently appended. `polite`, not
          `assertive`: a chat stream must not interrupt. -->
-    <div class="chat-area__stream" role="log" aria-live="polite" aria-busy="loading">
+    <div
+      ref="streamEl"
+      class="chat-area__stream"
+      role="log"
+      aria-live="polite"
+      :aria-busy="loading"
+    >
       <div v-if="loading" class="chat-area__skeleton" aria-hidden="true">
         <div
           v-for="n in 3"
@@ -180,20 +248,52 @@ const submit = () => {
         :variant="isFiltered ? 'filtered' : 'empty'"
       />
 
-      <ul v-else class="chat-area__list">
-        <AspBubble
-          v-for="entry in visible"
-          :key="`${entry.source}-${entry.id}`"
-          :kind="entry.kind"
-          :sender="entry.sender"
-          :timestamp="entry.timestamp"
-          :streaming="entry.id === streamingId"
-          :collapsed="entry.collapsed ?? false"
-          :data-source="entry.source"
+      <template v-else>
+        <!-- Honest position from the canonical total, not a running counter
+             (§3.25 / §3.23-rule-7). Shown only while the thread is windowed. -->
+        <p v-if="isWindowed" class="chat-area__position" data-testid="chat-position">
+          showing {{ firstShown }}–{{ total }} of {{ total }}
+        </p>
+
+        <!-- Chronological: older sits ABOVE, so the button leads the list. It is
+             ABSENT (not disabled) once nothing older remains (§3.23). -->
+        <button
+          v-if="olderCount && order !== 'newest-first'"
+          type="button"
+          class="chat-area__load-earlier"
+          data-testid="load-earlier"
+          @click="loadEarlier"
         >
-          <slot name="message" :entry="entry">{{ entry.body }}</slot>
-        </AspBubble>
-      </ul>
+          {{ loadLabel }}
+        </button>
+
+        <ul class="chat-area__list">
+          <AspBubble
+            v-for="entry in windowedVisible"
+            :key="`${entry.source}-${entry.id}`"
+            :kind="entry.kind"
+            :sender="entry.sender"
+            :timestamp="entry.timestamp"
+            :streaming="entry.id === streamingId"
+            :collapsed="entry.collapsed ?? false"
+            :data-source="entry.source"
+          >
+            <slot name="message" :entry="entry">{{ entry.body }}</slot>
+          </AspBubble>
+        </ul>
+
+        <!-- Newest-first: older sits BELOW the top-anchored newest, so the button
+             trails the list. -->
+        <button
+          v-if="olderCount && order === 'newest-first'"
+          type="button"
+          class="chat-area__load-earlier"
+          data-testid="load-earlier"
+          @click="loadEarlier"
+        >
+          {{ loadLabel }}
+        </button>
+      </template>
     </div>
 
     <form v-if="composerPosition === 'bottom'" class="chat-area__composer" @submit.prevent="submit">
@@ -251,6 +351,39 @@ const submit = () => {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Honest position line (§3.25). Full stream ink — no dimming — so it clears AA
+   on the dark surface the stream guarantees, same as the bubbles. */
+.chat-area__position {
+  margin: 0;
+  align-self: center;
+  font-size: var(--text-xs);
+  color: inherit;
+}
+
+/* "Load N earlier" — a real, focusable, ≥44px control on the stream's dark
+   surface. Its fill derives from the ink (currentColor) rather than binding a
+   surface token, so it reads as an inset control without assuming polarity
+   (#2418), and stays legible whichever theme the surface renders in. */
+.chat-area__load-earlier {
+  align-self: center;
+  min-height: 44px;
+  padding: var(--space-2xs) var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.chat-area__load-earlier:hover {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+.chat-area__load-earlier:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .chat-area__skeleton {

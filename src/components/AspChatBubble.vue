@@ -49,6 +49,15 @@ const props = defineProps({
   timestamp: { type: String, default: null },
   /** Renders the streaming caret after the body. */
   streaming: { type: Boolean, default: false },
+  /**
+   * Collapses the bubble to a muted one-line `<details>`/`<summary>` summary,
+   * expandable on click. Machine noise (tool calls, tool results, system, cron)
+   * is texture on a turn, not a turn -- so it renders as a summary the operator
+   * can open, never as a full bubble. The summary is the `sender` string, into
+   * which the consumer bakes the kind suffix (' · tool call'/' · tool result').
+   * Default false keeps the current expanded rendering unchanged.
+   */
+  collapsed: { type: Boolean, default: false },
 })
 
 const isOwn = computed(() => props.kind === 'operator' || props.kind === 'user')
@@ -57,10 +66,29 @@ const isOwn = computed(() => props.kind === 'operator' || props.kind === 'user')
 <template>
   <li
     class="chat-bubble"
-    :class="isOwn ? 'chat-bubble--own' : 'chat-bubble--inbound'"
+    :class="[
+      isOwn ? 'chat-bubble--own' : 'chat-bubble--inbound',
+      { 'chat-bubble--collapsed': collapsed },
+    ]"
     :data-kind="kind"
   >
-    <div class="chat-bubble__body">
+    <!-- Collapsed: a muted one-line summary the operator can open. Native
+         `<details>` carries the keyboard toggle (focus + Enter/Space) and the
+         closed/open state for free -- no JS, no ARIA to hand-roll. The summary
+         is muted ink only and never the amber own-fill: §1.3 reserves amber, and
+         a collapsed turn is de-emphasised noise, not a surface to tint. -->
+    <details v-if="collapsed" class="chat-bubble__collapsible">
+      <summary class="chat-bubble__summary">{{ sender || kind }}</summary>
+
+      <div class="chat-bubble__content chat-bubble__content--expandable">
+        <slot />
+        <span v-if="streaming" class="chat-bubble__caret" aria-hidden="true" />
+      </div>
+
+      <time v-if="timestamp" class="chat-bubble__time">{{ timestamp }}</time>
+    </details>
+
+    <div v-else class="chat-bubble__body">
       <!-- The tag names the sender for everyone, not just sighted users: on the
            inbound side the amber colour is the only other cue for who spoke. -->
       <span v-if="sender" class="chat-bubble__sender">{{ sender }}</span>
@@ -119,6 +147,49 @@ const isOwn = computed(() => props.kind === 'operator' || props.kind === 'user')
 .chat-bubble--inbound .chat-bubble__body {
   background: var(--surface-card-inner);
   color: inherit;
+}
+
+/*
+ * Collapsed variant. A machinery turn is texture, so it carries NO fill of its
+ * own -- neither the amber own-ramp nor the inbound wash -- and sits flat on the
+ * area's surface. That is also how the amber-reservation (§1.3) is honoured
+ * without a special case: there is simply no tinted surface to be amber. The
+ * collapsed bubble takes the full width the summary needs; the 75% cap is a
+ * property of a spoken bubble, not a one-line index entry.
+ */
+.chat-bubble--collapsed {
+  max-width: 100%;
+}
+
+.chat-bubble__collapsible {
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+/*
+ * The summary is muted ink -- --text-muted derives from the ambient ink (the
+ * area supplies --text-on-dark), so it de-emphasises without binding an
+ * absolute grey and stays >= 4.5:1 on every surface it can land on (#2418). The
+ * native disclosure marker is kept: it is the only affordance that says "there
+ * is more here", and it is already keyboard-operable.
+ */
+.chat-bubble__summary {
+  padding: var(--space-2xs) var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+/* The body, once opened, reads in the ambient ink rather than the muted summary
+   ink: the operator opened it to read it, so it is not de-emphasised. */
+.chat-bubble__content--expandable {
+  padding: var(--space-2xs) var(--space-sm) 0;
+  color: inherit;
+}
+
+.chat-bubble--collapsed .chat-bubble__time {
+  padding-inline: var(--space-sm);
 }
 
 .chat-bubble__sender {

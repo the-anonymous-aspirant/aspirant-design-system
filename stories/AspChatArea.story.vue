@@ -68,6 +68,58 @@ const FILTERS = [
   { value: 'operator', label: 'operator' },
 ]
 
+// Machine noise collapsed, signal expanded — the §3.15 parity the collapsed
+// variant exists for. The consumer bakes the kind suffix into the sender, so
+// the one-line summary reads 'bash · tool call' before it is opened. The agent
+// prose and the operator comment carry no `collapsed`, so they render in full.
+const MIXED = [
+  {
+    id: 'x1',
+    created_at: '2026-07-19T10:00:00Z',
+    kind: 'agent',
+    sender: 'aspirant_engineer',
+    body: 'Picked up #2381. Measuring the two fills before I build anything.',
+    timestamp: '10:00',
+  },
+  {
+    id: 'x2',
+    created_at: '2026-07-19T10:02:00Z',
+    kind: 'tool',
+    sender: 'bash · tool call',
+    body: 'grep -n "brand-primary-alpha" build/tokens.css',
+    timestamp: '10:02',
+    collapsed: true,
+  },
+  {
+    id: 'x3',
+    created_at: '2026-07-19T10:02:30Z',
+    kind: 'tool',
+    sender: 'bash · tool result',
+    body: 'build/tokens.css:214:  --brand-primary-alpha: rgba(255, 179, 0, 0.16);',
+    timestamp: '10:02',
+    collapsed: true,
+  },
+  {
+    id: 'x4',
+    created_at: '2026-07-19T10:05:00Z',
+    kind: 'agent',
+    sender: 'aspirant_engineer',
+    body: 'Both fills are alphas, so their contrast is a function of the backdrop.',
+    timestamp: '10:05',
+  },
+]
+
+const MIXED_COMMENTS = [
+  {
+    id: 'xc1',
+    created_at: '2026-07-19T10:06:00Z',
+    kind: 'operator',
+    sender: 'operator',
+    body: 'Good — collapse the machinery, keep the prose open.',
+    timestamp: '10:06',
+  },
+]
+
 const draft = ref('')
 const kinds = ref(null)
 const sent = ref([])
@@ -165,6 +217,14 @@ const onSend = (text) => {
       />
     </Variant>
 
+    <Variant title="Collapsed machinery (§3.15: noise is texture on a turn)">
+      <AspChatArea :messages="MIXED" :comments="MIXED_COMMENTS" />
+      <p style="margin-top: 8px; font-size: 0.8rem; opacity: 0.7">
+        Tool calls/results render as muted one-line summaries; click one to expand it. The agent
+        prose and operator comment carry no <code>collapsed</code>, so they stay open.
+      </p>
+    </Variant>
+
     <Variant title="Streaming">
       <AspChatArea :messages="MESSAGES" :comments="COMMENTS" streaming-id="m4" />
     </Variant>
@@ -199,6 +259,9 @@ const onSend = (text) => {
           </AspChatBubble>
           <AspChatBubble kind="tool" sender="bash" timestamp="10:02" streaming>
             Streaming caret
+          </AspChatBubble>
+          <AspChatBubble kind="tool" sender="bash · tool call" timestamp="10:03" collapsed>
+            Collapsed — a muted one-line summary; click to expand this body.
           </AspChatBubble>
         </ul>
       </div>

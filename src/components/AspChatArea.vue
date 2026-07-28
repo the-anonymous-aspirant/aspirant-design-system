@@ -188,6 +188,7 @@ const submit = () => {
           :sender="entry.sender"
           :timestamp="entry.timestamp"
           :streaming="entry.id === streamingId"
+          :collapsed="entry.collapsed ?? false"
           :data-source="entry.source"
         >
           <slot name="message" :entry="entry">{{ entry.body }}</slot>

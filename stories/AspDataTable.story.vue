@@ -26,6 +26,17 @@ const longCols = [
   { key: 'text', label: 'Text', truncate: true, width: '18ch' },
 ]
 
+// 500 rows — the §3.28 fetch window. Above the 100-row threshold the table
+// windows its <tbody> to ~viewport+overscan; the DOM holds a few dozen <tr>,
+// not 500. (#2779-A1)
+const manyRows = Array.from({ length: 500 }, (_, i) => ({
+  id: i + 1,
+  name: `Row ${i + 1}`,
+  owner: i % 2 ? 'engineer' : 'aspirant',
+  status: ['positive', 'caution', 'negative', 'neutral'][i % 4],
+  updated: `2026-07-${String((i % 28) + 1).padStart(2, '0')}`,
+}))
+
 const lastClicked = ref('(none)')
 
 // Inline status pill for the #cell-status slot demo (kept self-contained;
@@ -79,6 +90,25 @@ const statusStyle = (v) => ({
     <Variant title="Cell truncation">
       <AspDataTable :columns="longCols" :rows="longRows" row-key="key" />
       <p style="margin-top: 8px; color: var(--text-muted);">The long cell truncates with an ellipsis; hover for the full text (title attr).</p>
+    </Variant>
+
+    <Variant title="Virtualized (500 rows)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        Above the <code>virtualizeThreshold</code> (default <strong>100</strong> rows) the
+        <code>&lt;tbody&gt;</code> renders only a windowed slice (~viewport + overscan) inside a
+        scroll viewport (<code>maxHeight</code>), with top/bottom spacer rows holding the full
+        extent. Rows are pinned to <code>rowHeight</code> (default 40px) so the spacer math is
+        exact. Open devtools: the DOM holds a few dozen <code>&lt;tr&gt;</code>, not 500, while
+        <code>aria-rowcount</code> stays the canonical total. Below the threshold the table renders
+        plainly and browser Ctrl-F finds every row.
+      </p>
+      <AspDataTable :columns="columns" :rows="manyRows" row-key="id">
+        <template #cell-status="{ value }">
+          <span
+            :style="`display:inline-block;padding:0.1rem 0.5rem;border-radius:var(--radius-pill);font-size:var(--text-xs);${statusStyle(value)}`"
+          >{{ statusText[value] }}</span>
+        </template>
+      </AspDataTable>
     </Variant>
 
     <Variant title="Empty slot">

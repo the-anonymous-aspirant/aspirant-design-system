@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 // AspDataTable — DS-themed sortable table. Ports the system_3 _partials/table.html
 // + _sort_header.html macros (system_3_frontend_spec.md criterion 27 column
@@ -33,6 +33,24 @@ const props = defineProps({
   // Row key: a column key (string) or a fn(row, index) → key. Defaults to index.
   rowKey: { type: [String, Function], default: '' },
   caption: { type: String, default: '' },
+
+  // --- Virtualization (crash-safety §3.25/§3.29, task #2779-A1) ---------------
+  // Above `virtualizeThreshold` rows the <tbody> renders only a windowed slice
+  // (~viewport + overscan) with top/bottom spacer rows holding the full scroll
+  // extent, so the DOM node count is bounded to the viewport rather than to the
+  // fetched page (up to the 500-row §3.28 window). Below the threshold the table
+  // renders plainly — no scroll viewport, and browser Ctrl-F still finds every
+  // row. Transparent to consumers: the defaults leave small tables untouched.
+  virtualizeThreshold: { type: Number, default: 100 },
+  // Fixed row height in px — the spacer unit. Rows are pinned to this height in
+  // virtual mode so the spacer math stays exact (no scroll jitter). Consumers
+  // with taller rows pass a matching estimate.
+  rowHeight: { type: Number, default: 40 },
+  // Scroll-viewport height, applied ONLY in virtual mode (below the threshold
+  // the table keeps its natural height and its own page scroll).
+  maxHeight: { type: String, default: '60vh' },
+  // Rows rendered beyond the viewport on each side, to cover fast scrolls.
+  overscan: { type: Number, default: 8 },
 })
 
 const emit = defineEmits(['sort', 'update:sortBy', 'update:sortDir', 'row-click'])
@@ -56,6 +74,7 @@ const onSort = (col) => {
   emit('update:sortBy', col.key)
   emit('update:sortDir', dir)
   emit('sort', { key: col.key, dir })
+  resetScroll()
 }
 
 // Numeric-aware comparator; nulls / undefined sort last regardless of direction.
@@ -76,6 +95,59 @@ const displayRows = computed(() => {
   // Copy before sort — never mutate the incoming prop array.
   return [...props.rows].sort((r1, r2) => compare(r1[key], r2[key]) * factor)
 })
+
+// --- Virtualization state ----------------------------------------------------
+// The window is computed over `displayRows` (the SORTED set), so sort/filter and
+// the §3.28 manualSort→refetch path are unaffected — windowing only bounds how
+// many of those rows are materialised as DOM.
+const scrollEl = ref(null)
+const scrollTop = ref(0)
+const viewportH = ref(0)
+
+const virtualize = computed(() => displayRows.value.length > props.virtualizeThreshold)
+
+const onScroll = () => {
+  if (scrollEl.value) scrollTop.value = scrollEl.value.scrollTop
+}
+const measureViewport = () => {
+  if (scrollEl.value) viewportH.value = scrollEl.value.clientHeight
+}
+onMounted(measureViewport)
+
+const startIndex = computed(() =>
+  virtualize.value
+    ? Math.max(0, Math.floor(scrollTop.value / props.rowHeight) - props.overscan)
+    : 0,
+)
+const endIndex = computed(() => {
+  if (!virtualize.value) return displayRows.value.length
+  // Fall back to a full-ish window before the viewport is measured, so the first
+  // paint is not empty; the measure on mount then tightens it.
+  const perView = Math.ceil((viewportH.value || 800) / props.rowHeight)
+  return Math.min(displayRows.value.length, startIndex.value + perView + props.overscan * 2)
+})
+
+const windowedRows = computed(() =>
+  virtualize.value
+    ? displayRows.value.slice(startIndex.value, endIndex.value)
+    : displayRows.value,
+)
+const topPad = computed(() => (virtualize.value ? startIndex.value * props.rowHeight : 0))
+const bottomPad = computed(() =>
+  virtualize.value ? (displayRows.value.length - endIndex.value) * props.rowHeight : 0,
+)
+
+// aria-rowcount is the CANONICAL total (§3.25): the header row + every data row,
+// regardless of how many are currently materialised — never the windowed slice.
+const ariaRowCount = computed(() =>
+  virtualize.value ? displayRows.value.length + 1 : undefined,
+)
+// Reset the viewport to the top when the row set is reordered, so a sort does
+// not leave the operator staring at the middle of the newly-ordered list.
+const resetScroll = () => {
+  if (scrollEl.value) scrollEl.value.scrollTop = 0
+  scrollTop.value = 0
+}
 
 const keyFor = (row, index) => {
   if (typeof props.rowKey === 'function') return props.rowKey(row, index)
@@ -102,12 +174,23 @@ const tableClasses = computed(() => ({
   'data-table': true,
   [`data-table--${props.density}`]: true,
   'data-table--interactive': props.interactive,
+  'data-table--virtual': virtualize.value,
 }))
 </script>
 
 <template>
-  <div class="data-table__scroll">
-    <table :class="tableClasses">
+  <div
+    ref="scrollEl"
+    class="data-table__scroll"
+    :class="{ 'data-table__scroll--virtual': virtualize }"
+    :style="virtualize ? { maxHeight } : null"
+    @scroll="onScroll"
+  >
+    <table
+      :class="tableClasses"
+      :style="virtualize ? { '--asp-dt-row-h': `${rowHeight}px` } : null"
+      :aria-rowcount="ariaRowCount"
+    >
       <caption v-if="caption" class="data-table__caption">{{ caption }}</caption>
       <thead>
         <tr>
@@ -139,13 +222,22 @@ const tableClasses = computed(() => ({
       </thead>
       <tbody>
         <template v-if="displayRows.length">
+          <!-- Top spacer holds the height of the rows scrolled off above, so the
+               scrollbar reflects the full set while only the window is in DOM.
+               aria-hidden: it is scroll padding, not a row. -->
+          <tr v-if="topPad" class="data-table__spacer" aria-hidden="true">
+            <td :colspan="columns.length" :style="{ height: `${topPad}px` }" />
+          </tr>
           <tr
-            v-for="(row, index) in displayRows"
-            :key="keyFor(row, index)"
+            v-for="(row, i) in windowedRows"
+            :key="keyFor(row, startIndex + i)"
+            class="data-table__row"
             :class="{ 'data-table__row--interactive': interactive }"
             :tabindex="interactive ? 0 : undefined"
-            @click="onRowClick(row, index, $event)"
-            @keydown="onRowKeydown(row, index, $event)"
+            :aria-rowindex="virtualize ? startIndex + i + 2 : undefined"
+            :data-row-index="startIndex + i"
+            @click="onRowClick(row, startIndex + i, $event)"
+            @keydown="onRowKeydown(row, startIndex + i, $event)"
           >
             <td
               v-for="col in columns"
@@ -157,10 +249,19 @@ const tableClasses = computed(() => ({
               :style="col.width ? { maxWidth: col.width } : null"
               :title="col.truncate ? String(row[col.key] ?? '') : undefined"
             >
-              <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]" :index="index">
+              <slot
+                :name="`cell-${col.key}`"
+                :row="row"
+                :value="row[col.key]"
+                :index="startIndex + i"
+              >
                 {{ row[col.key] }}
               </slot>
             </td>
+          </tr>
+          <!-- Bottom spacer holds the height of the rows below the window. -->
+          <tr v-if="bottomPad" class="data-table__spacer" aria-hidden="true">
+            <td :colspan="columns.length" :style="{ height: `${bottomPad}px` }" />
           </tr>
         </template>
         <tr v-else class="data-table__empty-row">
@@ -180,6 +281,28 @@ const tableClasses = computed(() => ({
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Virtual mode (§3.25/§3.29, #2779): the scroll wrapper becomes the vertical
+   viewport. None of this applies below the threshold, where the table renders
+   at its natural height with the page as the scroll context. */
+.data-table__scroll--virtual {
+  overflow-y: auto;
+}
+
+/* Pin data-row cells to the spacer unit so the spacer math is exact — a row that
+   grew past rowHeight would drift the scrollbar. Spacer and empty rows are
+   exempt (they carry their own heights). */
+.data-table--virtual tbody tr.data-table__row td {
+  height: var(--asp-dt-row-h);
+  max-height: var(--asp-dt-row-h);
+  overflow: hidden;
+}
+
+/* Spacer rows are pure scroll padding: no cell chrome, height set inline. */
+.data-table__spacer td {
+  padding: 0;
+  border: none;
 }
 
 .data-table {

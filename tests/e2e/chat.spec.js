@@ -105,7 +105,8 @@ test('a stream emptied by filters says so, rather than claiming there are no mes
 })
 
 test('the composer sends and the stream is announced politely', async ({ page }) => {
-  const input = page.locator('.chat-area__composer input')
+  // The composer is a multi-line <textarea> (§3.42), not a single-line input.
+  const input = page.locator('.chat-area__composer textarea')
   await input.fill('hello from the operator')
   await page.locator('.chat-area__composer button[type="submit"]').click()
   await expect(page.locator('#sent')).toHaveText('hello from the operator')
@@ -118,8 +119,35 @@ test('the composer sends and the stream is announced politely', async ({ page })
 })
 
 test('send is refused when the composer holds only whitespace', async ({ page }) => {
-  await page.locator('.chat-area__composer input').fill('   ')
+  await page.locator('.chat-area__composer textarea').fill('   ')
   await expect(page.locator('.chat-area__composer button[type="submit"]')).toBeDisabled()
+})
+
+test('Enter (no modifier) sends the message', async ({ page }) => {
+  // A textarea does not submit its form on Enter for free the way a single-line
+  // input does — the component keeps Enter-to-send by hand (§3.42).
+  const input = page.locator('.chat-area__composer textarea')
+  await input.fill('sent with enter')
+  await input.press('Enter')
+  await expect(page.locator('#sent')).toHaveText('sent with enter')
+})
+
+test('Shift+Enter inserts a newline instead of sending', async ({ page }) => {
+  const input = page.locator('.chat-area__composer textarea')
+  await input.fill('line one')
+  await input.press('Shift+Enter')
+  await input.pressSequentially('line two')
+  // Nothing was sent...
+  await expect(page.locator('#sent')).toHaveText('none')
+  // ...and the newline landed in the field.
+  await expect(input).toHaveValue('line one\nline two')
+})
+
+test('the composer is a multi-line textarea at least ~2x the old 34px input', async ({ page }) => {
+  const box = await page.locator('.chat-area__composer textarea').boundingBox()
+  // rows="3" + min-height 4.5rem/72px — clears the 44px touch-target minimum
+  // the old 34px input failed, and is ~2x its height (§3.42 sizing arithmetic).
+  expect(box.height).toBeGreaterThanOrEqual(68)
 })
 
 test('composer sits below the stream by default (conventional chat)', async ({ page }) => {

@@ -183,6 +183,16 @@ const LONG_THREAD = Array.from({ length: 120 }, (_, i) => ({
         still varying with the backdrop, and that variance is the defect.
       </p>
       <p>
+        <strong>The composer is a multi-line <code>&lt;textarea&gt;</code> (§3.42).</strong> A chat
+        surface's entry box is inherently multi-line-worthy, so the composer is a
+        <code>rows="3"</code> textarea with a <code>--asp-chat-composer-min-height</code> floor
+        (4.5rem/72px, ~2× the old 34px input) and <code>resize: vertical</code>. Because a textarea
+        does not submit its form on Enter for free the way a single-line input does, the component
+        keeps <strong>Enter-to-send</strong> by hand and reserves <strong>Shift+Enter</strong> for a
+        newline. The Send button pins to the top of the taller field and stays thumb-sized (44px
+        touch floor), not stretched to the textarea's full height. Try it in the variants below.
+      </p>
+      <p>
         <strong>The monitoring surface (§3.20 P1).</strong> The agent pane is a monitoring surface,
         not a chat: the stream runs <code>order="newest-first"</code> and
         <code>composer-position="top"</code> together, so the newest message and the reply

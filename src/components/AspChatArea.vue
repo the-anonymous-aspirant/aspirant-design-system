@@ -2,8 +2,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 
 import AspBubble from './AspChatBubble.vue'
-import AspButton from './AspButton.vue'
 import AspCheckbox from './AspCheckbox.vue'
+import AspComposer from './AspComposer.vue'
 import AspEmptyState from './AspEmptyState.vue'
 
 // AspChatArea — the conversation surface (docs/COMPONENTS.md §16).
@@ -182,22 +182,8 @@ const toggleKind = (value, on) => {
   emit('update:visibleKinds', on ? [...current, value] : current.filter((k) => k !== value))
 }
 
-const submit = () => {
-  if (props.disabled || !props.modelValue.trim()) return
-  emit('send', props.modelValue)
-}
-
-// A single-line <input> submits its form on Enter for free; a <textarea> does
-// not -- Enter inserts a newline. So the composer keeps Enter-to-send by hand,
-// and reserves Shift/Ctrl/Meta+Enter for the newline (the Jinja composer's
-// enter_to_send.js contract, §3.12). submit() still owns the empty/disabled
-// guard, so a blank or whitespace-only message never sends.
-const onComposerKeydown = (event) => {
-  if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-    event.preventDefault()
-    submit()
-  }
-}
+// The composer's own submit/Enter-to-send/empty guard now live in AspComposer;
+// this component just re-emits the primitive's `send` and `update:modelValue`.
 </script>
 
 <template>
@@ -218,28 +204,21 @@ const onComposerKeydown = (event) => {
          with CSS `order`, so keyboard focus order matches reading order (WCAG
          2.4.3): on the monitoring surface the operator tabs to the reply field
          first. `bottom` (the default) keeps the composer last, unchanged. -->
-    <form v-if="composerPosition === 'top'" class="chat-area__composer" @submit.prevent="submit">
-      <div class="chat-area__composer-field">
-        <textarea
-          class="chat-area__composer-input"
-          rows="3"
-          :value="modelValue"
-          :placeholder="composerPlaceholder"
-          :disabled="disabled"
-          :aria-label="composerPlaceholder"
-          @input="(e) => emit('update:modelValue', e.target.value)"
-          @keydown="onComposerKeydown"
-        />
-      </div>
-      <AspButton
-        class="chat-area__send"
-        type="submit"
-        variant="primary"
-        :disabled="disabled || !modelValue.trim()"
-      >
-        {{ sendLabel }}
-      </AspButton>
-    </form>
+    <!-- The one composer grammar, mounted as the AspComposer primitive (§3.47).
+         `chat-area__composer` is kept as the class the composer's form carries
+         (Vue merges it onto the primitive's root <form>): it is the stable hook
+         the AspChatArea e2e suite selects on and the element whose position the
+         top/bottom placement tests measure. -->
+    <AspComposer
+      v-if="composerPosition === 'top'"
+      class="chat-area__composer"
+      :model-value="modelValue"
+      :placeholder="composerPlaceholder"
+      :send-label="sendLabel"
+      :disabled="disabled"
+      @update:model-value="(v) => emit('update:modelValue', v)"
+      @send="(v) => emit('send', v)"
+    />
 
     <!-- aria-live so a message arriving while the operator is elsewhere on the
          page is announced rather than silently appended. `polite`, not
@@ -315,28 +294,16 @@ const onComposerKeydown = (event) => {
       </template>
     </div>
 
-    <form v-if="composerPosition === 'bottom'" class="chat-area__composer" @submit.prevent="submit">
-      <div class="chat-area__composer-field">
-        <textarea
-          class="chat-area__composer-input"
-          rows="3"
-          :value="modelValue"
-          :placeholder="composerPlaceholder"
-          :disabled="disabled"
-          :aria-label="composerPlaceholder"
-          @input="(e) => emit('update:modelValue', e.target.value)"
-          @keydown="onComposerKeydown"
-        />
-      </div>
-      <AspButton
-        class="chat-area__send"
-        type="submit"
-        variant="primary"
-        :disabled="disabled || !modelValue.trim()"
-      >
-        {{ sendLabel }}
-      </AspButton>
-    </form>
+    <AspComposer
+      v-if="composerPosition === 'bottom'"
+      class="chat-area__composer"
+      :model-value="modelValue"
+      :placeholder="composerPlaceholder"
+      :send-label="sendLabel"
+      :disabled="disabled"
+      @update:model-value="(v) => emit('update:modelValue', v)"
+      @send="(v) => emit('send', v)"
+    />
   </section>
 </template>
 
@@ -436,70 +403,7 @@ const onComposerKeydown = (event) => {
   align-self: flex-end;
 }
 
-.chat-area__composer {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-xs);
-}
-
-.chat-area__composer-field {
-  flex: 1;
-  min-width: 0;
-}
-
-/*
- * The composer is a multi-line <textarea>, not a single-line input (§3.42): a
- * chat surface's entry box is inherently multi-line-worthy, and "twice as big /
- * easier to type into, especially on mobile" (operator #2842) is a request for
- * TYPING ROOM, not a taller one-line box. rows="3" + min-height give a fixed
- * floor; resize: vertical lets the operator drag it taller. No JS auto-grow this
- * pass (§3.42) -- that is a separate enhancement, not shipped half-done.
- */
-.chat-area__composer-field textarea {
-  /* The floor as a component-scoped custom property, mirroring AspInput's
-     --asp-input-height precedent (§3.10): a call site overrides it without a
-     fork. 4.5rem/72px is ~2.1x the old 34px input and clears the 44px WCAG
-     touch-target minimum the 34px input failed. */
-  --asp-chat-composer-min-height: 4.5rem;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--asp-chat-composer-min-height);
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--surface-card-inner);
-  color: var(--text-on-dark);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  font-family: var(--font-family-base);
-  /* 16px, not the old --text-sm: below 16px iOS Safari auto-zooms the viewport
-     on focus, a real mobile-typing irritation this pass exists to remove. */
-  font-size: var(--text-base);
-  line-height: 1.4;
-  resize: vertical;
-  appearance: none;
-}
-
-.chat-area__composer-field textarea::placeholder {
-  /* Muted placeholder on the dark composer surface: the on-dark ink at half
-     opacity, matching AspInput's muted-placeholder treatment. */
-  color: var(--text-on-dark);
-  opacity: 0.5;
-}
-
-.chat-area__composer-field textarea:focus {
-  /* A visible focus indicator is required even though the resting border is
-     transparent -- same two-tone ring AspInput uses (ink border + focus ring). */
-  outline: none;
-  border-color: var(--text-body);
-  box-shadow: var(--shadow-focus);
-}
-
-/* Send pins to the TOP of the now-taller field (the composer's align-items:
-   flex-start) and stays a thumb-sized control -- NOT stretched to the full
-   textarea height, which would over-spend the 10% accent (§1 60/30/10) and
-   misread as more important than the message (§3.42). Just the 44px touch
-   floor. */
-.chat-area__send {
-  min-height: 44px;
-}
+/* The composer's layout, textarea sizing (§3.42) and send-button floor now live
+   in AspComposer.vue — this component composes that primitive rather than
+   restating its grammar (§3.47). */
 </style>

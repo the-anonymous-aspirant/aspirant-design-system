@@ -93,12 +93,17 @@ const onComposerKeydown = (event) => {
   gap: var(--space-2xs);
 }
 
-/* The field + send sit on one row; the send pins to the TOP of the taller
-   field (align-items: flex-start), staying a thumb-sized control rather than
-   stretching to the field's height (§3.42 / §1 60-30-10 accent budget). */
+/* The field and send stack vertically (§3.49): the textarea takes the full
+   width, the send sits BELOW it, right-aligned. This supersedes §3.42's
+   horizontal/top-aligned placement for the AspComposer primitive — the stack is
+   mobile-first by construction and holds at every viewport width, so the send
+   can never overlap the field (the horizontal layout risked that at narrow
+   widths). §3.42's never-stretch-full-height rule still holds: the send stays a
+   fixed 44px control (see .asp-composer__send), just relocated below the field. */
 .asp-composer__row {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-xs);
 }
 
@@ -156,11 +161,13 @@ const onComposerKeydown = (event) => {
   box-shadow: var(--shadow-focus);
 }
 
-/* Send pins to the TOP of the now-taller field and stays a thumb-sized control
-   -- NOT stretched to the full textarea height, which would over-spend the 10%
-   accent (§1 60/30/10) and misread as more important than the message (§3.42).
-   Just the 44px touch floor. */
+/* Send sits below the field, right-aligned (align-self: flex-end) under the
+   full-width textarea, and stays a thumb-sized control -- NOT stretched to the
+   textarea's height/width, which would over-spend the 10% accent (§1 60/30/10)
+   and misread as more important than the message (§3.42/§3.49). Just the 44px
+   touch floor. */
 .asp-composer__send {
+  align-self: flex-end;
   min-height: 44px;
 }
 

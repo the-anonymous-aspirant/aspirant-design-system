@@ -1,0 +1,175 @@
+<script setup>
+import AspButton from './AspButton.vue'
+
+// AspComposer — the one message-composer grammar, extracted from AspChatArea
+// (docs/COMPONENTS.md §16; conventions §3.42/§3.47).
+//
+// THE POINT OF THIS COMPONENT IS THAT THE GRAMMAR IS SHARED, NOT COPIED. The
+// composer <form> — multi-line <textarea rows="3"> + amber primary submit +
+// Enter-to-send — used to live inline inside AspChatArea, duplicated at both
+// composer positions. A second surface that wants the same write affordance
+// (the operator's task-comment composer, #3034) must not fork a second
+// grammar; it mounts THIS primitive. So the grammar is a component, and both
+// AspChatArea positions now compose it too.
+//
+// DRAFT OWNERSHIP: the parent owns the draft (v-model). The composer is
+// stateless about the text — it renders `modelValue`, emits `update:modelValue`
+// on input, and emits `send` with the current value on submit. That keeps the
+// draft-outlives-failure contract (§3.23) the caller's to honour: a failed send
+// simply does not clear the parent's draft ref.
+
+const props = defineProps({
+  /** Draft text (v-model). The PARENT owns it — the composer never mutates. */
+  modelValue: { type: String, default: '' },
+  placeholder: { type: String, default: 'Message…' },
+  sendLabel: { type: String, default: 'Send' },
+  /** In-flight / guard: disables both the field and the submit. */
+  disabled: { type: Boolean, default: false },
+  /**
+   * Per-composer error message, rendered below the field in role="alert". Null
+   * (the default) renders nothing. The message is the caller's — a send that
+   * failed keeps its draft and sets this; the composer only displays it.
+   */
+  error: { type: String, default: null },
+})
+
+const emit = defineEmits(['update:modelValue', 'send'])
+
+// submit() owns the empty/disabled guard, so a blank or whitespace-only message
+// never sends — whichever way submit is reached (button, form-submit, Enter).
+const submit = () => {
+  if (props.disabled || !props.modelValue.trim()) return
+  emit('send', props.modelValue)
+}
+
+// A single-line <input> submits its form on Enter for free; a <textarea> does
+// not -- Enter inserts a newline. So the composer keeps Enter-to-send by hand,
+// and reserves Shift/Ctrl/Meta+Enter for the newline (the Jinja composer's
+// enter_to_send.js contract, §3.12).
+const onComposerKeydown = (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault()
+    submit()
+  }
+}
+</script>
+
+<template>
+  <form class="asp-composer" @submit.prevent="submit">
+    <div class="asp-composer__row">
+      <div class="asp-composer__field">
+        <textarea
+          class="asp-composer__input"
+          rows="3"
+          :value="modelValue"
+          :placeholder="placeholder"
+          :disabled="disabled"
+          :aria-label="placeholder"
+          @input="(e) => emit('update:modelValue', e.target.value)"
+          @keydown="onComposerKeydown"
+        />
+      </div>
+      <AspButton
+        class="asp-composer__send"
+        type="submit"
+        variant="primary"
+        :disabled="disabled || !modelValue.trim()"
+      >
+        {{ sendLabel }}
+      </AspButton>
+    </div>
+
+    <!-- Draft-outlives-failure surface (§3.23): the message the caller sets when
+         a send fails, announced to assistive tech. Absent (not empty) when
+         there is no error, so a screen reader is not handed a blank alert. -->
+    <p v-if="error" class="asp-composer__error" role="alert">{{ error }}</p>
+  </form>
+</template>
+
+<style scoped>
+.asp-composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+/* The field + send sit on one row; the send pins to the TOP of the taller
+   field (align-items: flex-start), staying a thumb-sized control rather than
+   stretching to the field's height (§3.42 / §1 60-30-10 accent budget). */
+.asp-composer__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.asp-composer__field {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * The composer is a multi-line <textarea>, not a single-line input (§3.42): a
+ * chat/comment surface's entry box is inherently multi-line-worthy, and "twice
+ * as big / easier to type into, especially on mobile" (operator #2842) is a
+ * request for TYPING ROOM, not a taller one-line box. rows="3" + min-height
+ * give a fixed floor; resize: vertical lets the operator drag it taller. No JS
+ * auto-grow this pass (§3.42) -- that is a separate enhancement.
+ */
+.asp-composer__input {
+  /* The floor as a component-scoped custom property, mirroring AspInput's
+     --asp-input-height precedent (§3.10): a call site overrides it without a
+     fork. The name is kept from AspChatArea (--asp-chat-composer-min-height) so
+     any existing call-site override survives the extraction unchanged.
+     4.5rem/72px is ~2.1x the old 34px input and clears the 44px WCAG touch
+     target the 34px input failed. */
+  --asp-chat-composer-min-height: 4.5rem;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--asp-chat-composer-min-height);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--surface-card-inner);
+  color: var(--text-on-dark);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-base);
+  /* 16px, not --text-sm: below 16px iOS Safari auto-zooms the viewport on
+     focus, a real mobile-typing irritation this sizing exists to remove. */
+  font-size: var(--text-base);
+  line-height: 1.4;
+  resize: vertical;
+  appearance: none;
+}
+
+.asp-composer__input::placeholder {
+  /* Muted placeholder on the dark composer surface: the on-dark ink at half
+     opacity, matching AspInput's muted-placeholder treatment. */
+  color: var(--text-on-dark);
+  opacity: 0.5;
+}
+
+.asp-composer__input:focus {
+  /* A visible focus indicator is required even though the resting border is
+     transparent -- same two-tone ring AspInput uses (ink border + focus ring). */
+  outline: none;
+  border-color: var(--text-body);
+  box-shadow: var(--shadow-focus);
+}
+
+/* Send pins to the TOP of the now-taller field and stays a thumb-sized control
+   -- NOT stretched to the full textarea height, which would over-spend the 10%
+   accent (§1 60/30/10) and misread as more important than the message (§3.42).
+   Just the 44px touch floor. */
+.asp-composer__send {
+  min-height: 44px;
+}
+
+/* The error rides below the field, in the ambient ink so it is legible on
+   whatever surface the caller mounts the composer over (the composer itself is
+   surface-agnostic — only the textarea declares its own dark fill). */
+.asp-composer__error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--feedback-error);
+}
+</style>

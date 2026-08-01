@@ -19,6 +19,7 @@ import {
   TICK_GUTTER,
   TICK_LADDER,
   TIME_AXIS_END_PADDING,
+  VARIANTS,
   WIDEST_LABELS,
   bandFor,
   buildBarOptions,
@@ -815,5 +816,139 @@ test.describe('§3.12 metric-state colour map (operator round-2, comment 8784)',
 
   test('unhealthy is feedback red', () => {
     expect(STATE_TOKENS.unhealthy).toBe('--feedback-error')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// #3129 — the sparkline variant. The at-a-glance card trend glyph: a 48px cell
+// with ALL axis furniture suppressed, single- and dual-series (diverging)
+// support, and the per-bar hover retained. Design-of-record §3.53.
+//
+// Two halves, each asserted where it is honest: the option SHAPE is a pure
+// function (borders off, ticks off, tooltip on) and lives here; the per-dataset
+// FILL is a component choice against a real surface and is measured through the
+// bar-chart-sparkline fixture, the same "assert at the source" rule the paint
+// contract already follows.
+// ---------------------------------------------------------------------------
+const SPARK = (over = {}) =>
+  buildBarOptions({
+    variant: 'sparkline',
+    axisInk: 'rgb(0, 0, 0)',
+    axisLine: 'rgb(0, 0, 0)',
+    tooltipBg: 'rgb(66, 66, 66)',
+    tooltipInk: 'rgb(255, 255, 255)',
+    fontFamily: 'monospace',
+    ...over,
+  })
+
+test.describe('#3129 sparkline: a furniture-free trend glyph', () => {
+  test('it is a real variant at the 48px cell', () => {
+    expect(HEIGHTS.sparkline).toBe(48)
+    expect(VARIANTS).toContain('sparkline')
+  })
+
+  test('neither axis line is drawn — the inversion of the regular treatment', () => {
+    // regular/compact draw both borders (asserted in "axes are drawn"); the
+    // sparkline is the one variant that draws none, so the cell is bars only.
+    expect(SPARK().scales.x.border.display).toBe(false)
+    expect(SPARK().scales.y.border.display).toBe(false)
+  })
+
+  test('no tick text on either axis', () => {
+    expect(SPARK().scales.x.ticks.display).toBe(false)
+    expect(SPARK().scales.y.ticks.display).toBe(false)
+  })
+
+  test('the per-bar hover tooltip survives — a sparkline still owes the drill', () => {
+    const tip = SPARK().plugins.tooltip
+    expect(tip).toBeTruthy()
+    expect(tip.callbacks.title([{ label: '14:00' }])).toBe('x: 14:00')
+    expect(tip.callbacks.label({ parsed: { y: 3 } })).toBe('y: 3')
+  })
+
+  test('the bars still sit on a real zero baseline — an empty hour is a gap, not a shift', () => {
+    // beginAtZero is what makes a zero-count hour render as an empty slot at the
+    // baseline rather than rescaling the whole chart around the non-zero hours.
+    expect(SPARK().scales.y.beginAtZero).toBe(true)
+  })
+
+  test('a single-series sparkline keeps the grid off, exactly as every other variant', () => {
+    expect(SPARK().scales.y.grid.display).toBe(false)
+  })
+
+  test('regular and compact are byte-untouched by the new variant', () => {
+    // The one border the sparkline turns off must not leak into the variants
+    // the operator already reads on Performance and Health.
+    expect(OPTS().scales.x.border.display).toBe(true)
+    expect(OPTS().scales.y.border.display).toBe(true)
+    expect(buildBarOptions({ variant: 'compact' }).scales.x.border.display).toBe(true)
+  })
+})
+
+test.describe('#3129 sparkline: the diverging zero rule', () => {
+  test('a diverging card paints exactly the zero gridline and nothing else', () => {
+    const grid = SPARK({ zeroBaseline: true }).scales.y.grid
+    expect(grid.display).toBe(true)
+    // Scriptable: the zero tick takes the axis line, every other tick is
+    // transparent — so the reader gets one up/down reference, not a full grid.
+    expect(grid.color({ tick: { value: 0 } })).toBe('rgb(0, 0, 0)')
+    expect(grid.color({ tick: { value: 4 } })).toBe('transparent')
+    expect(grid.lineWidth({ tick: { value: 0 } })).toBe(1)
+    expect(grid.lineWidth({ tick: { value: -2 } })).toBe(0)
+  })
+
+  test('without the flag there is no gridline — the rule is opt-in for diverging only', () => {
+    expect(SPARK({ zeroBaseline: false }).scales.y.grid.display).toBe(false)
+  })
+})
+
+test.describe('#3129 sparkline (rendered): per-dataset fills on the card surface', () => {
+  const read = async (page, theme) => {
+    const q = theme === 'dark' ? '?theme=dark' : ''
+    await page.goto(`/tests/e2e/fixtures/bar-chart-sparkline.html${q}`, { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__sparklineReady === true)
+    return page.evaluate(() => window.__sparkline)
+  }
+
+  for (const theme of THEMES) {
+    test(`single-series takes one fill, clearing AA vs the card surface (${theme})`, async ({ page }) => {
+      const s = (await read(page, theme)).single
+      expect(s.barFills).toHaveLength(1)
+      const ratio = contrastRatio(parseColor(s.barFills[0]), s.background)
+      expect(ratio).toBeGreaterThanOrEqual(AA_NON_TEXT)
+    })
+
+    test(`diverging takes TWO distinct fills, each clearing AA vs the card surface (${theme})`, async ({
+      page,
+    }) => {
+      const d = (await read(page, theme)).diverging
+      expect(d.barFills).toHaveLength(2)
+      // The two series must read as different hues — a diverging card whose
+      // created and done bars are the same colour is not diverging.
+      expect(d.barFills[0]).not.toBe(d.barFills[1])
+      for (const fill of d.barFills) {
+        expect(contrastRatio(parseColor(fill), d.background)).toBeGreaterThanOrEqual(AA_NON_TEXT)
+      }
+    })
+
+    test(`the diverging card configures the y=0 rule; the single card does not (${theme})`, async ({
+      page,
+    }) => {
+      const all = await read(page, theme)
+      expect(all.diverging.hasZeroRule).toBe(true)
+      expect(all.single.hasZeroRule).toBe(false)
+    })
+  }
+
+  test('the rendered sparkline occupies the 48px cell, not the taller regular chart', async ({
+    page,
+  }) => {
+    await page.goto('/tests/e2e/fixtures/bar-chart-sparkline.html', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__sparklineReady === true)
+    const box = await page.locator('.asp-bar-chart').first().boundingBox()
+    // No unit/range DOM lines, so the whole component is the ~48px canvas plus a
+    // hair of sub-pixel rounding. Generous ceiling; the point is it is NOT the
+    // 180px regular chart.
+    expect(box.height).toBeLessThanOrEqual(56)
   })
 })

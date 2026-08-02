@@ -34,6 +34,25 @@ const dayData = {
   labels: dayStamps.map((t) => new Date(t).toLocaleString()),
   datasets: [{ label: 'p95 latency', data: dayStamps.map((_, i) => 200 + ((i * 37) % 180)) }],
 }
+
+// #3129 at-a-glance sparkline data — 24 hourly bars, zero hours INCLUDED so the
+// empty-slot rendering (a gap at the baseline, never an omitted bar) is visible.
+const sparkHours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+const agentActions = [3, 5, 2, 0, 0, 1, 4, 6, 8, 7, 5, 9, 12, 10, 6, 4, 0, 2, 5, 7, 8, 6, 3, 4]
+const sparkData = { labels: sparkHours, datasets: [{ label: 'agent actions', data: agentActions }] }
+
+// The diverging flow card: created ABOVE the baseline, done rendered NEGATIVE
+// below it, on a shared axis. The component paints the two series amber/blue and
+// draws the single faint y=0 rule the hidden-axis sparkline needs.
+const created = [2, 3, 1, 0, 0, 1, 2, 4, 5, 3, 2, 6, 7, 5, 3, 2, 0, 1, 3, 4, 5, 3, 1, 2]
+const done = [1, 2, 0, 0, 1, 0, 1, 3, 4, 2, 1, 5, 6, 4, 2, 1, 0, 1, 2, 3, 4, 2, 1, 1]
+const flowData = {
+  labels: sparkHours,
+  datasets: [
+    { label: 'created', data: created },
+    { label: 'done', data: done.map((v) => -v) },
+  ],
+}
 </script>
 
 <template>
@@ -135,6 +154,48 @@ const dayData = {
           range="unhealthy"
           aria-label="Unhealthy: error rate over the last 12 hours"
         />
+      </div>
+    </Variant>
+
+    <!--
+      #3129 — the at-a-glance card trend glyph. All axis furniture is gone; the
+      card's label + big number carry the meaning and the chart is a pure trend
+      shape. Zero-count hours render as an empty slot, never an omitted bar, so
+      the 24-wide x stays honest. The per-bar hover tooltip is retained.
+    -->
+    <Variant title="Sparkline (at-a-glance card, single series)">
+      <div style="padding: 16px; background: var(--surface-page); max-width: 240px;">
+        <AspCard>
+          <p style="color: var(--text-muted); text-transform: uppercase; font-size: var(--text-xs); margin: 0;">agent actions (1h)</p>
+          <p style="font-size: 28px; margin: 4px 0 8px;">147</p>
+          <AspBarChart variant="sparkline" :data="sparkData" aria-label="Agent actions per hour, last 24 hours" />
+        </AspCard>
+      </div>
+    </Variant>
+
+    <Variant title="Sparkline diverging (task flow: created up / done down)">
+      <div style="padding: 16px; background: var(--surface-page); max-width: 240px;">
+        <AspCard>
+          <p style="color: var(--text-muted); text-transform: uppercase; font-size: var(--text-xs); margin: 0;">task flow (1h)</p>
+          <p style="margin: 4px 0 8px;">
+            <span style="color: var(--chart-series-1);">5 created</span> ·
+            <span style="color: var(--chart-series-2);">4 done</span>
+          </p>
+          <AspBarChart variant="sparkline" :data="flowData" aria-label="Tasks created versus done per hour, last 24 hours" />
+        </AspCard>
+      </div>
+    </Variant>
+
+    <Variant title="Sparkline light vs. dark (on a dark AspCard)">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div data-theme="light" style="padding: 16px; background: var(--surface-page);">
+          <p style="color: var(--text-muted); margin: 0 0 8px;">light</p>
+          <AspCard><AspBarChart variant="sparkline" :data="sparkData" aria-label="Sparkline, light theme" /></AspCard>
+        </div>
+        <div data-theme="dark" style="padding: 16px; background: var(--surface-page);">
+          <p style="color: var(--text-muted); margin: 0 0 8px;">dark</p>
+          <AspCard><AspBarChart variant="sparkline" :data="sparkData" aria-label="Sparkline, dark theme" /></AspCard>
+        </div>
       </div>
     </Variant>
 

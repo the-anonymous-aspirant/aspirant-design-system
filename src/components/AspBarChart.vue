@@ -183,10 +183,51 @@ const paint = computed(() => {
   return { bg, fontFamily, axisInk, axisLine, barFill, tooltipBg, tooltipInk }
 })
 
+// The Okabe-Ito series fallbacks, mirroring AspChart's palette() guard, for a
+// missing token build. Index i → dataset i's default fill.
+const SERIES_FALLBACKS = ['#ffb300', '#0072b2', '#009e73', '#d55e00']
+
+// One fill PER dataset, each DERIVED against the real surface (principle #2 at
+// the top of this file: the ink is derived, not picked). Which token a dataset
+// starts from is the grammar the at-a-glance cards need:
+//   • an explicit `backgroundColor` on the dataset wins untouched (caller override);
+//   • a `state` colours every bar with its metric-state token (unchanged);
+//   • two-or-more datasets take the series palette (--chart-series-1, -2, …) so
+//     the diverging flow card reads created-vs-done in distinct hues;
+//   • a single sparkline takes --chart-series-1 (the at-a-glance amber, #3129);
+//   • a single regular/compact chart keeps --brand-primary-alpha — this
+//     variant's default fill is deliberately left exactly as it was.
+const barFills = computed(() => {
+  void themeTick.value
+  const bg = resolvedBackground()
+  const datasets = props.data.datasets || []
+  const multi = datasets.length > 1
+  return datasets.map((ds, i) => {
+    if (ds.backgroundColor != null) return ds.backgroundColor
+    let name
+    let fallback
+    if (props.state) {
+      name = STATE_TOKENS[props.state]
+      fallback = SERIES_FALLBACKS[0]
+    } else if (multi) {
+      name = `--chart-series-${i + 1}`
+      fallback = SERIES_FALLBACKS[i % SERIES_FALLBACKS.length]
+    } else if (props.variant === 'sparkline') {
+      name = '--chart-series-1'
+      fallback = SERIES_FALLBACKS[0]
+    } else {
+      name = '--brand-primary-alpha'
+      fallback = '#ffb30082'
+    }
+    const preferred = parseColor(token(name, fallback)) || parseColor(fallback) || [255, 179, 0, 0.51]
+    return toRgbString(deriveInk(preferred, bg, AA_NON_TEXT))
+  })
+})
+
 const themedData = computed(() => ({
   ...props.data,
-  datasets: (props.data.datasets || []).map((ds) => ({
-    backgroundColor: paint.value.barFill,
+  datasets: (props.data.datasets || []).map((ds, i) => ({
+    backgroundColor: barFills.value[i],
     borderWidth: 0,
     ...ds,
   })),
@@ -215,6 +256,9 @@ const chartOptions = computed(() => {
     unit: props.unit,
     xAxis: props.xAxis,
     timestamps: props.timestamps,
+    // A diverging sparkline (two series, the second painted negative) hides its
+    // axes, so it earns a single faint rule at y=0 as the up/down reference.
+    zeroBaseline: props.variant === 'sparkline' && (props.data.datasets || []).length > 1,
   })
 
   if (typeof props.threshold === 'number') {
@@ -259,7 +303,7 @@ onBeforeUnmount(() => {
 // Exposed for the contrast spec: the derived values are the thing under test,
 // and reading them here asserts what the component actually paints rather than
 // what a test recomputes from tokens and hopes matches.
-defineExpose({ paint, chartOptions, barThickness: BAR_THICKNESS })
+defineExpose({ paint, barFills, chartOptions, barThickness: BAR_THICKNESS })
 </script>
 
 <template>

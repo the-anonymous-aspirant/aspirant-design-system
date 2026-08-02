@@ -114,6 +114,21 @@ function onRefresh() {
       </div>
     </Variant>
 
+    <Variant title="Trigger-only (showTime=false) — surface owns the readout">
+      <div class="pane rows">
+        <p class="note">
+          When the surface already renders a truer freshness cue elsewhere (e.g. the Overview
+          chat embed's pulse-on-new 'last activity' stamp), <code>showTime=false</code> drops the
+          internal timestamp <strong>entirely</strong> (no em-dash, no reserved gap) and
+          AspFreshness contributes only the uniform refresh trigger. The label and the
+          pending/failed feedback are unchanged.
+        </p>
+        <AspFreshness :last-successful-at="at(-480)" :now="NOW" :show-time="false" label="" />
+        <AspFreshness :last-successful-at="at(-480)" :now="NOW" :show-time="false" label="" pending />
+        <AspFreshness :last-successful-at="at(-480)" :now="NOW" :show-time="false" label="" failed />
+      </div>
+    </Variant>
+
     <Variant title="On a dark AspCard">
       <AspCard>
         <AspFreshness :last-successful-at="at(-480)" :now="NOW" />

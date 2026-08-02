@@ -10,7 +10,7 @@ import { AspFreshness } from '../../../src/index.js'
 const NOW = Date.parse('2026-07-19T12:00:00.000Z')
 const at = (s) => new Date(NOW + s * 1000).toISOString()
 
-const counts = reactive({ normal: 0, pending: 0, failed: 0 })
+const counts = reactive({ normal: 0, pending: 0, failed: 0, triggerOnly: 0 })
 window.__refresh = counts
 
 createApp({
@@ -51,6 +51,24 @@ createApp({
           h('div', { id: 'idle' }, h(AspFreshness, {
             lastSuccessfulAt: at(-3 * 3600),
             now: NOW,
+          })),
+          // Trigger-only (showTime=false): the timestamp is omitted entirely —
+          // no <time>, no em-dash, even though lastSuccessfulAt is passed. The
+          // label + trigger still render, and the caller contract still fires.
+          h('div', { id: 'triggerOnly' }, h(AspFreshness, {
+            lastSuccessfulAt: at(-480),
+            now: NOW,
+            showTime: false,
+            onRefresh: () => (counts.triggerOnly += 1),
+          })),
+          // Trigger-only in pending + failed: states are unchanged in this mode.
+          h('div', { id: 'triggerOnlyPending' }, h(AspFreshness, {
+            showTime: false,
+            pending: true,
+          })),
+          h('div', { id: 'triggerOnlyFailed' }, h(AspFreshness, {
+            showTime: false,
+            failed: true,
           })),
         ]
       )

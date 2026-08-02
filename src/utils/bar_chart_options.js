@@ -30,8 +30,15 @@ export const BASELINE_HEIGHT = 320
  *
  * A bare Health cell that wants the literal 48px drops `unit` and `range`; the
  * labels are opt-in per instance.
+ *
+ * `sparkline` — the at-a-glance card trend glyph (#3129, design-of-record
+ * §3.53). Same 48px cell as `compact`, but ALL axis furniture is suppressed
+ * (no baseline line, no left edge, no tick text): the card's label + big
+ * number carry the meaning and the chart is a pure trend shape. It also carries
+ * the single-/dual-series colour grammar the at-a-glance cards need — see the
+ * component's fill derivation.
  */
-export const HEIGHTS = { regular: 180, compact: 48 }
+export const HEIGHTS = { regular: 180, compact: 48, sparkline: 48 }
 
 export const VARIANTS = Object.keys(HEIGHTS)
 
@@ -106,6 +113,9 @@ export const TICKS = {
     x: { autoSkip: true, autoSkipPadding: 1, maxRotation: 90, minRotation: 0 },
   },
   compact: { y: { maxTicksLimit: 2 }, x: { display: false } },
+  // The sparkline is a trend glyph: no ticks on either axis. Paired with the
+  // suppressed axis borders in buildBarOptions, the cell renders bars only.
+  sparkline: { y: { display: false }, x: { display: false } },
 }
 
 // ---------------------------------------------------------------------------
@@ -528,6 +538,18 @@ const timeTicks = (timestamps) => ({
  * @param {boolean} [o.animate]
  * @param {string}  [o.xAxis]      'category' (default) | 'time' — §3.19 grammar
  * @param {Array}   [o.timestamps] one per category; required by `time` mode
+ * @param {boolean} [o.zeroBaseline] paint a single faint rule at y=0 — the
+ *   up/down reference the diverging sparkline needs once its axes are hidden.
+ *   Drawn for EVERY two-series window, not only ones that straddle zero
+ *   (design_agent, #3129): with all axis furniture suppressed the amber-up /
+ *   blue-down polarity says WHICH series, never WHERE zero sits, so a one-sided
+ *   window (an all-created or all-done hour) with no rule would imply
+ *   "bottom = zero" — a lie when the true baseline is above the bars. The rule
+ *   rides Chart.js's zero tick, which `beginAtZero` always puts on the axis:
+ *   in the interior when the data straddles, and pinned to the top or bottom
+ *   edge when it does not — verified painting a full-width line in all three
+ *   cases (bar-chart.spec.js "the zero rule paints ..."). NOT a no-op on
+ *   all-positive data — it lands at the baseline, where zero genuinely is.
  */
 export const buildBarOptions = ({
   variant = 'regular',
@@ -540,9 +562,14 @@ export const buildBarOptions = ({
   animate = true,
   xAxis = 'category',
   timestamps = null,
+  zeroBaseline = false,
 } = {}) => {
   const v = VARIANTS.includes(variant) ? variant : 'regular'
   const font = { family: fontFamily }
+  // The sparkline is a bare trend glyph: no axis lines, no ticks (TICKS.sparkline
+  // already blanks the ticks; this drops the two 1px borders they share a scale
+  // with). regular/compact keep both borders exactly as before.
+  const noAxis = v === 'sparkline'
 
   // `time` mode replaces ONLY the regular variant's x ticks. compact keeps
   // `display: false`: §3.19 derives that from its own budget floor (a 48px
@@ -618,15 +645,32 @@ export const buildBarOptions = ({
         // "Axes are drawn, not implied" (#2227): the axis LINE is on, the grid
         // is off. The previous treatment had it backwards — faint grid lines
         // across the plot and no axis, which is what "we don't clearly see the
-        // x-axis and y-axis" was describing.
-        border: { display: true, color: axisLine, width: 1 },
+        // x-axis and y-axis" was describing. The sparkline is the one variant
+        // that inverts this on purpose — a trend glyph draws no axis at all.
+        border: { display: !noAxis, color: axisLine, width: 1 },
         grid: { display: false },
         ticks: { color: axisInk, font, ...ticks.x },
       },
       y: {
         beginAtZero: true,
-        border: { display: true, color: axisLine, width: 1 },
-        grid: { display: false },
+        border: { display: !noAxis, color: axisLine, width: 1 },
+        // The diverging sparkline is the only chart that paints a gridline: a
+        // single faint rule at y=0, so the up/down split has a reference once
+        // the axis borders are gone. Scriptable so ONLY the zero tick draws;
+        // every other variant keeps the grid off exactly as before. The zero
+        // tick is always present here because beginAtZero forces 0 into the
+        // range — interior on a straddling window, pinned to an edge on a
+        // one-sided one — so the rule is drawn for every two-series window, not
+        // just ones that cross zero (design_agent #3129; the rendered
+        // full-width-line assertions are the guarantee, not this comment).
+        grid: zeroBaseline
+          ? {
+              display: true,
+              drawTicks: false,
+              color: (ctx) => (ctx.tick && ctx.tick.value === 0 ? axisLine : 'transparent'),
+              lineWidth: (ctx) => (ctx.tick && ctx.tick.value === 0 ? 1 : 0),
+            }
+          : { display: false },
         ticks: { color: axisInk, font, ...ticks.y },
       },
     },

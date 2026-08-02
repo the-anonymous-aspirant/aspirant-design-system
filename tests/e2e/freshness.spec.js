@@ -66,6 +66,39 @@ test.describe('AspFreshness', () => {
     await expect(page.locator('#idle time')).toHaveText('3h ago')
   })
 
+  // showTime=false is trigger-only: the surface owns the freshness readout
+  // elsewhere, so AspFreshness omits its own timestamp ENTIRELY (v-if) — no
+  // <time>, no em-dash placeholder, no reserved gap — while keeping the label,
+  // trigger, and pending/failed feedback (system_3 #3178).
+  test('showTime=false omits the timestamp entirely while keeping label + trigger', async ({
+    page,
+  }) => {
+    const el = page.locator('#triggerOnly')
+    // The timestamp is gone — not blanked to an em-dash, actually absent.
+    await expect(el.locator('time')).toHaveCount(0)
+    await expect(el).not.toContainText('—')
+    // The label and the trigger still render.
+    await expect(el).toContainText('Updated')
+    await expect(el.getByTestId('freshness-refresh')).toBeVisible()
+  })
+
+  test('trigger-only still emits refresh (the caller contract is unchanged)', async ({ page }) => {
+    await page.locator('#triggerOnly').getByTestId('freshness-refresh').click()
+    await expect.poll(() => page.evaluate(() => window.__refresh.triggerOnly)).toBe(1)
+  })
+
+  test('trigger-only keeps the pending + failed states, still with no timestamp', async ({
+    page,
+  }) => {
+    const pendingBtn = page.locator('#triggerOnlyPending').getByTestId('freshness-refresh')
+    await expect(pendingBtn).toBeDisabled()
+    await expect(pendingBtn.locator('.btn__spinner')).toBeVisible()
+    await expect(page.locator('#triggerOnlyPending time')).toHaveCount(0)
+
+    await expect(page.locator('#triggerOnlyFailed').getByTestId('freshness-failed')).toBeVisible()
+    await expect(page.locator('#triggerOnlyFailed time')).toHaveCount(0)
+  })
+
   // The failure glyph is a non-text mark (WCAG AA needs >=3:1, not 4.5:1). It
   // derives from currentColor via color-mix so it adapts to the surface polarity
   // — assert it clears 3:1 on the painted surface in BOTH themes rather than

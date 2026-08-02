@@ -33,6 +33,18 @@ defineProps({
   failed: { type: Boolean, default: false },
   /** Prefix text, e.g. renders "Updated 8m ago". Pass '' to drop it. */
   label: { type: String, default: 'Updated' },
+  /**
+   * Whether to render the internal AspTimeSince timestamp. Default `true`.
+   * `false` = trigger-only: the label (if any) + failure glyph + refresh
+   * trigger render, but the timestamp is omitted ENTIRELY (`v-if`, not a null
+   * datetime — so no em-dash placeholder and no reserved gap). Use when the
+   * SURFACE already owns a truer freshness readout elsewhere (e.g. the Overview
+   * chat embed's §3.51 pulse-on-new 'last activity' stamp) and AspFreshness
+   * should contribute only the uniform refresh action, not a second, differently-
+   * semantic'd fetch timestamp (system_3 #3178 / #3172). `lastSuccessfulAt` may
+   * be null/omitted in this mode; `pending`/`failed` behave unchanged.
+   */
+  showTime: { type: Boolean, default: true },
   /** Trigger sizing; forwarded to AspButton. AspTimeSince has no size axis. */
   size: {
     type: String,
@@ -55,6 +67,7 @@ defineEmits(['refresh'])
   <span class="freshness" :class="`freshness--${size}`">
     <span v-if="label" class="freshness__label">{{ label }}</span>
     <AspTimeSince
+      v-if="showTime"
       class="freshness__time"
       variant="elapsed"
       live

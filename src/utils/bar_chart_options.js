@@ -540,8 +540,16 @@ const timeTicks = (timestamps) => ({
  * @param {Array}   [o.timestamps] one per category; required by `time` mode
  * @param {boolean} [o.zeroBaseline] paint a single faint rule at y=0 — the
  *   up/down reference the diverging sparkline needs once its axes are hidden.
- *   Only meaningful when the data straddles zero (a two-series flow card whose
- *   second series is negative); a no-op on all-positive data.
+ *   Drawn for EVERY two-series window, not only ones that straddle zero
+ *   (design_agent, #3129): with all axis furniture suppressed the amber-up /
+ *   blue-down polarity says WHICH series, never WHERE zero sits, so a one-sided
+ *   window (an all-created or all-done hour) with no rule would imply
+ *   "bottom = zero" — a lie when the true baseline is above the bars. The rule
+ *   rides Chart.js's zero tick, which `beginAtZero` always puts on the axis:
+ *   in the interior when the data straddles, and pinned to the top or bottom
+ *   edge when it does not — verified painting a full-width line in all three
+ *   cases (bar-chart.spec.js "the zero rule paints ..."). NOT a no-op on
+ *   all-positive data — it lands at the baseline, where zero genuinely is.
  */
 export const buildBarOptions = ({
   variant = 'regular',
@@ -649,7 +657,12 @@ export const buildBarOptions = ({
         // The diverging sparkline is the only chart that paints a gridline: a
         // single faint rule at y=0, so the up/down split has a reference once
         // the axis borders are gone. Scriptable so ONLY the zero tick draws;
-        // every other variant keeps the grid off exactly as before.
+        // every other variant keeps the grid off exactly as before. The zero
+        // tick is always present here because beginAtZero forces 0 into the
+        // range — interior on a straddling window, pinned to an edge on a
+        // one-sided one — so the rule is drawn for every two-series window, not
+        // just ones that cross zero (design_agent #3129; the rendered
+        // full-width-line assertions are the guarantee, not this comment).
         grid: zeroBaseline
           ? {
               display: true,

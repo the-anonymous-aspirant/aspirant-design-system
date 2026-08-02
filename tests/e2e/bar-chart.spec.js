@@ -937,6 +937,37 @@ test.describe('#3129 sparkline (rendered): per-dataset fills on the card surface
       const all = await read(page, theme)
       expect(all.diverging.hasZeroRule).toBe(true)
       expect(all.single.hasZeroRule).toBe(false)
+      // design_agent #3129: the rule is configured for EVERY two-series window,
+      // not only ones that straddle zero. A one-sided window that gated the rule
+      // out would imply "bottom = zero", which is a lie for an all-done hour.
+      expect(all.divergingAllCreated.hasZeroRule).toBe(true)
+      expect(all.divergingAllDone.hasZeroRule).toBe(true)
+    })
+
+    test(`the zero rule PAINTS a full-width line — even in a one-sided window (${theme})`, async ({
+      page,
+    }) => {
+      // The teeth behind "always drawn". Configured is not painted: a rule that
+      // rode a zero tick the library declined to generate would leave hasZeroRule
+      // true and the canvas blank. So this measures ink on the canvas row at y=0
+      // — a full-width 1px rule lights ~every column; sparse bars light far
+      // fewer. The two one-sided windows are the cases that matter: their zero
+      // sits on the very top (all-done) or bottom (all-created) edge, and the
+      // line must still paint there rather than clip to nothing.
+      const all = await read(page, theme)
+      for (const key of ['diverging', 'divergingAllCreated', 'divergingAllDone']) {
+        expect(
+          all[key].zeroLineInkFrac,
+          `${key}: zero rule did not paint a full-width line (ink fraction ${all[key].zeroLineInkFrac})`
+        ).toBeGreaterThanOrEqual(0.95)
+      }
+      // And the single-series card, which draws NO rule, has no such full-width
+      // line — only its sparse bars — so the assertion above is measuring the
+      // rule, not an artefact every chart would show.
+      expect(
+        all.single.zeroLineInkFrac,
+        `single-series showed a full-width line at y=0 (ink fraction ${all.single.zeroLineInkFrac}) — it should have none`
+      ).toBeLessThan(0.9)
     })
   }
 

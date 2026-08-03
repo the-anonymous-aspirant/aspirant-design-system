@@ -22,11 +22,13 @@ test('interleaves comments and transcript in creation order', async ({ page }) =
     'comment one',
     'transcript two',
     'comment two',
-    // m3 and c3 share a created_at; the tie-break is source name, so the
-    // comment lands first. Arbitrary but deterministic is the requirement --
-    // what matters is that it does not vary between renders.
-    'comment tied',
+    // m3 and c3 share a created_at; equal keys keep input order (stable sort),
+    // and messages are concatenated before comments, so the transcript turn
+    // lands first -- the same rule as the backend merge ("transcript turns
+    // precede same-instant comments"). Deterministic across renders, and never
+    // re-decided from id or source lexicography (#3007).
     'transcript three',
+    'comment tied',
     'transcript undated',
   ])
 })
@@ -40,8 +42,8 @@ test('the merged stream really contains both sources', async ({ page }) => {
     'comment',
     'transcript',
     'comment',
-    'comment',
     'transcript',
+    'comment',
     'transcript',
   ])
 })
@@ -67,8 +69,8 @@ test('order=newest-first reverses the merged stream, not one source', async ({ p
   await page.locator('#drive-newest').click()
   await expect(bodies(page)).toHaveText([
     'transcript undated',
-    'transcript three',
     'comment tied',
+    'transcript three',
     'comment two',
     'transcript two',
     'comment one',

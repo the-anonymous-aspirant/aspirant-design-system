@@ -96,18 +96,26 @@ const timeOf = (entry) => {
  * `source` is what the story, the tests and any consumer use to prove the
  * interleave actually happened -- an ordered list alone cannot show it.
  *
- * Ties are broken by source then id, so two rows written in the same
- * millisecond keep a stable order across renders instead of swapping.
+ * Equal keys keep INPUT order (sort stability, guaranteed since ES2019), and
+ * that is load-bearing rather than cosmetic: the backend orders turns at full
+ * microsecond precision, but Date.parse only carries milliseconds, so two rows
+ * within the same millisecond are a tie HERE while the payload already knows
+ * their order. Any explicit tie-break (id lexicography, source name) re-decides
+ * that order from information the backend did not sort by -- which is how
+ * same-minute turns rendered inverted (#3007). Returning 0 also covers the
+ * both-unparseable case, where Infinity - Infinity is NaN and the comparator
+ * would otherwise go inconsistent. Cross-source same-instant pairs land
+ * transcript-first via the concat order below, matching the backend merge
+ * ("transcript turns precede same-instant comments").
  */
 const merged = computed(() => {
   const tag = (rows, source) => (rows || []).map((entry) => ({ ...entry, source }))
   const all = [...tag(props.messages, 'transcript'), ...tag(props.comments, 'comment')]
 
   all.sort((a, b) => {
-    const d = timeOf(a) - timeOf(b)
-    if (d !== 0) return d
-    if (a.source !== b.source) return a.source < b.source ? -1 : 1
-    return String(a.id) < String(b.id) ? -1 : 1
+    const ta = timeOf(a)
+    const tb = timeOf(b)
+    return ta === tb ? 0 : ta - tb
   })
 
   return props.order === 'newest-first' ? all.reverse() : all

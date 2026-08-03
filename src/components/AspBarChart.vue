@@ -259,6 +259,10 @@ const chartOptions = computed(() => {
     // A diverging sparkline (two series, the second painted negative) hides its
     // axes, so it earns a single faint rule at y=0 as the up/down reference.
     zeroBaseline: props.variant === 'sparkline' && (props.data.datasets || []).length > 1,
+    // The data drives the §3.60 value-axis headroom (`suggestedMax`, or the
+    // symmetric diverging bounds) inside the preset. Passed here so every
+    // AspBarChart consumer inherits it at the one choke point.
+    data: props.data,
   })
 
   if (typeof props.threshold === 'number') {

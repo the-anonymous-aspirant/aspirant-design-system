@@ -46,3 +46,8 @@ export { useMobile } from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'
 export { useIconBase, isIconBaseConfigured } from './composables/useIconBase.js'
 export { iconRegistry, registryFallback, registryAsset } from './icons/registry.js'
+
+// §3.60 value-axis range-normalization. Bars inherit it inside buildBarOptions
+// (AspBarChart), but the one raw line mount (system_3 HealthDetails drilldown)
+// has no preset and consumes this helper directly — one source, two call sites.
+export { normalizeValueDomain } from './utils/normalize_value_domain.js'

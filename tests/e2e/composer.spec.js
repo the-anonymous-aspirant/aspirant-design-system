@@ -54,3 +54,20 @@ test('the primary submit still fires with the slot filled', async ({ page }) => 
   await slotted(page).locator('.asp-composer__send').click()
   await expect(page.locator('#sent')).toHaveText('1')
 })
+
+test('AspChatArea forwards composer-leading only when given (opt-in)', async ({ page }) => {
+  // No composer-leading slot on the chat area -> the embedded composer has no
+  // leading container, so the conversation composer is unchanged.
+  await expect(page.locator('#chat-plain .asp-composer__leading')).toHaveCount(0)
+})
+
+test('AspChatArea forwards composer-leading down to the embedded composer', async ({ page }) => {
+  const leading = page.locator('#chat-slotted .asp-composer__leading')
+  await expect(leading).toHaveCount(1)
+  const trigger = page.locator('#chat-add-artifact')
+  await expect(trigger).toBeVisible()
+  // The forwarded trigger lands left of the chat composer's Send.
+  const triggerBox = await trigger.boundingBox()
+  const sendBox = await page.locator('#chat-slotted .asp-composer__send').boundingBox()
+  expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(sendBox.x)
+})

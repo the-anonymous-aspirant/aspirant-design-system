@@ -10,7 +10,7 @@
 import { createApp, h, ref } from 'vue'
 
 import '../../../build/tokens.css'
-import { AspButton, AspComposer } from '../../../src/index.js'
+import { AspButton, AspChatArea, AspComposer } from '../../../src/index.js'
 
 createApp({
   setup() {
@@ -48,6 +48,35 @@ createApp({
         ]),
 
         h('output', { id: 'sent' }, String(sent.value)),
+
+        // AspChatArea WITHOUT a composer-leading slot — proves the forward is
+        // opt-in: the embedded composer must have no leading container.
+        h('div', { id: 'chat-plain' }, [
+          h(AspChatArea, {
+            modelValue: '',
+            messages: [],
+            composerPosition: 'top',
+            composerPlaceholder: 'Chat plain…',
+          }),
+        ]),
+
+        // AspChatArea WITH a composer-leading slot — proves the forward reaches
+        // the embedded composer's leading-controls slot.
+        h('div', { id: 'chat-slotted' }, [
+          h(
+            AspChatArea,
+            {
+              modelValue: '',
+              messages: [],
+              composerPosition: 'top',
+              composerPlaceholder: 'Chat slotted…',
+            },
+            {
+              'composer-leading': () =>
+                h(AspButton, { id: 'chat-add-artifact', variant: 'ghost', type: 'button' }, () => '+ artifact'),
+            }
+          ),
+        ]),
       ])
   },
 }).mount('#app')

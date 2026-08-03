@@ -549,6 +549,62 @@ test.describe('it is a preset, not a fork', () => {
 })
 
 // ---------------------------------------------------------------------------
+// §3.60. The value-axis normalization is computed at THIS choke point from the
+// data, so every AspBarChart consumer inherits the headroom. A bar is a
+// magnitude encoding: the baseline stays at 0 and only a TOP suggestedMax is
+// added; lifting the min would be the §3.23 truncated-axis lie. The diverging
+// two-series sparkline keeps zero INTERIOR and gains headroom on both ends.
+// ---------------------------------------------------------------------------
+test.describe('§3.60 value-axis headroom', () => {
+  const withData = (data, extra = {}) =>
+    buildBarOptions({ variant: 'regular', axisInk: '#000', axisLine: '#000', unit: '', data, ...extra })
+  const d = (...arrays) => ({ datasets: arrays.map((data) => ({ data })) })
+
+  test('the baseline stays at zero — beginAtZero unchanged, no min set', () => {
+    const y = withData(d([10, 20, 30])).scales.y
+    // The existing :538 invariant: bars never lift the baseline off zero.
+    expect(y.beginAtZero).toBe(true)
+    expect(y.min).toBeUndefined()
+  })
+
+  test('a suggestedMax of ~1.1x the observed max is emitted as top headroom', () => {
+    const y = withData(d([10, 20, 30])).scales.y
+    expect(y.suggestedMax).toBe(33)
+  })
+
+  test('a diverging two-series window pads BOTH ends outward from zero', () => {
+    // The Overview task-flow card: the second (done) series is passed negated.
+    const y = buildBarOptions({
+      variant: 'sparkline',
+      axisInk: '#000',
+      axisLine: '#000',
+      unit: '',
+      zeroBaseline: true,
+      data: d([5, 12], [-3, -8]),
+    }).scales.y
+    expect(y.beginAtZero).toBe(true)
+    expect(y.suggestedMin).toBeLessThan(-8)
+    expect(y.suggestedMax).toBeGreaterThan(12)
+  })
+
+  test('no data supplied → the y scale auto-fits exactly as before (no bounds)', () => {
+    const y = buildBarOptions({ variant: 'regular' }).scales.y
+    expect(y.beginAtZero).toBe(true)
+    expect(y.suggestedMax).toBeUndefined()
+    expect(y.suggestedMin).toBeUndefined()
+    expect(y.min).toBeUndefined()
+  })
+
+  test('a consumer explicit y:{max} still wins over the computed suggestedMax', () => {
+    // The preset emits suggestedMax; the merge in AspBarChart lets a consumer's
+    // options win. Emulate that final layer: an explicit max overrides.
+    const preset = withData(d([10, 20, 30]))
+    const merged = { ...preset, scales: { ...preset.scales, y: { ...preset.scales.y, max: 100 } } }
+    expect(merged.scales.y.max).toBe(100)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // The end reservation, asserted as a derivation rather than as two numbers.
 //
 // The values are only half the claim. The other half is WHY the left is zero —

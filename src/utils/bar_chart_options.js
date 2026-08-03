@@ -11,6 +11,8 @@
  * opinion.
  */
 
+import { normalizeValueDomain } from './normalize_value_domain.js'
+
 /**
  * `AspChart`'s own default height, and therefore what the live Performance
  * graphs render at today. It is the baseline P8 called too tall — kept named
@@ -550,6 +552,13 @@ const timeTicks = (timestamps) => ({
  *   edge when it does not — verified painting a full-width line in all three
  *   cases (bar-chart.spec.js "the zero rule paints ..."). NOT a no-op on
  *   all-positive data — it lands at the baseline, where zero genuinely is.
+ * @param {object}  [o.data] the chart data (`{datasets:[{data}]}`) — supplied,
+ *   the §3.60 value-axis normalization is computed and emitted: a `suggestedMax`
+ *   top-headroom for a plain bar (the baseline stays 0), symmetric
+ *   `suggestedMin`/`suggestedMax` outward from the interior zero for the
+ *   diverging (`zeroBaseline`) two-series case. Omitted, the y scale auto-fits
+ *   exactly as before, so the no-data call path (unit tests, a consumer that
+ *   passes no data) is byte-identical.
  */
 export const buildBarOptions = ({
   variant = 'regular',
@@ -563,6 +572,7 @@ export const buildBarOptions = ({
   xAxis = 'category',
   timestamps = null,
   zeroBaseline = false,
+  data = null,
 } = {}) => {
   const v = VARIANTS.includes(variant) ? variant : 'regular'
   const font = { family: fontFamily }
@@ -570,6 +580,20 @@ export const buildBarOptions = ({
   // already blanks the ticks; this drops the two 1px borders they share a scale
   // with). regular/compact keep both borders exactly as before.
   const noAxis = v === 'sparkline'
+
+  // §3.60 value-axis range-normalization at the ONE bar choke point, so every
+  // AspBarChart consumer inherits the headroom. A bar is a magnitude encoding:
+  // the baseline stays at 0 (beginAtZero, below) and only a top `suggestedMax`
+  // is added — lifting the min would be the §3.23 truncated-axis lie. The
+  // diverging sparkline keeps zero INTERIOR and gains headroom on both ends.
+  // Emitting `suggested*` (not hard min/max) keeps a consumer's explicit
+  // `y:{min,max}` (e.g. Performance's `{0,100}`) winning through the merge.
+  const valueDomain = data
+    ? normalizeValueDomain(data, {
+        encoding: zeroBaseline ? 'magnitude-diverging' : 'magnitude',
+        unit,
+      })
+    : {}
 
   // `time` mode replaces ONLY the regular variant's x ticks. compact keeps
   // `display: false`: §3.19 derives that from its own budget floor (a 48px
@@ -653,6 +677,11 @@ export const buildBarOptions = ({
       },
       y: {
         beginAtZero: true,
+        // §3.60 top-headroom (plain bar) or symmetric outward bounds (diverging).
+        // Empty object when no data was supplied — the scale then auto-fits as
+        // before. Placed after beginAtZero and before the overridable ticks so a
+        // consumer's `options.scales.y` still merges last and wins (AspBarChart).
+        ...valueDomain,
         border: { display: !noAxis, color: axisLine, width: 1 },
         // The diverging sparkline is the only chart that paints a gridline: a
         // single faint rule at y=0, so the up/down split has a reference once

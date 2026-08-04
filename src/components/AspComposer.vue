@@ -69,14 +69,25 @@ const onComposerKeydown = (event) => {
           @keydown="onComposerKeydown"
         />
       </div>
-      <AspButton
-        class="asp-composer__send"
-        type="submit"
-        variant="primary"
-        :disabled="disabled || !modelValue.trim()"
-      >
-        {{ sendLabel }}
-      </AspButton>
+      <div class="asp-composer__controls">
+        <!-- Leading-controls slot (§3.62): rendered LEFT of Send, for a mount
+             that hangs an extra affordance on the composer (e.g. the inline
+             "+ artifact" trigger). The v-if keeps the row a plain right-aligned
+             Send for the two plain-text mounts — an ABSENT slot renders identically
+             to the pre-slot composer, because the leading container that carried
+             the `margin-right: auto` push is simply not in the tree. -->
+        <div v-if="$slots['leading-controls']" class="asp-composer__leading">
+          <slot name="leading-controls" />
+        </div>
+        <AspButton
+          class="asp-composer__send"
+          type="submit"
+          variant="primary"
+          :disabled="disabled || !modelValue.trim()"
+        >
+          {{ sendLabel }}
+        </AspButton>
+      </div>
     </div>
 
     <!-- Draft-outlives-failure surface (§3.23): the message the caller sets when
@@ -161,13 +172,35 @@ const onComposerKeydown = (event) => {
   box-shadow: var(--shadow-focus);
 }
 
-/* Send sits below the field, right-aligned (align-self: flex-end) under the
-   full-width textarea, and stays a thumb-sized control -- NOT stretched to the
-   textarea's height/width, which would over-spend the 10% accent (§1 60/30/10)
-   and misread as more important than the message (§3.42/§3.49). Just the 44px
-   touch floor. */
+/* The controls row sits below the full-width textarea. Send is right-aligned
+   (justify-content: flex-end); the optional leading-controls slot (§3.62) is
+   pushed to the FAR left by its own `margin-right: auto`, so the two are at
+   opposite ends with the row's gap only ever between them when both are present.
+   With the slot absent the leading container is not rendered at all, leaving a
+   lone right-aligned Send — byte-identical to the pre-slot composer. */
+.asp-composer__controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+}
+
+/* The leading slot's own auto margin absorbs the free space, so it anchors left
+   and Send stays right regardless of how much the slot holds. `align-items:
+   center` on the row vertically centres a shorter ghost trigger against the
+   44px Send. */
+.asp-composer__leading {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* Send stays a thumb-sized control -- NOT stretched to the textarea's
+   height/width, which would over-spend the 10% accent (§1 60/30/10) and misread
+   as more important than the message (§3.42/§3.49). Just the 44px touch floor;
+   the controls row now owns its right-alignment. */
 .asp-composer__send {
-  align-self: flex-end;
   min-height: 44px;
 }
 

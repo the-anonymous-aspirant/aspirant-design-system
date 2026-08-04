@@ -72,6 +72,32 @@ export const surfaces = () => [
   h(DS.AspCard, { variant: 'elevated', 'data-surface': 'card-elevated' }, () => specimens()),
   h(DS.AspCard, { variant: 'ghost', 'data-surface': 'card-ghost' }, () => specimens()),
   h('div', { class: 'probe-surface probe-surface--elevated', 'data-surface': 'surface-elevated' }, specimens()),
+  // The sanctioned worst-case LIGHT-THEME surface: the real browse-list tint
+  // (#3387), darker than the canonical --surface-page. --text-muted passed the
+  // matrix for years measuring only the canonical page (4.77:1 at 80%) while
+  // failing here (4.38:1) -- the suite's SURFACES were narrower than the app's,
+  // not its specimens. Carries only the muted-text specimens (§3.65, #3402):
+  // this row exists to pin the muted-token AA floor, not to re-run the whole
+  // matrix on a fourth backdrop.
+  //
+  // Light-theme only, deliberately: #d7d7d7 is the browse view's actual
+  // composited chrome-plus-page background in the light theme and has no dark
+  // analogue (the dark theme never paints a light-grey surface). Running this
+  // probe unconditionally hardcoded a light hex into the dark pass and produced
+  // a nonsense ~1:1 reading (light ink over a "surface" the dark theme cannot
+  // produce) instead of a real regression. The token is theme-agnostic by
+  // construction (no dark override, see tokens/base.json), so the dark pass's
+  // existing `page` / `surface-elevated` rows already cover it.
+  ...(document.documentElement.getAttribute('data-theme') === 'dark'
+    ? []
+    : [
+        h('div', { class: 'probe-surface probe-surface--tinted', 'data-surface': 'page-tinted' }, [
+          h(DS.AspList, { variant: 'interactive', ariaLabel: 'tinted specimen list' }, () => [
+            h(DS.AspListItem, { label: 'list row', meta: '2m ago' }),
+          ]),
+          h(DS.AspTimeSince, { datetime: '2026-07-19T11:58:00.000Z', now: Date.parse('2026-07-19T12:00:00.000Z') }),
+        ]),
+      ]),
 ]
 
 /**
@@ -242,6 +268,7 @@ export const injectProbeCss = () => {
   st.textContent = `.probe-root{display:flex;flex-direction:column;gap:24px;padding:16px}
 .probe-surface{padding:16px;background:var(--surface-page)}
 .probe-surface--elevated{background:var(--surface-elevated)}
+.probe-surface--tinted{background:#d7d7d7}
 .probe-root [data-surface$="-select-open"]{padding-bottom:16rem}`
   document.head.appendChild(st)
 }

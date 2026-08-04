@@ -106,6 +106,9 @@ watch(
     svgMarkup.value = null
     // Image assets render via <img>; no SVG fetch needed for them.
     if (assetSrc.value) return
+    // No base configured: skip the network fetch entirely and keep the
+    // glyph, mirroring the image arm's guard above.
+    if (!isIconBaseConfigured()) return
     const svg = await fetchIcon(name)
     if (svg && props.name === name) svgMarkup.value = svg
   },

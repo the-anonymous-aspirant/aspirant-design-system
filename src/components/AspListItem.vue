@@ -186,7 +186,9 @@ const onClick = (event) => {
 
 .list-item__meta {
   flex: none;
-  /* Derives from currentColor (#2418), so it stays legible on both polarities. */
+  /* Derives from currentColor (#2418), so it stays legible on both polarities --
+     but polarity alone does not guarantee the RATIO clears AA on every light
+     surface; that is the token's own 88% alpha floor (Task-#3402, #3387/§3.65). */
   color: var(--text-muted);
   font-size: var(--text-xs);
 }

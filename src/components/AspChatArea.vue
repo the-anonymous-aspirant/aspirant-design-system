@@ -226,7 +226,15 @@ const toggleKind = (value, on) => {
       :disabled="disabled"
       @update:model-value="(v) => emit('update:modelValue', v)"
       @send="(v) => emit('send', v)"
-    />
+    >
+      <!-- Forward a leading-controls affordance (§3.62) down to the composer
+           primitive, but ONLY when the parent supplies one — so an AspChatArea
+           with no composer-leading slot passes NO slot to AspComposer and its
+           empty-slot-unchanged guarantee holds. -->
+      <template v-if="$slots['composer-leading']" #leading-controls>
+        <slot name="composer-leading" />
+      </template>
+    </AspComposer>
 
     <!-- aria-live so a message arriving while the operator is elsewhere on the
          page is announced rather than silently appended. `polite`, not
@@ -311,7 +319,11 @@ const toggleKind = (value, on) => {
       :disabled="disabled"
       @update:model-value="(v) => emit('update:modelValue', v)"
       @send="(v) => emit('send', v)"
-    />
+    >
+      <template v-if="$slots['composer-leading']" #leading-controls>
+        <slot name="composer-leading" />
+      </template>
+    </AspComposer>
   </section>
 </template>
 

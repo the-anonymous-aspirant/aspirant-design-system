@@ -23,6 +23,7 @@ import {
   WIDEST_LABELS,
   bandFor,
   buildBarOptions,
+  buildLineOptions,
   selectTimeTicks,
   timeAxisEndPadding,
 } from '../../src/utils/bar_chart_options.js'
@@ -601,6 +602,52 @@ test.describe('§3.60 value-axis headroom', () => {
     const preset = withData(d([10, 20, 30]))
     const merged = { ...preset, scales: { ...preset.scales, y: { ...preset.scales.y, max: 100 } } }
     expect(merged.scales.y.max).toBe(100)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// §3.66. The sparkline variant had no coverage distinguishing a STOCK
+// (position/line) series from a FLOW (magnitude/bar) one — this is that gap.
+// A stock's y domain must be FOCUSED (a non-zero min, padded on both ends); a
+// flow's must stay ZERO-BASED (beginAtZero, no min set). Same input shape
+// (a single-series 24-hour window hovering well above zero, as the real
+// tasks_backlog/agents_active series do), two different builders, two
+// different honest domains.
+// ---------------------------------------------------------------------------
+test.describe('§3.66 sparkline mark selection: stock/position line vs flow/magnitude bar', () => {
+  const stockSeries = { datasets: [{ data: [40, 41, 43, 44, 42, 45, 44, 43] }] }
+
+  test('a stock/position sparkline gets a focused, non-zero, both-ends-padded domain', () => {
+    const y = buildLineOptions({ axisInk: '#000', axisLine: '#000', unit: '', data: stockSeries }).scales.y
+    expect(y.min).toBeDefined()
+    expect(y.min).not.toBe(0)
+    expect(y.min).toBeGreaterThan(0)
+    expect(y.min).toBeLessThan(40)
+    expect(y.max).toBeGreaterThan(45)
+  })
+
+  test('the same series as a flow/magnitude bar sparkline stays zero-based', () => {
+    const y = buildBarOptions({
+      variant: 'sparkline',
+      axisInk: '#000',
+      axisLine: '#000',
+      unit: '',
+      data: stockSeries,
+    }).scales.y
+    expect(y.beginAtZero).toBe(true)
+    expect(y.min).toBeUndefined()
+    expect(y.suggestedMax).toBeGreaterThan(45)
+  })
+
+  test('the sparkline line domain is axis-less like the sparkline bar', () => {
+    const y = buildLineOptions({ axisInk: '#000', axisLine: '#000', unit: '', data: stockSeries }).scales.y
+    const x = buildLineOptions({ axisInk: '#000', axisLine: '#000', unit: '', data: stockSeries }).scales.x
+    expect(y.border.display).toBe(false)
+    expect(y.grid.display).toBe(false)
+    expect(y.ticks.display).toBe(false)
+    expect(x.border.display).toBe(false)
+    expect(x.grid.display).toBe(false)
+    expect(x.ticks.display).toBe(false)
   })
 })
 

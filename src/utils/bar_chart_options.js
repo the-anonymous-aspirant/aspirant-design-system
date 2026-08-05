@@ -707,6 +707,98 @@ export const buildBarOptions = ({
 }
 
 /**
+ * Build the Chart.js options for the sparkline's LINE mark (§3.66) — the
+ * position-encoded sibling of the bar sparkline `buildBarOptions` builds. A
+ * STOCK metric (a level, not an hourly event count) is honest as a focused,
+ * padded range, not a zero-based bar: lifting a BAR's baseline off zero would
+ * be the §3.23 truncated-axis lie (§3.60), so for a stock the MARK changes
+ * from bar to line instead of re-domaining the bar.
+ *
+ * Same axis-less/height/tooltip grammar as the bar sparkline (`TICKS.sparkline`,
+ * `HEIGHTS.sparkline`, the `x:`/`y:` tooltip callbacks) — only the mark and the
+ * y-domain source differ. The domain comes from the ONE `normalizeValueDomain`
+ * helper (§3.47), asked for `position` encoding instead of the bar's
+ * `magnitude`; no second domain path exists.
+ *
+ * There is no `variant`, `xAxis`, `timestamps`, or `zeroBaseline` knob here —
+ * the line mark exists only for the sparkline surface, which has no
+ * regular/compact/time-axis mode of its own.
+ *
+ * @param {object} o
+ * @param {string}  o.axisInk
+ * @param {string}  o.axisLine
+ * @param {string}  o.tooltipBg
+ * @param {string}  o.tooltipInk
+ * @param {string}  o.fontFamily
+ * @param {string}  [o.unit]
+ * @param {boolean} [o.animate]
+ * @param {object}  [o.data]  Chart.js `{datasets:[{data}]}` — feeds the
+ *   position domain. Omitted, the y scale auto-fits (no bounds), same as the
+ *   bar preset's no-data path.
+ */
+export const buildLineOptions = ({
+  axisInk,
+  axisLine,
+  tooltipBg,
+  tooltipInk,
+  fontFamily,
+  unit = '',
+  animate = true,
+  data = null,
+} = {}) => {
+  const font = { family: fontFamily }
+  const valueDomain = data ? normalizeValueDomain(data, { encoding: 'position', unit }) : {}
+
+  return {
+    maintainAspectRatio: false,
+    animation: animate ? undefined : false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: tooltipBg,
+        titleColor: tooltipInk,
+        bodyColor: tooltipInk,
+        borderColor: axisLine,
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 8,
+        titleFont: font,
+        bodyFont: font,
+        displayColors: false,
+        // Same x:/y: grammar as the bar sparkline's tooltip (P8).
+        callbacks: {
+          title: (items) => (items.length ? `x: ${items[0].label}` : ''),
+          label: (item) => {
+            const y = item.parsed.y
+            return `y: ${y}${unit ? ` ${unit}` : ''}`
+          },
+        },
+      },
+    },
+    // A trend line, not a scatter: points stay off, a hover dot appears on
+    // proximity (via the index-mode interaction above, not a point hit).
+    elements: {
+      point: { radius: 0, hoverRadius: 3 },
+      line: { borderWidth: 2 },
+    },
+    scales: {
+      x: {
+        border: { display: false },
+        grid: { display: false },
+        ticks: { color: axisInk, font, ...TICKS.sparkline.x },
+      },
+      y: {
+        ...valueDomain,
+        border: { display: false },
+        grid: { display: false },
+        ticks: { color: axisInk, font, ...TICKS.sparkline.y },
+      },
+    },
+  }
+}
+
+/**
  * A horizontal threshold rule, as an inline Chart.js plugin.
  *
  * Inline rather than `chartjs-plugin-annotation`: the plugin is ~30kb for one

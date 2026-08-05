@@ -10,6 +10,7 @@ import {
   STATE_TOKENS,
   VARIANTS,
   buildBarOptions,
+  buildLineOptions,
   thresholdPlugin,
 } from '../utils/bar_chart_options.js'
 
@@ -42,6 +43,25 @@ const props = defineProps({
     type: String,
     default: 'regular',
     validator: (v) => VARIANTS.includes(v),
+  },
+  /**
+   * The series' value encoding (§3.66) — `magnitude` (a count of events, e.g.
+   * an hourly flow) or `position` (a level/stock, e.g. a live backlog size).
+   * Only the `sparkline` variant reads this: `position` swaps the mark from a
+   * zero-baseline bar to a focused-range line (`buildLineOptions`), because a
+   * bar's baseline can never honestly lift off zero (§3.23) but a stock's
+   * natural range can sit well above it. `regular`/`compact` ignore this prop
+   * and always render bars — they have no line treatment.
+   *
+   * Defaults to `magnitude` (bar) so a caller that never sets this — the
+   * common case — keeps today's safe zero-based reading; a mis-declared
+   * series therefore reads as a flat/compressed bar rather than a silently
+   * truncated axis.
+   */
+  encoding: {
+    type: String,
+    default: 'magnitude',
+    validator: (v) => ['magnitude', 'position'].includes(v),
   },
   /**
    * Health state. When set, bars take the §3.12 metric-state colour
@@ -104,6 +124,12 @@ const themeTick = ref(0)
 let themeObserver = null
 
 const chartHeight = computed(() => props.height ?? HEIGHTS[props.variant] ?? HEIGHTS.regular)
+
+// The one dispatch point (§3.49): a caller declares `variant`+`encoding`, this
+// component picks the mark. Nothing outside this file chooses between a bar
+// and a line primitive, so a future glance card cannot render a level as a
+// magnitude by omission.
+const isLineMark = computed(() => props.variant === 'sparkline' && props.encoding === 'position')
 
 // --- surface resolution -----------------------------------------------------
 // Walk to the first opaque ancestor background, exactly as the contrast probe
@@ -226,11 +252,16 @@ const barFills = computed(() => {
 
 const themedData = computed(() => ({
   ...props.data,
-  datasets: (props.data.datasets || []).map((ds, i) => ({
-    backgroundColor: barFills.value[i],
-    borderWidth: 0,
-    ...ds,
-  })),
+  datasets: (props.data.datasets || []).map((ds, i) => {
+    const ink = barFills.value[i]
+    // A bar fills its own area (`backgroundColor`, no border). A line paints
+    // an ink stroke and stays unfilled — it is a trend line, not an area
+    // chart — so it goes through `borderColor`/`pointBackgroundColor` instead.
+    const base = isLineMark.value
+      ? { borderColor: ink, backgroundColor: 'transparent', pointBackgroundColor: ink, fill: false }
+      : { backgroundColor: ink, borderWidth: 0 }
+    return { ...base, ...ds }
+  }),
 }))
 
 // Recursive merge — later wins; arrays replace rather than concatenate.
@@ -246,24 +277,36 @@ const mergeDeep = (target, source) => {
 
 const chartOptions = computed(() => {
   const p = paint.value
-  const preset = buildBarOptions({
-    variant: props.variant,
-    axisInk: p.axisInk,
-    axisLine: p.axisLine,
-    tooltipBg: p.tooltipBg,
-    tooltipInk: p.tooltipInk,
-    fontFamily: p.fontFamily,
-    unit: props.unit,
-    xAxis: props.xAxis,
-    timestamps: props.timestamps,
-    // A diverging sparkline (two series, the second painted negative) hides its
-    // axes, so it earns a single faint rule at y=0 as the up/down reference.
-    zeroBaseline: props.variant === 'sparkline' && (props.data.datasets || []).length > 1,
-    // The data drives the §3.60 value-axis headroom (`suggestedMax`, or the
-    // symmetric diverging bounds) inside the preset. Passed here so every
-    // AspBarChart consumer inherits it at the one choke point.
-    data: props.data,
-  })
+  const preset = isLineMark.value
+    ? buildLineOptions({
+        axisInk: p.axisInk,
+        axisLine: p.axisLine,
+        tooltipBg: p.tooltipBg,
+        tooltipInk: p.tooltipInk,
+        fontFamily: p.fontFamily,
+        unit: props.unit,
+        // The §3.66 position domain (focused, both-ends padded) inside the
+        // preset — the line sibling of the bar's §3.60 magnitude headroom.
+        data: props.data,
+      })
+    : buildBarOptions({
+        variant: props.variant,
+        axisInk: p.axisInk,
+        axisLine: p.axisLine,
+        tooltipBg: p.tooltipBg,
+        tooltipInk: p.tooltipInk,
+        fontFamily: p.fontFamily,
+        unit: props.unit,
+        xAxis: props.xAxis,
+        timestamps: props.timestamps,
+        // A diverging sparkline (two series, the second painted negative) hides its
+        // axes, so it earns a single faint rule at y=0 as the up/down reference.
+        zeroBaseline: props.variant === 'sparkline' && (props.data.datasets || []).length > 1,
+        // The data drives the §3.60 value-axis headroom (`suggestedMax`, or the
+        // symmetric diverging bounds) inside the preset. Passed here so every
+        // AspBarChart consumer inherits it at the one choke point.
+        data: props.data,
+      })
 
   if (typeof props.threshold === 'number') {
     preset.plugins.aspThreshold = {
@@ -307,14 +350,18 @@ onBeforeUnmount(() => {
 // Exposed for the contrast spec: the derived values are the thing under test,
 // and reading them here asserts what the component actually paints rather than
 // what a test recomputes from tokens and hopes matches.
-defineExpose({ paint, barFills, chartOptions, barThickness: BAR_THICKNESS })
+defineExpose({ paint, barFills, chartOptions, barThickness: BAR_THICKNESS, isLineMark })
 </script>
 
 <template>
   <div
     ref="root"
     class="asp-bar-chart"
-    :class="[`asp-bar-chart--${variant}`, state && `asp-bar-chart--${state}`]"
+    :class="[
+      `asp-bar-chart--${variant}`,
+      state && `asp-bar-chart--${state}`,
+      isLineMark && 'asp-bar-chart--line',
+    ]"
   >
     <!--
       The unit label is stacked ABOVE the y axis rather than centered against
@@ -338,7 +385,7 @@ defineExpose({ paint, barFills, chartOptions, barThickness: BAR_THICKNESS })
     </div>
     <div class="asp-bar-chart__plot">
       <AspChart
-        type="bar"
+        :type="isLineMark ? 'line' : 'bar'"
         :data="themedData"
         :options="chartOptions"
         :plugins="chartPlugins"

@@ -40,6 +40,11 @@ export const iconRegistry = {
   // it aria-hidden.
   separator: { glyph: '›', asset: null },
   search: { glyph: '⌕', asset: null },
+  // The composer's attach affordance (system_3 #3112). Glyph-only: no
+  // hand-drawn paperclip exists yet, and registering the name here is what lets
+  // it upgrade silently when the SVG pipeline serves `attach.svg` — a
+  // hard-coded 📎 in AspComposer would never take that upgrade.
+  attach: { glyph: '📎', asset: null },
   trusted: { glyph: '✧', asset: null },
   active: { glyph: '●', asset: null },
   badge: { glyph: '◐', asset: null },

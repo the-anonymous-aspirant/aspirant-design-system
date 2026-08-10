@@ -55,6 +55,17 @@ test('the primary submit still fires with the slot filled', async ({ page }) => 
   await expect(page.locator('#sent')).toHaveText('1')
 })
 
+// Regression (system_3 #3616): width:100% + a 1px border with no box-sizing
+// pushed the field 2px past its parent's content-box width. box-sizing:
+// border-box keeps the border inside the declared width.
+test("the field's border-box never exceeds its parent's content width", async ({ page }) => {
+  const field = plain(page).locator('.asp-composer__input')
+  const parent = plain(page)
+  const fieldBox = await field.boundingBox()
+  const parentBox = await parent.boundingBox()
+  expect(fieldBox.width).toBeLessThanOrEqual(parentBox.width)
+})
+
 test('AspChatArea forwards composer-leading only when given (opt-in)', async ({ page }) => {
   // No composer-leading slot on the chat area -> the embedded composer has no
   // leading container, so the conversation composer is unchanged.

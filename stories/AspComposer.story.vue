@@ -28,6 +28,19 @@ const attached = ref([
   { key: 'a2', name: 'route-p95.csv', meta: 'uploading 40%', status: 'uploading' },
   { key: 'a3', name: 'crash-dump.bin', meta: 'type not accepted', status: 'error' },
 ])
+
+// A 1x1 amber PNG, inline — a stand-in for a resolved `/api/uploads/<id>` src
+// in this offline story. The `image` field itself is the caller's decision
+// (server-sniffed mime type only, #3641 c#17806); the box scales it to the
+// fixed 40x40 regardless of the source's real dimensions.
+const THUMB_SRC =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+const thumbDraft = ref('Here is the screenshot you asked for.')
+const withThumb = ref([
+  { key: 't1', name: 'screenshot-2026-08-10.png', meta: '412 KB', status: 'done', image: { src: THUMB_SRC, alt: 'screenshot-2026-08-10.png' } },
+  { key: 't2', name: 'route-p95.csv', meta: '8 KB', status: 'done' },
+  { key: 't3', name: 'broken-src.png', meta: '3 KB', status: 'done', image: { src: '/does-not-exist.png', alt: 'broken-src.png' } },
+])
 // Bound but EMPTY: paperclip, no strip. The distinction the `undefined` default
 // buys, made visible side by side with the unbound variants above.
 const emptyAttachDraft = ref('')
@@ -89,13 +102,27 @@ const onAttach = (files) => {
       </p>
       <p>
         <strong>The composer renders text, not bytes.</strong> Each entry is
-        <code>{ key?, name, meta?, status? }</code> where <code>meta</code> is already formatted by
-        the caller — byte arithmetic and upload vocabulary belong to whoever owns the upload. And
-        deliberately <strong>no thumbnail</strong>: uploaded bytes are only ever reached through the
-        server's read-back route, whose <code>Content-Disposition: attachment</code> +
-        <code>nosniff</code> headers are what make them inert. An <code>&lt;img&gt;</code>,
-        <code>blob:</code> or <code>data:</code> preview built here would re-open exactly that
-        vector (system_3 #3110 security ruling), so the chip is name + meta + remove.
+        <code>{ key?, name, meta?, status?, image? }</code> where <code>meta</code> is already
+        formatted by the caller — byte arithmetic and upload vocabulary belong to whoever owns the
+        upload.
+      </p>
+      <p>
+        <strong>Thumbnail is opt-in per entry (system_3 #3641).</strong> When a caller sets
+        <code>image: { src, alt }</code>, the chip reserves a fixed 40x40 box ahead of the name —
+        the box's size never depends on the image's own dimensions, so a 4000px photo and a 16px
+        icon occupy an identical box and nothing reflows as different entries' images resolve at
+        different times. This component renders whatever <code>src</code> it is given and does not
+        decide what counts as "an image" — that gate (server-sniffed mime type from the upload
+        route, never anything client-declared) is the caller's, per the #3641 security ruling
+        (comment #17806 on that task: an <code>&lt;img&gt;</code> pointed directly at the hardened
+        <code>/api/uploads/&lt;id&gt;</code> route is safe because the upload allow-list already
+        excludes every image type that can carry script — SVG has no magic-byte signature and is
+        rejected at upload, so a raster format loaded via <code>&lt;img&gt;</code> never reaches the
+        HTML parser). A <code>blob:</code>/<code>data:</code> re-host stays categorically out — the
+        caller must point <code>src</code> directly at the route so the server's own
+        <code>Content-Type</code> stays attached to the bytes. See the last variant below for what a
+        failed load does: the box is removed from the layout entirely, reverting to the same chip
+        shape an entry with no <code>image</code> renders.
       </p>
     </template>
 
@@ -141,6 +168,16 @@ const onAttach = (files) => {
       <AspCard>
         <AspComposer v-model="attachDraft" v-model:attachments="attached" placeholder="Message…" />
       </AspCard>
+    </Variant>
+
+    <Variant title="Attachments — with thumbnail (image entry, plain entry, broken-src degrade)">
+      <AspCard>
+        <AspComposer v-model="thumbDraft" v-model:attachments="withThumb" placeholder="Message…" />
+      </AspCard>
+      <p style="margin-top: 8px; color: var(--text-muted);">
+        First chip: resolved thumbnail. Second: no <code>image</code> field, unchanged chip.
+        Third: <code>image.src</code> 404s — the box removes itself, reverting to a plain chip.
+      </p>
     </Variant>
 
     <Variant title="Attachments — bound but empty (paperclip, NO strip)">

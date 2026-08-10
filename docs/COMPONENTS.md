@@ -377,10 +377,40 @@ varying with the backdrop, and that variance *is* the defect.
 
 Props (`AspChatArea`): `messages`, `comments`, `order`, `visibleKinds` (`null` disables
 filtering), `filterOptions`, `loading`, `streamingId`, `modelValue`, `composerPlaceholder`,
-`sendLabel`, `disabled`, `emptyHeading`, `ariaLabel`. Emits `send`, `update:modelValue`,
-`update:visibleKinds`. Slot `message` overrides body rendering per entry.
+`sendLabel`, `disabled`, `emptyHeading`, `ariaLabel`, `attachments`, `attachAccept`. Emits
+`send`, `update:modelValue`, `update:visibleKinds`, `attach`, `remove`,
+`update:attachments`. Slots: `message` overrides body rendering per entry;
+`composer-leading` is forwarded to the composer's `leading-controls` (§3.62) and, like
+`attachments`, is passed down only when the caller supplies it.
 
 Props (`AspChatBubble`): `kind`, `sender`, `timestamp`, `streaming`.
+
+**`AspComposer` — the one composer grammar** (extracted from this component; corpus
+§3.42/§3.47/§3.49). Props: `modelValue`, `placeholder`, `sendLabel`, `disabled`, `error`,
+`attachments`, `attachLabel`, `accept`, `multiple`. Emits: `update:modelValue`, `send` (the
+text, always the text alone), `attach`, `remove`, `update:attachments`. Slot:
+`leading-controls`, rendered left of Send.
+
+*The parent owns the draft and the attachments.* The composer renders both and emits; it
+mutates neither, holds no `File`, uploads nothing, and formats no byte count. That is what
+keeps **draft-outlives-failure** (§3.23) the caller's to honour — a failed send simply does
+not clear the caller's refs.
+
+*Attachments are optional, and `undefined` is the contract, not a placeholder.* Unbound →
+no paperclip, no strip, not even a spacer, so mounts that never attach anything (the
+task-comment composer) do not grow a control that would do nothing when clicked (§3.23's
+dead-control defect). Binding buys the paperclip; entries buy the strip, so a bound-but-empty
+array renders the button and no container. Picker, drag-drop and paste all arrive as one
+`attach` event carrying raw `File`s; ✕ emits both `update:attachments` (the shortened array,
+for a `v-model:attachments` caller) and `remove` (the entry, for a caller that must abort an
+in-flight upload). An entry is `{ key?, name, meta?, status? }` — `meta` is *caller-formatted*
+because byte arithmetic and upload vocabulary belong to whoever owns the upload.
+
+*No thumbnails, deliberately.* Uploaded bytes are reachable only through the server's
+read-back route, whose `Content-Disposition: attachment` + `nosniff` headers are what make
+them inert (system_3 #3110 security ruling). An `<img>`, `blob:` or `data:` preview rendered
+here would re-open exactly that vector, so a chip is name + meta + remove, and an e2e test
+asserts the strip contains no `img`/`src`/`href` at all.
 
 An empty stream and a stream emptied *by the filters* get different copy — "No messages" in
 front of an active filter reads as a bug in the view. The stream is `role="log"` with

@@ -140,6 +140,12 @@ const onComposerKeydown = (event) => {
      target the 34px input failed. */
   --asp-chat-composer-min-height: 4.5rem;
   display: block;
+  /* border-box, not the content-box default: width:100% + the 1px border
+     below otherwise adds 2px beyond the parent's width, overflowing any
+     container that does not itself carry spare gutter (system_3 #3616 — the
+     agent-pane composer floored the viewport by exactly 2px at every width,
+     border-left + border-right, with no other offender in the DOM). */
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   min-height: var(--asp-chat-composer-min-height);

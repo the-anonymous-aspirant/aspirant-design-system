@@ -66,6 +66,160 @@ test("the field's border-box never exceeds its parent's content width", async ({
   expect(fieldBox.width).toBeLessThanOrEqual(parentBox.width)
 })
 
+// --- attachments (system_3 #3112) -------------------------------------------
+// The acceptance the prop's `undefined` default exists to buy: an unbound mount
+// must be indistinguishable from the pre-prop composer. Then, in order of what
+// buys what — binding buys the paperclip, entries buy the strip.
+
+const unbound = (page) => page.locator('#attach-unbound')
+const emptyBound = (page) => page.locator('#attach-empty')
+const filled = (page) => page.locator('#attach-filled')
+
+test('attachments unbound: no paperclip, no strip, no leading container', async ({ page }) => {
+  // Absence, not zero-width — an empty flex item would still nudge Send.
+  await expect(unbound(page).locator('[data-testid="composer-attach"]')).toHaveCount(0)
+  await expect(unbound(page).locator('[data-testid="composer-attachments"]')).toHaveCount(0)
+  await expect(unbound(page).locator('.asp-composer__leading')).toHaveCount(0)
+  await expect(unbound(page).locator('[data-testid="composer-file-input"]')).toHaveCount(0)
+})
+
+test('attachments unbound: Send keeps the pre-prop right-edge alignment', async ({ page }) => {
+  const send = await unbound(page).locator('.asp-composer__send').boundingBox()
+  const row = await unbound(page).locator('.asp-composer__controls').boundingBox()
+  expect(row.x + row.width - (send.x + send.width)).toBeLessThanOrEqual(1)
+})
+
+test('bound but EMPTY: the paperclip renders and the strip does not', async ({ page }) => {
+  // The distinction the undefined-vs-[] default encodes: binding buys the
+  // affordance, entries buy the strip. An empty strip container would be a
+  // spacer that lies about state.
+  await expect(emptyBound(page).locator('[data-testid="composer-attach"]')).toBeVisible()
+  await expect(emptyBound(page).locator('[data-testid="composer-attachments"]')).toHaveCount(0)
+})
+
+test('the paperclip is labelled and clears the 44px touch floor', async ({ page }) => {
+  const attach = emptyBound(page).locator('[data-testid="composer-attach"]')
+  await expect(attach).toHaveAttribute('aria-label', 'Attach file')
+  const box = await attach.boundingBox()
+  expect(box.height).toBeGreaterThanOrEqual(44)
+  expect(box.width).toBeGreaterThanOrEqual(44)
+})
+
+test('the paperclip sits LEFT of Send, like every other leading control', async ({ page }) => {
+  const attachBox = await emptyBound(page).locator('[data-testid="composer-attach"]').boundingBox()
+  const sendBox = await emptyBound(page).locator('.asp-composer__send').boundingBox()
+  expect(attachBox.x + attachBox.width).toBeLessThanOrEqual(sendBox.x)
+})
+
+test('picking a file emits attach with the raw File', async ({ page }) => {
+  await expect(page.locator('#attach-events')).toHaveText('0')
+  // setInputFiles drives the real hidden <input type="file">, which is why it is
+  // visually-hidden rather than display:none.
+  await emptyBound(page)
+    .locator('[data-testid="composer-file-input"]')
+    .setInputFiles({ name: 'picked.png', mimeType: 'image/png', buffer: Buffer.from('x') })
+  await expect(page.locator('#attach-events')).toHaveText('1')
+  await expect(page.locator('#last-attached')).toHaveText('picked.png')
+  // And the parent's array — not the composer's own state — is what grew.
+  await expect(emptyBound(page).locator('[data-testid="composer-attachment"]')).toHaveCount(1)
+})
+
+test('bound with entries: one chip each, named, with a per-entry remove', async ({ page }) => {
+  const chips = filled(page).locator('[data-testid="composer-attachment"]')
+  await expect(chips).toHaveCount(2)
+  await expect(chips.nth(0)).toContainText('screenshot.png')
+  await expect(chips.nth(0)).toContainText('412 KB')
+  await expect(chips.nth(1)).toHaveAttribute('data-status', 'uploading')
+  // Per-entry accessible name: five identical "Remove" buttons are unusable.
+  await expect(filled(page).getByRole('button', { name: 'Remove screenshot.png' })).toBeVisible()
+})
+
+test('the chip strip renders ABOVE the field', async ({ page }) => {
+  const strip = await filled(page).locator('[data-testid="composer-attachments"]').boundingBox()
+  const field = await filled(page).locator('.asp-composer__input').boundingBox()
+  expect(strip.y + strip.height).toBeLessThanOrEqual(field.y)
+})
+
+test('no chip renders upload bytes: no <img>, no blob:/data: source', async ({ page }) => {
+  // system_3 #3110 security ruling: uploaded bytes stay behind the read-back
+  // route's attachment+nosniff headers. A preview built here would re-open the
+  // vector those headers close, so the strip is text only — asserted, not
+  // merely intended.
+  await expect(filled(page).locator('[data-testid="composer-attachments"] img')).toHaveCount(0)
+  const sources = await filled(page)
+    .locator('[data-testid="composer-attachments"] [src], [data-testid="composer-attachments"] [href]')
+    .count()
+  expect(sources).toBe(0)
+})
+
+test('✕ removes through the PARENT array and emits the removed entry', async ({ page }) => {
+  await expect(page.locator('#remove-events')).toHaveText('0')
+  await filled(page).getByRole('button', { name: 'Remove screenshot.png' }).click()
+  // The chip is gone because the parent's array shortened — the composer holds
+  // no list of its own to mutate.
+  await expect(filled(page).locator('[data-testid="composer-attachment"]')).toHaveCount(1)
+  await expect(page.locator('#remove-events')).toHaveText('1')
+  await expect(page.locator('#last-removed')).toHaveText('screenshot.png')
+})
+
+test('pasting a file emits attach; pasting TEXT does not', async ({ page }) => {
+  const before = Number(await page.locator('#attach-events').textContent())
+  await emptyBound(page).locator('.asp-composer__input').evaluate((el) => {
+    const dt = new DataTransfer()
+    dt.items.add(new File(['x'], 'pasted.png', { type: 'image/png' }))
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+  })
+  await expect(page.locator('#attach-events')).toHaveText(String(before + 1))
+  await expect(page.locator('#last-attached')).toHaveText('pasted.png')
+
+  // An ordinary text paste must fall through untouched — this handler cannot be
+  // allowed to hijack typing into the draft.
+  await emptyBound(page).locator('.asp-composer__input').evaluate((el) => {
+    const dt = new DataTransfer()
+    dt.setData('text/plain', 'just some text')
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+  })
+  await expect(page.locator('#attach-events')).toHaveText(String(before + 1))
+})
+
+test('dropping a file on the composer emits attach', async ({ page }) => {
+  const before = Number(await page.locator('#attach-events').textContent())
+  await emptyBound(page).locator('.asp-composer').evaluate((el) => {
+    const dt = new DataTransfer()
+    dt.items.add(new File(['x'], 'dropped.csv', { type: 'text/csv' }))
+    el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }))
+  })
+  await expect(page.locator('#attach-events')).toHaveText(String(before + 1))
+  await expect(page.locator('#last-attached')).toHaveText('dropped.csv')
+})
+
+test('send still emits the TEXT only, with attachments bound', async ({ page }) => {
+  const field = filled(page).locator('.asp-composer__input')
+  await field.fill('with an attachment')
+  await filled(page).locator('.asp-composer__send').click()
+  await expect(page.locator('#last-sent-text')).toHaveText('with an attachment')
+})
+
+test('AspChatArea forwards attachments only when given (opt-in)', async ({ page }) => {
+  await expect(
+    page.locator('#chat-attach-unbound [data-testid="composer-attach"]')
+  ).toHaveCount(0)
+  await expect(
+    page.locator('#chat-attach-unbound [data-testid="composer-attachments"]')
+  ).toHaveCount(0)
+})
+
+test('AspChatArea forwards attachments and attach at the bottom position too', async ({ page }) => {
+  const chat = page.locator('#chat-attach-bound')
+  await expect(chat.locator('[data-testid="composer-attach"]')).toBeVisible()
+  await expect(chat.locator('[data-testid="composer-attachment"]')).toHaveCount(1)
+  await expect(page.locator('#chat-attach-events')).toHaveText('0')
+  await chat
+    .locator('[data-testid="composer-file-input"]')
+    .setInputFiles({ name: 'via-chat.png', mimeType: 'image/png', buffer: Buffer.from('x') })
+  await expect(page.locator('#chat-attach-events')).toHaveText('1')
+})
+
 test('AspChatArea forwards composer-leading only when given (opt-in)', async ({ page }) => {
   // No composer-leading slot on the chat area -> the embedded composer has no
   // leading container, so the conversation composer is unchanged.

@@ -66,6 +66,17 @@ const props = defineProps({
   /** Composer text (v-model). */
   modelValue: { type: String, default: '' },
   composerPlaceholder: { type: String, default: 'Message…' },
+  /**
+   * Pending attachments, forwarded verbatim to the composer primitive
+   * (system_3 #3112). `undefined` — the default — means this conversation
+   * surface has no attach affordance at all, so every existing mount is
+   * unchanged. See AspComposer's `attachments` docstring for the entry shape
+   * and the ownership contract; this component adds nothing to it but the
+   * forward.
+   */
+  attachments: { type: Array, default: undefined },
+  /** `accept` for the composer's file picker. Convenience, never the guard. */
+  attachAccept: { type: String, default: null },
   sendLabel: { type: String, default: 'Send' },
   disabled: { type: Boolean, default: false },
   emptyHeading: { type: String, default: 'No messages' },
@@ -81,7 +92,14 @@ const props = defineProps({
   windowSize: { type: Number, default: 50 },
 })
 
-const emit = defineEmits(['update:modelValue', 'update:visibleKinds', 'send'])
+const emit = defineEmits([
+  'update:modelValue',
+  'update:visibleKinds',
+  'send',
+  'update:attachments',
+  'attach',
+  'remove',
+])
 
 const timeOf = (entry) => {
   const t = Date.parse(entry?.created_at)
@@ -224,8 +242,13 @@ const toggleKind = (value, on) => {
       :placeholder="composerPlaceholder"
       :send-label="sendLabel"
       :disabled="disabled"
+      :attachments="attachments"
+      :accept="attachAccept"
       @update:model-value="(v) => emit('update:modelValue', v)"
       @send="(v) => emit('send', v)"
+      @update:attachments="(v) => emit('update:attachments', v)"
+      @attach="(files) => emit('attach', files)"
+      @remove="(entry) => emit('remove', entry)"
     >
       <!-- Forward a leading-controls affordance (§3.62) down to the composer
            primitive, but ONLY when the parent supplies one — so an AspChatArea
@@ -317,8 +340,13 @@ const toggleKind = (value, on) => {
       :placeholder="composerPlaceholder"
       :send-label="sendLabel"
       :disabled="disabled"
+      :attachments="attachments"
+      :accept="attachAccept"
       @update:model-value="(v) => emit('update:modelValue', v)"
       @send="(v) => emit('send', v)"
+      @update:attachments="(v) => emit('update:attachments', v)"
+      @attach="(files) => emit('attach', files)"
+      @remove="(entry) => emit('remove', entry)"
     >
       <template v-if="$slots['composer-leading']" #leading-controls>
         <slot name="composer-leading" />

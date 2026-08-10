@@ -403,14 +403,23 @@ dead-control defect). Binding buys the paperclip; entries buy the strip, so a bo
 array renders the button and no container. Picker, drag-drop and paste all arrive as one
 `attach` event carrying raw `File`s; ✕ emits both `update:attachments` (the shortened array,
 for a `v-model:attachments` caller) and `remove` (the entry, for a caller that must abort an
-in-flight upload). An entry is `{ key?, name, meta?, status? }` — `meta` is *caller-formatted*
-because byte arithmetic and upload vocabulary belong to whoever owns the upload.
+in-flight upload). An entry is `{ key?, name, meta?, status?, image? }` — `meta` is
+*caller-formatted* because byte arithmetic and upload vocabulary belong to whoever owns the
+upload.
 
-*No thumbnails, deliberately.* Uploaded bytes are reachable only through the server's
-read-back route, whose `Content-Disposition: attachment` + `nosniff` headers are what make
-them inert (system_3 #3110 security ruling). An `<img>`, `blob:` or `data:` preview rendered
-here would re-open exactly that vector, so a chip is name + meta + remove, and an e2e test
-asserts the strip contains no `img`/`src`/`href` at all.
+*Thumbnail is opt-in per entry (system_3 #3641).* `image: { src, alt }`, when present,
+reserves a fixed 40x40 box ahead of the name — sized the same whether loading or resolved, and
+independent of the image's own dimensions, so nothing reflows as different entries' images
+resolve at different times. This component does not decide what counts as "an image"; that
+gate (server-sniffed mime type from the upload route, never the client-declared one) is the
+caller's, per the #3641 security ruling (comment #17806 on that task) — an `<img>` pointed
+directly at the hardened `/api/uploads/<id>` route is safe because the upload allow-list
+already excludes every image type that can carry script. A `blob:`/`data:` re-host stays
+categorically out; the caller must point `src` directly at the route. `image` absent renders
+the chip exactly as before this field existed, and a load failure on the given `src` degrades
+the chip back to that same no-image shape — the box is removed from the layout, not left as an
+empty hole or a broken-image glyph. An e2e suite covers all three: rendered thumbnail, no
+`image` field, and a 404 `src`.
 
 An empty stream and a stream emptied *by the filters* get different copy — "No messages" in
 front of an active filter reads as a bug in the view. The stream is `role="log"` with

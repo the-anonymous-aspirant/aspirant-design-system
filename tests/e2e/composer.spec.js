@@ -140,16 +140,47 @@ test('the chip strip renders ABOVE the field', async ({ page }) => {
   expect(strip.y + strip.height).toBeLessThanOrEqual(field.y)
 })
 
-test('no chip renders upload bytes: no <img>, no blob:/data: source', async ({ page }) => {
-  // system_3 #3110 security ruling: uploaded bytes stay behind the read-back
-  // route's attachment+nosniff headers. A preview built here would re-open the
-  // vector those headers close, so the strip is text only — asserted, not
-  // merely intended.
+test('an entry with no `image` field renders no <img>, no blob:/data: source', async ({ page }) => {
+  // Neither `#attach-filled` entry sets `image` — this component never invents
+  // a preview on its own. (Whether a caller SHOULD set `image` is the #3641
+  // security-ruling gate, tested elsewhere; this fixture proves the absence
+  // case stays exactly today's chip.)
   await expect(filled(page).locator('[data-testid="composer-attachments"] img')).toHaveCount(0)
   const sources = await filled(page)
     .locator('[data-testid="composer-attachments"] [src], [data-testid="composer-attachments"] [href]')
     .count()
   expect(sources).toBe(0)
+})
+
+// --- thumbnail (system_3 #3641) ----------------------------------------------
+const thumbMount = (page) => page.locator('#attach-thumb')
+
+test('an entry with `image` renders a fixed 40x40 thumbnail box', async ({ page }) => {
+  const thumb = thumbMount(page).locator('[data-testid="composer-attachment-thumb"]')
+  await expect(thumb).toHaveCount(1)
+  await expect(thumb.locator('img')).toHaveAttribute('alt', 'screenshot.png')
+  const box = await thumb.boundingBox()
+  expect(box.width).toBeCloseTo(40, 0)
+  expect(box.height).toBeCloseTo(40, 0)
+})
+
+test('an entry with no `image` field sits beside a thumbnail entry unchanged', async ({ page }) => {
+  const chips = thumbMount(page).locator('[data-testid="composer-attachment"]')
+  await expect(chips.nth(1)).toContainText('rows.csv')
+  await expect(chips.nth(1).locator('[data-testid="composer-attachment-thumb"]')).toHaveCount(0)
+})
+
+test('a failed thumbnail load degrades to the plain chip — no broken box left behind', async ({ page }) => {
+  const chips = thumbMount(page).locator('[data-testid="composer-attachment"]')
+  const brokenChip = chips.nth(2)
+  await expect(brokenChip).toContainText('broken.png')
+  // Wait for the deliberately-404ing <img> to fire `error` and for the thumb
+  // span to leave the DOM — not merely become invisible.
+  await expect(brokenChip.locator('[data-testid="composer-attachment-thumb"]')).toHaveCount(0, {
+    timeout: 5000,
+  })
+  // The name and meta are still there — degrade, not disappearance.
+  await expect(brokenChip).toContainText('3 KB')
 })
 
 test('✕ removes through the PARENT array and emits the removed entry', async ({ page }) => {

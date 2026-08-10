@@ -55,12 +55,21 @@ const props = defineProps({
    *
    * Entry shape — the minimum this component can render, deliberately NOT the
    * caller's upload-item shape:
-   *   { key?, name, meta?, status? }
+   *   { key?, name, meta?, status?, image? }
    * `name` is the only required field. `meta` is a caller-FORMATTED secondary
    * string ('12.4 KB', 'uploading 40%', 'too large — 30 MB'): byte formatting
    * and upload vocabulary belong to the caller that owns the upload, not to a
    * presentation primitive. `status` ∈ pending|uploading|done|error tints the
    * chip and nothing else.
+   *
+   * `image` (system_3 #3641, optional): `{ src, alt }`. When present, the chip
+   * reserves a fixed thumbnail box ahead of the name/meta text. This component
+   * does not decide what counts as "an image" — that gate (server-sniffed mime
+   * type, never the client-declared one) is the caller's, per the #3641
+   * security ruling (comment #17806 on that task). `image` absent renders the
+   * chip exactly as before this field existed; a load failure on the given
+   * `src` degrades the chip back to that same no-image shape (AC3) — the box
+   * is never left as an empty hole or a broken-image glyph.
    *
    * OWNERSHIP, same as the draft: the parent owns the array. This component
    * never pushes, never uploads, never holds a File — it renders the entries and
@@ -125,6 +134,24 @@ const removeAt = (index) => {
   emit('update:attachments', current.filter((_, i) => i !== index))
   emit('remove', entry)
 }
+
+// --- thumbnail load failure (#3641) -------------------------------------------
+// Local, presentation-only state: which entry keys' `<img>` has fired `error`.
+// Not a prop, because the caller never learns whether a GIVEN src decoded —
+// its job stopped at "this mime type is worth trying." Keyed by the same
+// `entry.key ?? entry.name` the list already keys on, so re-attaching the same
+// file (a fresh key) gets a fresh chance rather than staying failed forever.
+const failedThumbs = ref(new Set())
+
+const thumbKey = (entry, index) => entry.key ?? entry.name ?? index
+
+const onThumbError = (entry, index) => {
+  // Reassign (not .add() in place) so the computed below re-evaluates — a
+  // plain Set mutation does not trigger Vue's reactivity.
+  failedThumbs.value = new Set(failedThumbs.value).add(thumbKey(entry, index))
+}
+
+const showThumb = (entry, index) => Boolean(entry.image?.src) && !failedThumbs.value.has(thumbKey(entry, index))
 
 // --- drag / drop -------------------------------------------------------------
 // dragenter/dragleave fire for every child element the pointer crosses, so a
@@ -238,6 +265,20 @@ const onComposerKeydown = (event) => {
         data-testid="composer-attachment"
         :data-status="entry.status ?? 'pending'"
       >
+        <!-- Fixed box, reserved only when there is a src worth trying (#3641).
+             `@error` removes the box from the layout by flipping `showThumb`
+             false — never a broken-image glyph, never an empty hole (AC3). -->
+        <span
+          v-if="showThumb(entry, index)"
+          class="asp-composer__chip-thumb"
+          data-testid="composer-attachment-thumb"
+        >
+          <img
+            :src="entry.image.src"
+            :alt="entry.image.alt ?? entry.name"
+            @error="onThumbError(entry, index)"
+          >
+        </span>
         <span class="asp-composer__chip-name" :title="entry.name">{{ entry.name }}</span>
         <!-- Caller-formatted; absent (not blank) when the caller has nothing to
              say, so the chip never renders a lone separator. -->
@@ -508,6 +549,32 @@ const onComposerKeydown = (event) => {
 .asp-composer__chip--error {
   border-color: var(--feedback-error);
   color: var(--feedback-error);
+}
+
+/* Fixed 40x40 box (#3641) — the SAME size whether the box is still loading
+   (background only, no image painted yet) or holding a resolved thumbnail, so
+   nothing in the chip reflows between those two states. `object-fit: cover`
+   means the box's size never depends on the image's own intrinsic dimensions
+   (a 4000px photo and a 16px icon occupy the identical box) — the "do not let
+   intrinsic image size drive layout" half of the spec. The background is the
+   same currentColor mix the chip itself uses, so an unloaded box reads as
+   "part of this chip's surface", never as an empty hole. */
+.asp-composer__chip-thumb {
+  display: block;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  margin: calc(var(--space-2xs) * -1) 0 calc(var(--space-2xs) * -1)
+    calc(var(--space-2xs) * -1);
+}
+.asp-composer__chip-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .asp-composer__chip-name {

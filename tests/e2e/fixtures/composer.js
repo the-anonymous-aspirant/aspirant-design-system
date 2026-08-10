@@ -29,6 +29,18 @@ createApp({
       { key: 'f2', name: 'rows.csv', meta: 'uploading 40%', status: 'uploading' },
     ])
     const chatAttachments = ref([{ key: 'c1', name: 'from-chat.png', meta: '2 KB', status: 'done' }])
+    // #3641 thumbnail: a resolved 1x1 PNG data URI (stands in for a
+    // `/api/uploads/<id>` src, whose gate is the caller's job, not this
+    // component's), an entry with no `image` field (unchanged chip), and a
+    // `src` that 404s (proves the load-failure degrade).
+    const THUMB_SRC =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+    const thumbDraft = ref('')
+    const thumbAttachments = ref([
+      { key: 'thumb-ok', name: 'screenshot.png', meta: '412 KB', status: 'done', image: { src: THUMB_SRC, alt: 'screenshot.png' } },
+      { key: 'thumb-none', name: 'rows.csv', meta: '8 KB', status: 'done' },
+      { key: 'thumb-broken', name: 'broken.png', meta: '3 KB', status: 'done', image: { src: '/does-not-exist-3641.png', alt: 'broken.png' } },
+    ])
     const attachEvents = ref(0)
     const chatAttachEvents = ref(0)
     const removeEvents = ref(0)
@@ -120,6 +132,16 @@ createApp({
               lastSentText.value = text
             },
             placeholder: 'Filled composer…',
+          }),
+        ]),
+
+        h('div', { id: 'attach-thumb' }, [
+          h(AspComposer, {
+            modelValue: thumbDraft.value,
+            'onUpdate:modelValue': (v) => (thumbDraft.value = v),
+            attachments: thumbAttachments.value,
+            'onUpdate:attachments': (v) => (thumbAttachments.value = v),
+            placeholder: 'Thumbnail composer…',
           }),
         ]),
 

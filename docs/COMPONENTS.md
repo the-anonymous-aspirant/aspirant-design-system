@@ -63,7 +63,7 @@ Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search |
 
 Focus indicator: `--shadow-focus` (#5a94ff) measures 2.80:1 against `--surface-elevated` and 2.32:1 against `--surface-page`, both under the 3:1 WCAG 1.4.11 non-text minimum. The control therefore pairs the ring with a `--text-on-light` border so the composite indicator has an AA-passing edge in both themes. **The shared token is still sub-AA for every other component that uses it alone** — worth a follow-up at the token layer.
 
-Extend to `AsTextarea` in v0 if free — otherwise defer.
+Multi-line entry is `AspTextarea` (§22) — extracted from `AspComposer` (system_3 #3677), it mirrors this component's contract.
 
 ### 6. `AspList` + `AspListItem` — ✅ shipped
 
@@ -248,10 +248,19 @@ the color→meaning mapping is decodable on hover.
 Props: `variant` (`status` | `chip` | `filter` | `dot`, default `status`),
 `status` (`positive` | `caution` | `negative` | `neutral`, default `neutral` —
 drives semantic color on `status` + `dot`), `size` (`sm` | `md`), `tip`
-(legend override), `ariaLabel` (accessible label / remove-button label).
-Emits: `remove` (the `filter` variant's `×`).
+(legend override), `ariaLabel` (accessible label / remove-button label),
+`removable` (`chip` only, default `false` — opt-in `×`, system_3 #3677).
+Emits: `remove` (the `filter` variant's `×`, always; the `chip` variant's `×`
+when `removable`).
 Tokens: the tinted `--feedback-{success,warning,error,neutral}-bg` / `-text`
 pairs (#1970), `--radius-pill`.
+
+**`removable` (system_3 #3677).** A label chip that needs a remove affordance
+reuses `filter`'s `×` treatment and `remove` emit via `variant="chip"
+removable` — `variant="filter"` on a label is semantic misuse (`filter`'s `×`
+means "remove this filter", not "remove this label"). Additive: a `chip`
+without `removable` (the default, `false`) renders exactly what it rendered
+before the prop existed.
 
 
 **Data-driven fill (`color`), added #2378.** `chip` and `dot` accept a hex `color` — a
@@ -386,7 +395,9 @@ filtering), `filterOptions`, `loading`, `streamingId`, `modelValue`, `composerPl
 Props (`AspChatBubble`): `kind`, `sender`, `timestamp`, `streaming`.
 
 **`AspComposer` — the one composer grammar** (extracted from this component; corpus
-§3.42/§3.47/§3.49). Props: `modelValue`, `placeholder`, `sendLabel`, `disabled`, `error`,
+§3.42/§3.47/§3.49). Its multi-line field is `AspTextarea` (§22, system_3 #3677) —
+Enter-to-send stays here, on the composer, since that semantic does not belong to the
+primitive. Props: `modelValue`, `placeholder`, `sendLabel`, `disabled`, `error`,
 `attachments`, `attachLabel`, `accept`, `multiple`. Emits: `update:modelValue`, `send` (the
 text, always the text alone), `attach`, `remove`, `update:attachments`. Slot:
 `leading-controls`, rendered left of Send.
@@ -601,6 +612,42 @@ on both surfaces in both themes.
 anchors and revealing tail segments while they fit — width-measured, not count-thresholded. It
 never wraps or scrolls the header sideways, and the elided segments are announced to assistive
 tech (an `sr-only` span), not silently dropped.
+
+### 22. `AspTextarea` — ✅ shipped
+
+The multi-line field-editor primitive (system_3 #3677), extracted out of the raw
+`<textarea rows="3">` that used to live trapped inside `AspComposer` — corpus §3.47-1: a
+control trapped inside a bigger component is extracted into a primitive, never copied.
+Mirrors `AspInput`'s contract (`modelValue`, `label`, `hint`, `error`, `required`, `disabled`,
+the same id-minting/aria wiring), so a caller already fluent in `AspInput` needs no new mental
+model for the multi-line case.
+
+**Enter is never intercepted.** This component always inserts a newline on Enter — that
+semantic belongs to whatever composes it, not to the primitive. `AspComposer` keeps
+Enter-to-send itself, entirely outside this component, by binding its own `@keydown` through
+the fallthrough-attrs seam (`inheritAttrs: false` + `v-bind="$attrs"` on the inner
+`<textarea>`, same pattern `AspInput` already uses).
+
+**Auto-grow** is in scope here (explicitly deferred inside `AspComposer` alone per §3.42,
+system_3 #2842) — a long-form field editor's whole job is typing room. `rows` (default 3) sets
+the floor via the native `rows` attribute, rendered before any JS runs so there is no layout
+jump on the first keystroke; `maxRows` (default 10) sets the ceiling, past which the box stops
+growing and scrolls internally. The max height is measured off the element's own computed
+`line-height`/padding/border rather than a hardcoded pixel guess, so it tracks whatever the
+type-scale tokens resolve to.
+
+Props: `modelValue` (v-model), `label`, `hint`, `error`, `required`, `disabled`, `rows`
+(default `3`), `maxRows` (default `10`). Emits `update:modelValue`. Unrecognised attributes
+(`aria-label`, `@keydown`, `@paste`, …) fall through to the inner `<textarea>`, not the
+wrapper — the same contract `AspInput` uses.
+
+`AspComposer` now consumes this primitive (§16) — its own `<style scoped>` reaches across the
+component boundary via `:deep(.asp-composer__input)` to apply the composer's dark chrome over
+`AspTextarea`'s default light field; the compiled selector's extra scope-attribute-plus-class
+term gives it higher specificity than `AspTextarea`'s own base rule regardless of stylesheet
+load order, so the override is not a race. The composer's old manual `resize: vertical` drag
+handle is gone — auto-grow supersedes it, the same way it does for every other consumer of this
+primitive.
 
 ## Deferred (not in v0 10)
 

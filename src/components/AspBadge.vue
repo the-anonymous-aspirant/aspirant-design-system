@@ -52,6 +52,15 @@ const props = defineProps({
    * 4.5:1 against it. Nothing is written back — see src/utils/data_fill.js.
    */
   color: { type: String, default: null },
+  /**
+   * Opt-in `×` on the `chip` variant, for a removable LABEL chip (system_3
+   * #3677) — the edit surfaces need this without misusing `filter` (whose `×`
+   * is semantically "remove this filter", not "remove this label"). Additive
+   * only: `chip` without it renders exactly as before this prop existed.
+   * Ignored on every other variant — `filter` already always shows its `×`,
+   * and `status`/`dot` carry no remove affordance at all.
+   */
+  removable: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['remove'])
@@ -78,6 +87,11 @@ const dataStyle = computed(() => {
     : { backgroundColor: dataFill.value.fill, color: dataFill.value.ink }
 })
 const isFilter = computed(() => props.variant === 'filter')
+// The × shows on `filter` unconditionally (its existing contract) and on
+// `chip` only when the caller opts in via `removable`.
+const showRemove = computed(
+  () => isFilter.value || (props.variant === 'chip' && props.removable)
+)
 const usesStatusColor = computed(
   () => (props.variant === 'status' || isDot.value) && !dataFill.value
 )
@@ -92,6 +106,10 @@ const classes = computed(() => ({
   [`badge--size-${props.size}`]: true,
   [`badge--status-${props.status}`]: usesStatusColor.value,
   'badge--data-color': Boolean(dataFill.value),
+  // Only ever added when it changes rendering (chip + removable) — a chip
+  // that omits `removable` gets no new class, so its DOM stays byte-for-byte
+  // what it was before this prop existed.
+  'badge--removable': props.variant === 'chip' && props.removable,
 }))
 
 const onRemove = (event) => {
@@ -125,7 +143,7 @@ const onRemove = (event) => {
   >
     <span class="badge__label"><slot /></span>
     <button
-      v-if="isFilter"
+      v-if="showRemove"
       type="button"
       class="badge__remove"
       :aria-label="ariaLabel || 'Remove'"
@@ -221,7 +239,8 @@ const onRemove = (event) => {
   border: 1px solid var(--border-subtle);
 }
 
-.badge--filter {
+.badge--filter,
+.badge--chip.badge--removable {
   padding-right: 0.25rem;
 }
 

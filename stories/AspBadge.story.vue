@@ -25,6 +25,12 @@ const filters = ref(['status:open', 'assignee:me', 'label:bug'])
 const removeFilter = (name) => {
   filters.value = filters.value.filter((f) => f !== name)
 }
+
+const editLabels = ref(['frontend-touching', 'agent-proposed', 'verified-locally'])
+
+const removeEditLabel = (name) => {
+  editLabels.value = editLabels.value.filter((l) => l !== name)
+}
 </script>
 
 <template>
@@ -64,6 +70,27 @@ const removeFilter = (name) => {
           {{ f }}
         </AspBadge>
         <span v-if="!filters.length" style="color: var(--text-muted);">All filters cleared.</span>
+      </div>
+    </Variant>
+
+    <Variant title="Removable label chips (system_3 #3677)">
+      <p style="color: var(--text-muted); margin-bottom: 8px;">
+        <code>chip</code> + <code>removable</code>, for a LABEL chip that can be removed — the
+        edit surfaces' use case. Reuses <code>filter</code>'s <code>×</code> treatment and
+        <code>remove</code> emit without misusing <code>variant="filter"</code> for a label.
+      </p>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <AspBadge
+          v-for="l in editLabels"
+          :key="l"
+          variant="chip"
+          removable
+          :aria-label="`Remove label ${l}`"
+          @remove="removeEditLabel(l)"
+        >
+          {{ l }}
+        </AspBadge>
+        <span v-if="!editLabels.length" style="color: var(--text-muted);">All labels removed.</span>
       </div>
     </Variant>
 

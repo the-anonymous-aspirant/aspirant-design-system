@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import AspButton from './AspButton.vue'
 import AspIcon from './AspIcon.vue'
+import AspTextarea from './AspTextarea.vue'
 
 // AspComposer — the one message-composer grammar, extracted from AspChatArea
 // (docs/COMPONENTS.md §16; conventions §3.42/§3.47).
@@ -229,9 +230,27 @@ const submit = () => {
 // and reserves Shift/Ctrl/Meta+Enter for the newline (the Jinja composer's
 // enter_to_send.js contract, §3.12).
 const onComposerKeydown = (event) => {
-  if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+  if (event.key !== 'Enter') return
+  if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault()
     submit()
+    return
+  }
+  // Shift+Enter already gets a newline for free -- every browser's default
+  // <textarea> keydown handling inserts one. Ctrl+Enter and Meta+Enter carry
+  // NO default textarea action (Chromium: no newline, no submit, nothing),
+  // so those two are inserted by hand at the caret rather than trusted to a
+  // native behaviour that does not exist (system_3 #3677 AC2).
+  if (event.ctrlKey || event.metaKey) {
+    event.preventDefault()
+    const el = event.target
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const next = `${props.modelValue.slice(0, start)}\n${props.modelValue.slice(end)}`
+    emit('update:modelValue', next)
+    nextTick(() => {
+      el.selectionStart = el.selectionEnd = start + 1
+    })
   }
 }
 </script>
@@ -297,14 +316,19 @@ const onComposerKeydown = (event) => {
 
     <div class="asp-composer__row">
       <div class="asp-composer__field">
-        <textarea
+        <!-- The multi-line control itself is AspTextarea (system_3 #3677,
+             extracted out of this component per §3.47-1) — a control trapped
+             inside a bigger component is extracted into a primitive, never
+             copied. Enter-to-send STAYS here: AspTextarea never intercepts
+             Enter (it always inserts a newline), so `onComposerKeydown` below
+             is what makes Enter submit for THIS composer specifically. -->
+        <AspTextarea
           class="asp-composer__input"
-          rows="3"
-          :value="modelValue"
+          :model-value="modelValue"
           :placeholder="placeholder"
           :disabled="disabled"
           :aria-label="placeholder"
-          @input="(e) => emit('update:modelValue', e.target.value)"
+          @update:model-value="(v) => emit('update:modelValue', v)"
           @keydown="onComposerKeydown"
           @paste="onPaste"
         />
@@ -404,56 +428,46 @@ const onComposerKeydown = (event) => {
 }
 
 /*
- * The composer is a multi-line <textarea>, not a single-line input (§3.42): a
- * chat/comment surface's entry box is inherently multi-line-worthy, and "twice
- * as big / easier to type into, especially on mobile" (operator #2842) is a
- * request for TYPING ROOM, not a taller one-line box. rows="3" + min-height
- * give a fixed floor; resize: vertical lets the operator drag it taller. No JS
- * auto-grow this pass (§3.42) -- that is a separate enhancement.
+ * The composer is multi-line (§3.42): a chat/comment surface's entry box is
+ * inherently multi-line-worthy, and "twice as big / easier to type into,
+ * especially on mobile" (operator #2842) is a request for TYPING ROOM. The
+ * control itself is now AspTextarea (system_3 #3677), which owns the rows
+ * floor and the JS auto-grow-to-a-max — this block only overrides the visual
+ * surface (dark composer chrome vs. AspTextarea's default light field) via
+ * `:deep()`, since AspTextarea's own DOM lives across a component boundary
+ * and its scoped styles do not carry this component's scope attribute.
  */
-.asp-composer__input {
+.asp-composer :deep(.asp-composer__input) {
   /* The floor as a component-scoped custom property, mirroring AspInput's
      --asp-input-height precedent (§3.10): a call site overrides it without a
      fork. The name is kept from AspChatArea (--asp-chat-composer-min-height) so
      any existing call-site override survives the extraction unchanged.
      4.5rem/72px is ~2.1x the old 34px input and clears the 44px WCAG touch
-     target the 34px input failed. */
+     target the 34px input failed. AspTextarea's `rows="3"` floor lands close
+     to this on its own; the explicit min-height keeps the exact value pinned. */
   --asp-chat-composer-min-height: 4.5rem;
-  display: block;
-  /* border-box, not the content-box default: width:100% + the 1px border
-     below otherwise adds 2px beyond the parent's width, overflowing any
-     container that does not itself carry spare gutter (system_3 #3616 — the
-     agent-pane composer floored the viewport by exactly 2px at every width,
-     border-left + border-right, with no other offender in the DOM). */
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
   min-height: var(--asp-chat-composer-min-height);
-  padding: var(--space-xs) var(--space-sm);
   background: var(--surface-card-inner);
   color: var(--text-on-dark);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-color: transparent;
   font-family: var(--font-family-base);
   /* 16px, not --text-sm: below 16px iOS Safari auto-zooms the viewport on
      focus, a real mobile-typing irritation this sizing exists to remove. */
   font-size: var(--text-base);
-  line-height: 1.4;
-  resize: vertical;
-  appearance: none;
 }
 
-.asp-composer__input::placeholder {
+.asp-composer :deep(.asp-composer__input)::placeholder {
   /* Muted placeholder on the dark composer surface: the on-dark ink at half
      opacity, matching AspInput's muted-placeholder treatment. */
   color: var(--text-on-dark);
   opacity: 0.5;
 }
 
-.asp-composer__input:focus {
+.asp-composer :deep(.asp-composer__input:focus) {
   /* A visible focus indicator is required even though the resting border is
-     transparent -- same two-tone ring AspInput uses (ink border + focus ring). */
-  outline: none;
+     transparent -- same two-tone ring AspInput uses (ink border + focus ring).
+     AspTextarea's own :focus rule already sets these to the same values; this
+     override only matters if specificity/load-order ever ties differently. */
   border-color: var(--text-body);
   box-shadow: var(--shadow-focus);
 }

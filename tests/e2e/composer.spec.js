@@ -55,6 +55,38 @@ test('the primary submit still fires with the slot filled', async ({ page }) => 
   await expect(page.locator('#sent')).toHaveText('1')
 })
 
+// --- Enter-to-send (system_3 #3677 AC2) --------------------------------------
+// AspComposer now consumes AspTextarea, which never intercepts Enter on its
+// own — these tests prove Enter-to-send stayed put on the composer itself
+// through the refactor, and that Shift/Ctrl/Meta+Enter still insert a newline
+// rather than sending.
+
+test('Enter sends the message', async ({ page }) => {
+  await expect(page.locator('#sent')).toHaveText('0')
+  const field = plain(page).locator('.asp-composer__input')
+  await field.click()
+  await field.type('hello')
+  await field.press('Enter')
+  await expect(page.locator('#sent')).toHaveText('1')
+})
+
+test('Shift+Enter, Ctrl+Enter and Meta+Enter insert a newline instead of sending', async ({
+  page,
+}) => {
+  const field = plain(page).locator('.asp-composer__input')
+  await field.click()
+  await field.type('line one')
+  await field.press('Shift+Enter')
+  await field.type('line two')
+  await field.press('Control+Enter')
+  await field.type('line three')
+  await field.press('Meta+Enter')
+  await field.type('line four')
+
+  await expect(field).toHaveValue('line one\nline two\nline three\nline four')
+  await expect(page.locator('#sent')).toHaveText('0')
+})
+
 // Regression (system_3 #3616): width:100% + a 1px border with no box-sizing
 // pushed the field 2px past its parent's content-box width. box-sizing:
 // border-box keeps the border inside the declared width.

@@ -18,8 +18,8 @@ const filtered = () => rows.filter((r) => r.toLowerCase().includes(search.value.
       </p>
       <p><strong>When to use:</strong> any single-line text, search, or number entry.</p>
       <p>
-        <strong>When not to use:</strong> multi-line entry (a textarea primitive is not built yet),
-        or a choice from a fixed set — use a select/radio instead.
+        <strong>When not to use:</strong> multi-line entry — use <code>AspTextarea</code> — or a
+        choice from a fixed set — use a select/radio instead.
       </p>
       <p>
         <strong>Focus indicator:</strong> <code>--shadow-focus</code> is #5a94ff, which measures

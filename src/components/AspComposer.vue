@@ -337,52 +337,51 @@ const onComposerKeydown = (event) => {
         <!-- Leading-controls slot (§3.62): rendered LEFT of Send, for a mount
              that hangs an extra affordance on the composer (e.g. the inline
              "+ artifact" trigger). The v-if keeps the row a plain right-aligned
-             Send for the two plain-text mounts — an ABSENT slot renders identically
+             Send for the plain-text mounts — an ABSENT slot renders identically
              to the pre-slot composer, because the leading container that carried
              the `margin-right: auto` push is simply not in the tree. -->
-        <!-- The attach button is composer-NATIVE and rides in the same leading
-             container, ahead of whatever the mount hangs there, so a mount with
-             both (the agent pane: attach + "+ artifact") reads left-to-right as
-             one control cluster rather than two competing ones. The container's
-             v-if now covers either reason to exist; with neither, it is still
-             absent from the DOM entirely and Send is still a lone
-             right-aligned button. -->
         <div
-          v-if="$slots['leading-controls'] || attachEnabled"
+          v-if="$slots['leading-controls']"
           class="asp-composer__leading"
         >
-          <AspButton
-            v-if="attachEnabled"
-            class="asp-composer__attach"
-            type="button"
-            variant="ghost"
-            size="sm"
-            :disabled="disabled"
-            :aria-label="attachLabel"
-            :title="attachLabel"
-            data-testid="composer-attach"
-            @click="openPicker"
-          >
-            <AspIcon name="attach" size="sm" />
-          </AspButton>
-          <!-- The picker itself: kept out of the tab order and off-screen rather
-               than `display:none`, because a hidden-but-focusable input is a
-               control the operator can land on with no visible target. The
-               visible, labelled button above is the affordance. -->
-          <input
-            v-if="attachEnabled"
-            ref="fileInput"
-            class="asp-composer__file-input"
-            type="file"
-            tabindex="-1"
-            aria-hidden="true"
-            :accept="accept || undefined"
-            :multiple="multiple"
-            data-testid="composer-file-input"
-            @change="onPicked"
-          >
           <slot name="leading-controls" />
         </div>
+        <!-- The attach button sits IMMEDIATELY LEFT OF SEND, in the same right
+             cluster (aspirant operator ask 2026-08-17, system_3 #3994): attach
+             and Send are one act's two halves, so they read as one control
+             cluster; the far-left leading position put a full row's width
+             between them. Mount-specific affordances (the "+ artifact"
+             trigger) stay in the leading slot on the left. -->
+        <AspButton
+          v-if="attachEnabled"
+          class="asp-composer__attach"
+          type="button"
+          variant="ghost"
+          size="sm"
+          :disabled="disabled"
+          :aria-label="attachLabel"
+          :title="attachLabel"
+          data-testid="composer-attach"
+          @click="openPicker"
+        >
+          <AspIcon name="attach" size="sm" />
+        </AspButton>
+        <!-- The picker itself: kept out of the tab order and off-screen rather
+             than `display:none`, because a hidden-but-focusable input is a
+             control the operator can land on with no visible target. The
+             visible, labelled button above is the affordance. -->
+        <input
+          v-if="attachEnabled"
+          ref="fileInput"
+          class="asp-composer__file-input"
+          type="file"
+          tabindex="-1"
+          aria-hidden="true"
+          :accept="accept || undefined"
+          :multiple="multiple"
+          data-testid="composer-file-input"
+          @change="onPicked"
+        >
         <AspButton
           class="asp-composer__send"
           type="submit"

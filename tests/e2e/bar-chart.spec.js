@@ -24,6 +24,7 @@ import {
   bandFor,
   buildBarOptions,
   buildLineOptions,
+  computeExtremeMarks,
   selectTimeTicks,
   timeAxisEndPadding,
 } from '../../src/utils/bar_chart_options.js'
@@ -1084,5 +1085,57 @@ test.describe('#3129 sparkline (rendered): per-dataset fills on the card surface
     // hair of sub-pixel rounding. Generous ceiling; the point is it is NOT the
     // 180px regular chart.
     expect(box.height).toBeLessThanOrEqual(56)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// #4021 (system_3, operator ruling c20597) — min/max extreme marks: pure math.
+// ---------------------------------------------------------------------------
+test.describe('computeExtremeMarks (#4021)', () => {
+  test('a varied series yields one max ▲ and one min ▼ at the right slots', () => {
+    const marks = computeExtremeMarks([{ data: [3, 9, 1, 4] }])
+    expect(marks).toEqual([
+      { datasetIndex: 0, index: 1, kind: 'max', negative: false },
+      { datasetIndex: 0, index: 2, kind: 'min', negative: false },
+    ])
+  })
+
+  test('flat and short series yield NO marks — silence, never a lying marker', () => {
+    expect(computeExtremeMarks([{ data: [4, 4, 4] }])).toEqual([])
+    expect(computeExtremeMarks([{ data: [7] }])).toEqual([])
+    expect(computeExtremeMarks([{ data: [] }])).toEqual([])
+    expect(computeExtremeMarks([])).toEqual([])
+  })
+
+  test('nulls are skipped, not treated as zeros', () => {
+    const marks = computeExtremeMarks([{ data: [null, 5, null, 2] }])
+    expect(marks).toEqual([
+      { datasetIndex: 0, index: 1, kind: 'max', negative: false },
+      { datasetIndex: 0, index: 3, kind: 'min', negative: false },
+    ])
+  })
+
+  test('an all-negative (diverging) dataset swaps the semantic labels', () => {
+    // The negated "done" half: -7 is the MOST done → semantic max, below axis.
+    const marks = computeExtremeMarks([{ data: [-2, -7, -1] }])
+    expect(marks).toEqual([
+      { datasetIndex: 0, index: 1, kind: 'max', negative: true },
+      { datasetIndex: 0, index: 2, kind: 'min', negative: true },
+    ])
+  })
+
+  test('multi-dataset (diverging pair): marks per dataset, indexes independent', () => {
+    const marks = computeExtremeMarks([
+      { data: [1, 6, 2] },
+      { data: [-3, 0, -5] },
+    ])
+    expect(marks).toHaveLength(4)
+    const d1 = marks.filter((m) => m.datasetIndex === 1)
+    // Mixed-sign second dataset (a zero hour): NOT all ≤ 0 swaps only when
+    // every value is non-positive — zero IS non-positive, so it swaps here.
+    expect(d1).toEqual([
+      { datasetIndex: 1, index: 2, kind: 'max', negative: true },
+      { datasetIndex: 1, index: 1, kind: 'min', negative: false },
+    ])
   })
 })

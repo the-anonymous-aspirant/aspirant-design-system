@@ -878,3 +878,82 @@ export const thresholdPlugin = {
     ctx.restore()
   },
 }
+
+// --- min/max extreme markers (system_3 #4021, operator ruling c20597) --------
+// Colour-differentiated points, value text dropped: a small filled triangle at
+// the min and max slots — ▲ for the semantic max, ▼ for the semantic min — so
+// the two channels (hue + shape) survive monochrome and colourblind reads
+// without any text annotation. Drawn on canvas because bars have no per-point
+// glyph channel; the same draw serves line marks' point elements.
+//
+// `opts.marks` = [{ datasetIndex, index, kind: 'max'|'min', color, negative }]
+// — computed by AspBarChart (which owns the §3.18 ink derivation); this plugin
+// only draws what it is handed. `negative` places the glyph on the far side of
+// a diverging bar (below a downward bar) so it never overlaps the baseline.
+/**
+ * Pure mark computation for `markExtremes` (#4021): per dataset, the semantic
+ * max and min slots. Nulls are skipped; a flat or <2-numeric-value dataset
+ * yields no marks (silence, never a lying marker). A dataset whose numeric
+ * values are all ≤ 0 — the diverging contract's negated half — swaps the
+ * semantic labels so "max" always means "most of the thing counted".
+ * Returns [{ datasetIndex, index, kind: 'max'|'min', negative }]; the
+ * component applies the derived inks (it owns §3.18).
+ */
+export const computeExtremeMarks = (datasets) => {
+  const marks = []
+  ;(datasets || []).forEach((ds, datasetIndex) => {
+    const values = (ds.data || []).map((v) => (typeof v === 'number' ? v : null))
+    const numeric = values.filter((v) => v !== null)
+    if (numeric.length < 2) return
+    const lo = Math.min(...numeric)
+    const hi = Math.max(...numeric)
+    if (lo === hi) return
+    const allNonPositive = numeric.every((v) => v <= 0)
+    const semanticMax = allNonPositive ? lo : hi
+    const semanticMin = allNonPositive ? hi : lo
+    const maxIndex = values.indexOf(semanticMax)
+    const minIndex = values.indexOf(semanticMin)
+    marks.push(
+      { datasetIndex, index: maxIndex, kind: 'max', negative: values[maxIndex] < 0 },
+      { datasetIndex, index: minIndex, kind: 'min', negative: values[minIndex] < 0 },
+    )
+  })
+  return marks
+}
+
+export const extremesPlugin = {
+  id: 'aspExtremes',
+
+  afterDatasetsDraw(chart, _args, opts) {
+    if (!opts || !Array.isArray(opts.marks) || opts.marks.length === 0) return
+    const { ctx } = chart
+    for (const mark of opts.marks) {
+      const meta = chart.getDatasetMeta(mark.datasetIndex)
+      const el = meta?.data?.[mark.index]
+      if (!el || typeof el.x !== 'number' || typeof el.y !== 'number') continue
+      const half = 3.5
+      // Offset away from the mark's data end: above a positive bar/point,
+      // below a negative (diverging) one.
+      const dir = mark.negative ? 1 : -1
+      const base = el.y + dir * 4
+      const tip = el.y + dir * 10
+      ctx.save()
+      ctx.fillStyle = mark.color
+      ctx.beginPath()
+      if (mark.kind === 'max') {
+        // ▲ — apex away from the bar end.
+        ctx.moveTo(el.x, tip)
+        ctx.lineTo(el.x - half, base)
+        ctx.lineTo(el.x + half, base)
+      } else {
+        // ▼ — apex toward the bar end.
+        ctx.moveTo(el.x, base)
+        ctx.lineTo(el.x - half, tip)
+        ctx.lineTo(el.x + half, tip)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
+  },
+}

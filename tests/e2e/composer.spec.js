@@ -137,10 +137,21 @@ test('the paperclip is labelled and clears the 44px touch floor', async ({ page 
   expect(box.width).toBeGreaterThanOrEqual(44)
 })
 
-test('the paperclip sits LEFT of Send, like every other leading control', async ({ page }) => {
+test('the paperclip sits IMMEDIATELY LEFT of Send — one control cluster (system_3 #3994)', async ({ page }) => {
+  // Operator ask 2026-08-17: attach appears NEXT TO Send, not a full row away
+  // in the leading cluster. Left of Send, and adjacent — the gap between the
+  // two is the row's own gap token, not the leading container's auto-margin
+  // stretch (allow up to 24px so a token change doesn't false-fail).
   const attachBox = await emptyBound(page).locator('[data-testid="composer-attach"]').boundingBox()
   const sendBox = await emptyBound(page).locator('.asp-composer__send').boundingBox()
   expect(attachBox.x + attachBox.width).toBeLessThanOrEqual(sendBox.x)
+  expect(sendBox.x - (attachBox.x + attachBox.width)).toBeLessThanOrEqual(24)
+})
+
+test('attach bound WITHOUT a leading slot: no leading container in the DOM', async ({ page }) => {
+  // The leading container now belongs to the slot alone (#3994) — attach no
+  // longer summons it, so an attach-only composer keeps a slot-free left edge.
+  await expect(emptyBound(page).locator('.asp-composer__leading')).toHaveCount(0)
 })
 
 test('picking a file emits attach with the raw File', async ({ page }) => {

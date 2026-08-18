@@ -115,8 +115,10 @@ const props = defineProps({
   /**
    * Mark each dataset's min and max slots with colour-differentiated glyphs
    * (system_3 #4021, operator ruling c20597): a ▲ in the max hue and a ▼ in
-   * the min hue, drawn by `extremesPlugin` — hue + shape, no value text, so
-   * the channel survives monochrome and colourblind reads. The hues come from
+   * the min hue, drawn by `extremesPlugin`, with the slot's value drawn ON the
+   * mark in the same derived ink (§3.66c / #4080). Hue + shape carry the signal
+   * on their own, so the channel survives monochrome and colourblind reads and
+   * the value is an additive third layer, not a replacement. The hues come from
    * `--chart-extreme-max` / `--chart-extreme-min` (Okabe–Ito vermillion and
    * reddish-purple fallbacks) and are derived against the real surface like
    * every other ink (§3.18). A dataset that is flat, or has fewer than two numeric values,
@@ -377,7 +379,7 @@ const chartOptions = computed(() => {
   }
 
   if (props.markExtremes) {
-    preset.plugins.aspExtremes = { marks: extremeMarks.value }
+    preset.plugins.aspExtremes = { marks: extremeMarks.value, fontFamily: p.fontFamily }
     // The glyphs sit ~10px past the bar/point end; keep layout headroom so a
     // max at the top of the plot never clips its ▲.
     preset.layout = mergeDeep(preset.layout || {}, { padding: { top: 12, bottom: 12 } })

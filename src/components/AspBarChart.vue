@@ -117,9 +117,9 @@ const props = defineProps({
    * (system_3 #4021, operator ruling c20597): a ▲ in the max hue and a ▼ in
    * the min hue, drawn by `extremesPlugin` — hue + shape, no value text, so
    * the channel survives monochrome and colourblind reads. The hues come from
-   * `--chart-extreme-max` / `--chart-extreme-min` (Okabe–Ito vermillion/blue
-   * fallbacks) and are derived against the real surface like every other ink
-   * (§3.18). A dataset that is flat, or has fewer than two numeric values,
+   * `--chart-extreme-max` / `--chart-extreme-min` (Okabe–Ito vermillion and
+   * reddish-purple fallbacks) and are derived against the real surface like
+   * every other ink (§3.18). A dataset that is flat, or has fewer than two numeric values,
    * gets no marks — silence, never a lying marker. A dataset whose numeric
    * values are all ≤ 0 (the diverging contract's negated half) swaps the
    * semantic min/max so "max" always means "most of the thing counted".
@@ -277,7 +277,22 @@ const extremeInks = computed(() => {
   }
   return {
     max: mk('--chart-extreme-max', '#d55e00'),
-    min: mk('--chart-extreme-min', '#0072b2'),
+    // #cc79a7 (Okabe-Ito reddish-purple), NOT #0072b2 (Okabe-Ito blue), per
+    // system_3 §3.66b / task #4050. Blue is what `--chart-series-2` inks, and
+    // on a two-dataset chart the second series takes exactly that token
+    // (SERIES_FALLBACKS[1] above) — so a blue min marker on such a chart was
+    // painted the same hue as the series it marks, collapsing the colour
+    // channel c20597 made PRIMARY and leaving only the ▼ shape it named as the
+    // colourblind FALLBACK. The consumer that surfaced it is system_3's
+    // task_flow / pr_flow cards, whose created/done pair is amber/blue.
+    //
+    // #cc79a7 is `--chart-series-5`, already in this palette and already
+    // carrying its AA-non-text guarantee, rather than a hex invented here; the
+    // rule the ruling drew is that an extreme token may reuse a series hex
+    // (extreme-max is #d55e00 == series-4) as long as it does not collide with
+    // a hue actually PAINTED on the same card. Before moving either token
+    // again, check that against every consumer, not just this one.
+    min: mk('--chart-extreme-min', '#cc79a7'),
   }
 })
 
@@ -402,7 +417,17 @@ onBeforeUnmount(() => {
 // Exposed for the contrast spec: the derived values are the thing under test,
 // and reading them here asserts what the component actually paints rather than
 // what a test recomputes from tokens and hopes matches.
-defineExpose({ paint, barFills, chartOptions, barThickness: BAR_THICKNESS, isLineMark })
+// `extremeInks` is exposed for the same reason `barFills` is: the §3.66b
+// no-collision invariant is about the DERIVED paint, and a test that recomputed
+// it from the token values would not be measuring what the chart draws.
+defineExpose({
+  paint,
+  barFills,
+  extremeInks,
+  chartOptions,
+  barThickness: BAR_THICKNESS,
+  isLineMark,
+})
 </script>
 
 <template>

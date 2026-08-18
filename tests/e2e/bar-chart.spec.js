@@ -1035,6 +1035,33 @@ test.describe('#3129 sparkline (rendered): per-dataset fills on the card surface
       }
     })
 
+    test(`the min marker never shares a paint with a series on the same chart (${theme})`, async ({
+      page,
+    }) => {
+      // §3.66b / #4050. The defect this guards is not "two tokens share a hex"
+      // but "both are PAINTED on the same card": a two-dataset chart inks its
+      // second series from --chart-series-2, and while --chart-extreme-min was
+      // also #0072b2 the ▼ on that series was drawn its own series' colour —
+      // collapsing the colour channel c20597 made PRIMARY and leaving only the
+      // shape it named as the colourblind FALLBACK. Measured on the DERIVED
+      // paints, not the token values, because deriveInk is what actually lands
+      // on the canvas (two different hexes could still derive together).
+      const d = (await read(page, theme)).diverging
+      expect(d.barFills).toHaveLength(2)
+      for (const fill of d.barFills) {
+        expect(d.extremeInks.min).not.toBe(fill)
+        expect(d.extremeInks.max).not.toBe(fill)
+      }
+      // ...and the two markers stay distinguishable from each other, which is
+      // the whole point of two hues rather than one glyph in two shapes.
+      expect(d.extremeInks.min).not.toBe(d.extremeInks.max)
+      // Both still clear the non-text floor against the real card surface —
+      // moving a token must not buy separation at the cost of legibility.
+      for (const ink of [d.extremeInks.min, d.extremeInks.max]) {
+        expect(contrastRatio(parseColor(ink), d.background)).toBeGreaterThanOrEqual(AA_NON_TEXT)
+      }
+    })
+
     test(`the diverging card configures the y=0 rule; the single card does not (${theme})`, async ({
       page,
     }) => {

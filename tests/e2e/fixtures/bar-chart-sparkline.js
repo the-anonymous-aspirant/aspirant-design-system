@@ -115,6 +115,9 @@ createApp({
           key: c.key,
           background: inst.paint.bg,
           barFills: inst.barFills,
+          // #4050/§3.66b: the DERIVED extreme-marker inks, so a spec can check
+          // them against the derived series fills painted on the same chart.
+          extremeInks: inst.extremeInks,
           axisLine: inst.paint.axisLine,
           hasZeroRule,
           // Rendered proof the rule painted (diverging cases only; a single
@@ -136,6 +139,7 @@ createApp({
               ref: refs[i],
               variant: 'sparkline',
               data: c.data,
+              markExtremes: true,
               ariaLabel: `${c.key} sparkline`,
             }),
           ])

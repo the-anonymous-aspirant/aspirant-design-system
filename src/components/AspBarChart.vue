@@ -11,6 +11,8 @@ import {
   VARIANTS,
   buildBarOptions,
   buildLineOptions,
+  computeExtremeMarks,
+  extremesPlugin,
   thresholdPlugin,
 } from '../utils/bar_chart_options.js'
 
@@ -110,6 +112,19 @@ const props = defineProps({
   thresholdLabel: { type: String, default: '' },
   /** Override the variant's height. Number (px) or any CSS length. */
   height: { type: [String, Number], default: null },
+  /**
+   * Mark each dataset's min and max slots with colour-differentiated glyphs
+   * (system_3 #4021, operator ruling c20597): a ▲ in the max hue and a ▼ in
+   * the min hue, drawn by `extremesPlugin` — hue + shape, no value text, so
+   * the channel survives monochrome and colourblind reads. The hues come from
+   * `--chart-extreme-max` / `--chart-extreme-min` (Okabe–Ito vermillion/blue
+   * fallbacks) and are derived against the real surface like every other ink
+   * (§3.18). A dataset that is flat, or has fewer than two numeric values,
+   * gets no marks — silence, never a lying marker. A dataset whose numeric
+   * values are all ≤ 0 (the diverging contract's negated half) swaps the
+   * semantic min/max so "max" always means "most of the thing counted".
+   */
+  markExtremes: { type: Boolean, default: false },
   /** Chart.js options, deep-merged OVER this preset. */
   options: { type: Object, default: () => ({}) },
   /** Accessible name for the chart. Strongly recommended. */
@@ -250,6 +265,33 @@ const barFills = computed(() => {
   })
 })
 
+// The two extreme-marker inks, derived against the real background exactly as
+// the series inks are — the component owns AA here so no caller ever passes a
+// raw colour array that would bypass the derivation (#4021).
+const extremeInks = computed(() => {
+  void themeTick.value
+  const bg = resolvedBackground()
+  const mk = (name, fallback) => {
+    const preferred = parseColor(token(name, fallback)) || parseColor(fallback)
+    return toRgbString(deriveInk(preferred, bg, AA_NON_TEXT))
+  }
+  return {
+    max: mk('--chart-extreme-max', '#d55e00'),
+    min: mk('--chart-extreme-min', '#0072b2'),
+  }
+})
+
+const extremeMarks = computed(() => {
+  if (!props.markExtremes) return []
+  const inks = extremeInks.value
+  // Pure math in the utils module (unit-tested there); inks applied here
+  // because the component owns the §3.18 derivation.
+  return computeExtremeMarks(props.data.datasets).map((m) => ({
+    ...m,
+    color: m.kind === 'max' ? inks.max : inks.min,
+  }))
+})
+
 const themedData = computed(() => ({
   ...props.data,
   datasets: (props.data.datasets || []).map((ds, i) => {
@@ -319,6 +361,13 @@ const chartOptions = computed(() => {
     }
   }
 
+  if (props.markExtremes) {
+    preset.plugins.aspExtremes = { marks: extremeMarks.value }
+    // The glyphs sit ~10px past the bar/point end; keep layout headroom so a
+    // max at the top of the plot never clips its ▲.
+    preset.layout = mergeDeep(preset.layout || {}, { padding: { top: 12, bottom: 12 } })
+  }
+
   // Three ordered layers: AspChart's theme defaults (applied inside AspChart),
   // then this preset, then the consumer's `options`. Merging the consumer's
   // options in HERE — rather than passing them through separately — is what
@@ -329,7 +378,10 @@ const chartOptions = computed(() => {
 
 // The plugin is passed per-instance rather than registered globally, so a host
 // app that also uses plain AspChart is unaffected by this component's existence.
-const chartPlugins = computed(() => (typeof props.threshold === 'number' ? [thresholdPlugin] : []))
+const chartPlugins = computed(() => [
+  ...(typeof props.threshold === 'number' ? [thresholdPlugin] : []),
+  ...(props.markExtremes ? [extremesPlugin] : []),
+])
 
 onMounted(() => {
   themeTick.value += 1

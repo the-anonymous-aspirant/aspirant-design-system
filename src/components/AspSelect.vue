@@ -245,7 +245,19 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   padding: 0 var(--space-sm);
   background: var(--surface-elevated);
   color: var(--text-body);
-  border: 1px solid var(--border-subtle);
+  /*
+   * The rest boundary is what identifies these as operable controls, so it
+   * carries the WCAG 1.4.11 non-text 3:1 floor rather than --border-subtle's
+   * decorative one. --border-subtle (#cccccc) measured 1.26:1 against the
+   * light page and 1.53:1 against this component's own --surface-elevated
+   * fill: on the light theme the control had no visible edge on either side.
+   * See system_3 corpus §3.72 / task #4061 for the measurements, including why
+   * no FLAT value can also clear 3:1 against --surface-card in the light theme
+   * (page and card straddle mid-luminance; the best possible flat grey tops
+   * out at 2.80:1). On a card the near-white fill carries the boundary at
+   * 8.6:1, which is why the flat token is still the right shape here.
+   */
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   font: inherit;
   font-size: var(--text-sm);

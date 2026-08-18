@@ -149,6 +149,10 @@
       "subtle": {
         "value": "#cccccc",
         "comment": "Neutral divider"
+      },
+      "control": {
+        "value": "#767676",
+        "comment": "Rest boundary for a CONTROL whose edge is what identifies it as operable (AspInput/AspSelect/AspTextarea). Separate from border.subtle because the floors differ: a divider is decoration, a control edge is a WCAG 1.4.11 non-text 3:1 obligation. #cccccc measured 1.26:1 against the light page and 1.53:1 against the control's own --surface-elevated fill, so on the light theme the control had no visible outline at all. #767676 measures 3.57:1 against the page and 4.31:1 against the fill. Dark theme keeps #cccccc (7.87 / 10.84 / 8.94) via color.border.dark.control. system_3 task #4061, corpus §3.72."
       }
     }
   },

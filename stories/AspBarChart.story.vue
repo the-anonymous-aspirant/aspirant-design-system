@@ -173,6 +173,24 @@ const flowData = {
       </div>
     </Variant>
 
+    <Variant title="Sparkline min/max extreme marks (#4021)">
+      <!-- Colour-differentiated points, value text dropped (operator ruling
+           c20597): ▲ vermillion at the max slot, ▼ blue at the min slot — hue
+           AND shape, so the channel survives monochrome and colourblind reads.
+           Flat/short series draw nothing; a diverging pair marks each half,
+           with the negated half's semantics swapped (most-done = max). -->
+      <div style="padding: 16px; background: var(--surface-page); max-width: 240px; display: grid; gap: 12px;">
+        <AspCard>
+          <p style="color: var(--text-muted); text-transform: uppercase; font-size: var(--text-xs); margin: 0;">single series, marked</p>
+          <AspBarChart variant="sparkline" :data="sparkData" mark-extremes aria-label="Agent actions per hour with min and max marked" />
+        </AspCard>
+        <AspCard>
+          <p style="color: var(--text-muted); text-transform: uppercase; font-size: var(--text-xs); margin: 0;">diverging pair, marked</p>
+          <AspBarChart variant="sparkline" :data="flowData" mark-extremes aria-label="Task flow with per-series min and max marked" />
+        </AspCard>
+      </div>
+    </Variant>
+
     <Variant title="Sparkline diverging (task flow: created up / done down)">
       <div style="padding: 16px; background: var(--surface-page); max-width: 240px;">
         <AspCard>

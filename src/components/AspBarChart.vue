@@ -13,6 +13,7 @@ import {
   buildLineOptions,
   computeExtremeMarks,
   extremesPlugin,
+  flowEndLabelPlugin,
   thresholdPlugin,
 } from '../utils/bar_chart_options.js'
 
@@ -127,6 +128,19 @@ const props = defineProps({
    * semantic min/max so "max" always means "most of the thing counted".
    */
   markExtremes: { type: Boolean, default: false },
+  /**
+   * §3.66a: render TWO meaningfully-paired FLOW series (e.g. created vs done)
+   * as overlaid zero-based LINES sharing one y-axis, both above the baseline —
+   * the reading is "how do the two rates compare and where do they cross". Both
+   * datasets are passed POSITIVE (no diverging negation); the sparkline reuses
+   * the MAGNITUDE domain (zero-based), never §3.66's focused-range position
+   * domain. Each line carries an inline end-of-series name label in its own hue
+   * (the required non-colour channel, §3.21). A >5× window-ratio between the two
+   * series' extremes falls back to the diverging paired-bar rendering, evaluated
+   * per card at render time — a line pinned near the axis floor reads as flat.
+   * Only the two-series `sparkline` reads this; ignored elsewhere.
+   */
+  pairedFlow: { type: Boolean, default: false },
   /** Chart.js options, deep-merged OVER this preset. */
   options: { type: Object, default: () => ({}) },
   /** Accessible name for the chart. Strongly recommended. */
@@ -147,6 +161,39 @@ const chartHeight = computed(() => props.height ?? HEIGHTS[props.variant] ?? HEI
 // and a line primitive, so a future glance card cannot render a level as a
 // magnitude by omission.
 const isLineMark = computed(() => props.variant === 'sparkline' && props.encoding === 'position')
+
+// §3.66a — a paired flow. The line/bar discriminator is the WINDOW ratio, the
+// larger series' peak over the smaller's (`max(a)/max(b)`, §3.66a decision "the
+// discriminator is measured against the window's extremes"): a ratio over 5×,
+// or a zero-peak series (Infinity), pins one line at the floor and reads as
+// flat, so it falls back to the diverging paired bars. Evaluated at render time
+// from the same data driving the chart — never a per-card flag.
+const FLOW_RATIO_CAP = 5
+const flowRatio = computed(() => {
+  const ds = props.data.datasets || []
+  if (ds.length !== 2) return 0
+  const peak = (d) => {
+    const nums = (d.data || []).filter((v) => typeof v === 'number').map((v) => Math.abs(v))
+    return nums.length ? Math.max(...nums) : 0
+  }
+  const a = peak(ds[0])
+  const b = peak(ds[1])
+  const hi = Math.max(a, b)
+  const lo = Math.min(a, b)
+  return lo === 0 ? Infinity : hi / lo
+})
+const isPaired = computed(
+  () =>
+    props.pairedFlow &&
+    props.variant === 'sparkline' &&
+    (props.data.datasets || []).length === 2
+)
+// Overlaid lines when the ratio clears the cap; the diverging paired-bar
+// fallback otherwise.
+const pairedAsLines = computed(() => isPaired.value && flowRatio.value <= FLOW_RATIO_CAP)
+const pairedAsBars = computed(() => isPaired.value && !pairedAsLines.value)
+// A line primitive renders a position stock (§3.66) OR a paired flow (§3.66a).
+const asLineMark = computed(() => isLineMark.value || pairedAsLines.value)
 
 // --- surface resolution -----------------------------------------------------
 // Walk to the first opaque ancestor background, exactly as the contrast probe
@@ -270,12 +317,22 @@ const barFills = computed(() => {
 // The two extreme-marker inks, derived against the real background exactly as
 // the series inks are — the component owns AA here so no caller ever passes a
 // raw colour array that would bypass the derivation (#4021).
+//
+// §3.66d B2: derived against the 4.5:1 TEXT floor (`AA`), not the 3:1 graphical
+// floor (`AA_NON_TEXT`) the retired triangle used. The VALUE is now the primary
+// channel and it is TEXT, so it must clear the text floor; the same ink paints
+// the locator dot, and a graphical mark that clears the text floor also clears
+// its own (§3.65 — a token clears the floor of the role it is sanctioned for,
+// and adding the text role re-opens that floor). Measured pre-fix against
+// `--surface-card` #424242: max #da7220 = 3.07:1, min #cc79a7 = 3.28:1 — both
+// cleared 3:1, both failed 4.5:1. The base hues are UNTOUCHED (§3.66b stands);
+// only the floor the derivation targets changes.
 const extremeInks = computed(() => {
   void themeTick.value
   const bg = resolvedBackground()
   const mk = (name, fallback) => {
     const preferred = parseColor(token(name, fallback)) || parseColor(fallback)
-    return toRgbString(deriveInk(preferred, bg, AA_NON_TEXT))
+    return toRgbString(deriveInk(preferred, bg, AA))
   }
   return {
     max: mk('--chart-extreme-max', '#d55e00'),
@@ -298,25 +355,56 @@ const extremeInks = computed(() => {
   }
 })
 
+// §3.66a fallback: over the 5× cap the paired flow reverts to diverging bars,
+// so the second series is negated to draw below the shared zero baseline. The
+// negation is applied HERE, once, so the domain (`buildBarOptions`), the marks
+// (`computeExtremeMarks`) and the render (`themedData`) all see one set of
+// values. The line path (`pairedAsLines`) keeps both series positive.
+const chartData = computed(() => {
+  if (!pairedAsBars.value) return props.data
+  return {
+    ...props.data,
+    datasets: (props.data.datasets || []).map((ds, i) =>
+      i === 1 ? { ...ds, data: (ds.data || []).map((v) => (typeof v === 'number' ? -v : v)) } : ds
+    ),
+  }
+})
+
 const extremeMarks = computed(() => {
   if (!props.markExtremes) return []
   const inks = extremeInks.value
   // Pure math in the utils module (unit-tested there); inks applied here
   // because the component owns the §3.18 derivation.
-  return computeExtremeMarks(props.data.datasets).map((m) => ({
+  // §3.66d B3: the min-suppression rule is encoding-aware — a magnitude flow
+  // drops a zero-valued min, a position stock keeps every level.
+  return computeExtremeMarks(chartData.value.datasets, { encoding: props.encoding }).map((m) => ({
     ...m,
     color: m.kind === 'max' ? inks.max : inks.min,
   }))
 })
 
+// §3.66a end-of-series name labels: the required non-colour channel for the
+// overlaid line pair — each line's series name at its last point, in its own
+// hue, so a reader confirms which line is which without colour perception.
+const flowEndLabels = computed(() => {
+  if (!pairedAsLines.value) return []
+  return (props.data.datasets || []).map((ds, i) => ({
+    datasetIndex: i,
+    text: ds.label || `series ${i + 1}`,
+    color: barFills.value[i],
+  }))
+})
+
 const themedData = computed(() => ({
-  ...props.data,
-  datasets: (props.data.datasets || []).map((ds, i) => {
+  ...chartData.value,
+  datasets: (chartData.value.datasets || []).map((ds, i) => {
     const ink = barFills.value[i]
     // A bar fills its own area (`backgroundColor`, no border). A line paints
     // an ink stroke and stays unfilled — it is a trend line, not an area
     // chart — so it goes through `borderColor`/`pointBackgroundColor` instead.
-    const base = isLineMark.value
+    // The line primitive serves both a position stock (§3.66) and a paired
+    // flow (§3.66a).
+    const base = asLineMark.value
       ? { borderColor: ink, backgroundColor: 'transparent', pointBackgroundColor: ink, fill: false }
       : { backgroundColor: ink, borderWidth: 0 }
     return { ...base, ...ds }
@@ -358,13 +446,20 @@ const chartOptions = computed(() => {
         unit: props.unit,
         xAxis: props.xAxis,
         timestamps: props.timestamps,
-        // A diverging sparkline (two series, the second painted negative) hides its
-        // axes, so it earns a single faint rule at y=0 as the up/down reference.
-        zeroBaseline: props.variant === 'sparkline' && (props.data.datasets || []).length > 1,
+        // A diverging sparkline (two series, the second painted negative) hides
+        // its axes, so it earns a single faint rule at y=0 as the up/down
+        // reference. §3.66a: a paired flow rendered as LINES is NOT diverging —
+        // both series are positive on one zero-based axis, so it takes the plain
+        // magnitude domain, not the symmetric diverging one. The >5× fallback
+        // (`pairedAsBars`) IS diverging and keeps the rule.
+        zeroBaseline:
+          props.variant === 'sparkline' &&
+          (props.data.datasets || []).length > 1 &&
+          !pairedAsLines.value,
         // The data drives the §3.60 value-axis headroom (`suggestedMax`, or the
-        // symmetric diverging bounds) inside the preset. Passed here so every
-        // AspBarChart consumer inherits it at the one choke point.
-        data: props.data,
+        // symmetric diverging bounds) inside the preset. `chartData` carries the
+        // §3.66a fallback negation so the domain matches what is painted.
+        data: chartData.value,
       })
 
   if (typeof props.threshold === 'number') {
@@ -380,9 +475,20 @@ const chartOptions = computed(() => {
 
   if (props.markExtremes) {
     preset.plugins.aspExtremes = { marks: extremeMarks.value, fontFamily: p.fontFamily }
-    // The glyphs sit ~10px past the bar/point end; keep layout headroom so a
-    // max at the top of the plot never clips its ▲.
-    preset.layout = mergeDeep(preset.layout || {}, { padding: { top: 12, bottom: 12 } })
+    // §3.66e: NO layout padding. The old ▲/▼ sat ~10px past the bar end and
+    // needed 12px top/bottom headroom — but that padding ate half the 48px
+    // cell, which is why the glyph drew in a ~13px band. §3.66d retires the
+    // poking triangle for a locator DOT at the data point plus a value drawn
+    // INSIDE chartArea (the #4095 clamp), so the mark needs no reservation
+    // outside the plot; the §3.60 `suggestedMax` headroom keeps the top mark
+    // clear of the ceiling. Reclaiming this padding is the plot-budget fix.
+  }
+
+  if (pairedAsLines.value) {
+    // §3.66a: the inline end-of-series name labels, the required non-colour
+    // channel for the overlaid pair. Reserve a little right padding so a label
+    // drawn past the last point (at the plot's right edge) is not clipped.
+    preset.plugins.aspFlowEndLabel = { labels: flowEndLabels.value, fontFamily: p.fontFamily }
   }
 
   // Three ordered layers: AspChart's theme defaults (applied inside AspChart),
@@ -398,6 +504,7 @@ const chartOptions = computed(() => {
 const chartPlugins = computed(() => [
   ...(typeof props.threshold === 'number' ? [thresholdPlugin] : []),
   ...(props.markExtremes ? [extremesPlugin] : []),
+  ...(pairedAsLines.value ? [flowEndLabelPlugin] : []),
 ])
 
 onMounted(() => {
@@ -427,8 +534,16 @@ defineExpose({
   barFills,
   extremeInks,
   chartOptions,
+  themedData,
   barThickness: BAR_THICKNESS,
   isLineMark,
+  // §3.66a — exposed so a spec asserts the render DECISION (lines vs the >5×
+  // diverging fallback) and the end-of-series labels the component derived.
+  asLineMark,
+  pairedAsLines,
+  pairedAsBars,
+  flowRatio,
+  flowEndLabels,
 })
 </script>
 
@@ -439,7 +554,7 @@ defineExpose({
     :class="[
       `asp-bar-chart--${variant}`,
       state && `asp-bar-chart--${state}`,
-      isLineMark && 'asp-bar-chart--line',
+      asLineMark && 'asp-bar-chart--line',
     ]"
   >
     <!--
@@ -464,7 +579,7 @@ defineExpose({
     </div>
     <div class="asp-bar-chart__plot">
       <AspChart
-        :type="isLineMark ? 'line' : 'bar'"
+        :type="asLineMark ? 'line' : 'bar'"
         :data="themedData"
         :options="chartOptions"
         :plugins="chartPlugins"

@@ -578,6 +578,8 @@ test.describe('§3.60 value-axis headroom', () => {
 
   test('a diverging two-series window pads BOTH ends outward from zero', () => {
     // The Overview task-flow card: the second (done) series is passed negated.
+    // §3.66e: the axis-less sparkline emits HARD min/max (not soft suggested*),
+    // so a hidden nice-tick pass cannot widen the render past the padded domain.
     const y = buildBarOptions({
       variant: 'sparkline',
       axisInk: '#000',
@@ -587,8 +589,10 @@ test.describe('§3.60 value-axis headroom', () => {
       data: d([5, 12], [-3, -8]),
     }).scales.y
     expect(y.beginAtZero).toBe(true)
-    expect(y.suggestedMin).toBeLessThan(-8)
-    expect(y.suggestedMax).toBeGreaterThan(12)
+    expect(y.suggestedMin).toBeUndefined()
+    expect(y.suggestedMax).toBeUndefined()
+    expect(y.min).toBeLessThan(-8)
+    expect(y.max).toBeGreaterThan(12)
   })
 
   test('no data supplied → the y scale auto-fits exactly as before (no bounds)', () => {
@@ -637,9 +641,13 @@ test.describe('§3.66 sparkline mark selection: stock/position line vs flow/magn
       unit: '',
       data: stockSeries,
     }).scales.y
+    // §3.66e: the magnitude sparkline keeps its 0 baseline via `beginAtZero`
+    // (no explicit `min`), and its top headroom is now a HARD `max` (pinned from
+    // `suggestedMax`) so the axis-less render is bound to the helper's domain.
     expect(y.beginAtZero).toBe(true)
     expect(y.min).toBeUndefined()
-    expect(y.suggestedMax).toBeGreaterThan(45)
+    expect(y.suggestedMax).toBeUndefined()
+    expect(y.max).toBeGreaterThan(45)
   })
 
   test('the sparkline line domain is axis-less like the sparkline bar', () => {
@@ -1057,10 +1065,12 @@ test.describe('#3129 sparkline (rendered): per-dataset fills on the card surface
       // ...and the two markers stay distinguishable from each other, which is
       // the whole point of two hues rather than one glyph in two shapes.
       expect(d.extremeInks.min).not.toBe(d.extremeInks.max)
-      // Both still clear the non-text floor against the real card surface —
-      // moving a token must not buy separation at the cost of legibility.
+      // §3.66d B2: both clear the 4.5:1 TEXT floor against the real card surface
+      // — the value is the primary channel now and it is TEXT, so the derived
+      // ink (shared by numeral and locator dot) must clear the text floor, not
+      // the 3:1 graphical floor the retired triangle used.
       for (const ink of [d.extremeInks.min, d.extremeInks.max]) {
-        expect(contrastRatio(parseColor(ink), d.background)).toBeGreaterThanOrEqual(AA_NON_TEXT)
+        expect(contrastRatio(parseColor(ink), d.background)).toBeGreaterThanOrEqual(AA)
       }
     })
 
@@ -1118,6 +1128,117 @@ test.describe('#3129 sparkline (rendered): per-dataset fills on the card surface
 })
 
 // ---------------------------------------------------------------------------
+// #4102/§3.66e — the sparkline's plot area fills its cell. MEASURED on a real
+// render (the whole point of the ruling: every options-shape test was green
+// while the glyph drew in a ~13px band of the 48px cell). A1: the plot band is
+// ≥90% of the 48px variant height. A2: the rendered height of the window max
+// equals `max / effective_domain_max × plotHeight` within 1px, where
+// effective_domain_max is the value `normalizeValueDomain` returned — the
+// fixture exposes both the rendered domain (`yMax`) and the helper's own bound
+// (`expectedMax`), so a downstream nice-tick widening turns this red.
+// ---------------------------------------------------------------------------
+test.describe('§3.66e sparkline plot budget (rendered)', () => {
+  const read = async (page) => {
+    await page.goto('/tests/e2e/fixtures/bar-chart-sparkline.html', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__sparklineReady === true)
+    return page.evaluate(() => window.__sparkline)
+  }
+
+  test('A1: every sparkline plot band fills ≥90% of the 48px cell', async ({ page }) => {
+    const all = await read(page)
+    for (const key of Object.keys(all)) {
+      const g = all[key].geom
+      expect(
+        g.chartAreaHeight,
+        `${key}: plot band ${g.chartAreaHeight}px is under 90% of 48 (was ~16px pre-§3.66e)`
+      ).toBeGreaterThanOrEqual(43.2)
+    }
+  })
+
+  test('A2: the render binds to the domain helper — no nice-tick widening', async ({ page }) => {
+    const all = await read(page)
+    // The magnitude / magnitude-diverging cases §3.66e's A2 governs; the paired
+    // (§3.66a) and stock (§3.66 position) cases carry their own domain contract.
+    for (const key of ['single', 'diverging', 'divergingAllCreated', 'divergingAllDone']) {
+      const g = all[key].geom
+      // The rendered y-scale equals what normalizeValueDomain returned. Pre-fix,
+      // single widened 14→20 and diverging ±8→±50; this is the assertion that
+      // caught it.
+      expect(g.yMax, `${key}: yMax`).toBe(g.expectedMax)
+      expect(g.yMin, `${key}: yMin`).toBe(g.expectedMin)
+      // And the window max renders at max/domain × plotHeight (±1px): a tall
+      // mark, not the pre-fix 3.5%-of-cell stub.
+      const span = g.yMax - g.yMin
+      for (const ds of g.datasets) {
+        if (ds.maxAbs === 0) continue
+        const expectedPx = (ds.maxAbs / span) * g.chartAreaHeight
+        expect(
+          Math.abs(ds.renderedMaxHeightPx - expectedPx),
+          `${key}: window max rendered ${ds.renderedMaxHeightPx}px, expected ${expectedPx.toFixed(2)}px`
+        ).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// #4102/§3.66a — a paired flow renders as two overlaid zero-based LINES (both
+// above the baseline, no diverging negation), falling back to the diverging
+// paired bars past a 5× window ratio. Asserted on the render DECISION and the
+// rendered domain the component exposed, plus the required non-colour channel
+// (the end-of-series name labels).
+// ---------------------------------------------------------------------------
+test.describe('§3.66a paired-flow lines (rendered)', () => {
+  const read = async (page) => {
+    await page.goto('/tests/e2e/fixtures/bar-chart-sparkline.html', { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__sparklineReady === true)
+    return page.evaluate(() => window.__sparkline)
+  }
+
+  test('C1: a paired flow under the 5× cap overlays as two lines', async ({ page }) => {
+    const p = (await read(page)).pairedLines
+    expect(p.flowRatio).toBeLessThanOrEqual(5)
+    expect(p.pairedAsLines).toBe(true)
+    expect(p.chartType).toBe('line')
+  })
+
+  test('C2: the line pair keeps a zero-based MAGNITUDE domain, not a focused range', async ({
+    page,
+  }) => {
+    // Both series positive, floor pinned at 0 — a focused-range position domain
+    // would lift the floor off zero (yMin > 0), the truncated-axis lie §3.66a
+    // forbids. Zero still means "nothing happened".
+    const p = (await read(page)).pairedLines
+    expect(p.geom.yMin).toBe(0)
+    expect(p.geom.yMax).toBeGreaterThan(0)
+  })
+
+  test('C4: each line carries an end-of-series name label inked to its own line', async ({
+    page,
+  }) => {
+    const p = (await read(page)).pairedLines
+    expect(p.flowEndLabels.map((l) => l.text)).toEqual(['created', 'done'])
+    // The label ink is the line's own derived series ink — the non-colour
+    // channel rides the same hue, so figure-above and line-below read as one.
+    const s = await read(page)
+    expect(p.flowEndLabels[0].color).toBe(s.pairedLines.barFills[0])
+    expect(p.flowEndLabels[1].color).toBe(s.pairedLines.barFills[1])
+  })
+
+  test('C5: a >5× window ratio falls back to the diverging paired bars', async ({ page }) => {
+    const f = (await read(page)).pairedFallback
+    expect(f.flowRatio).toBeGreaterThan(5)
+    expect(f.pairedAsLines).toBe(false)
+    expect(f.pairedAsBars).toBe(true)
+    expect(f.chartType).toBe('bar')
+    // The fallback is diverging: the second series is negated below zero.
+    expect(f.geom.yMin).toBeLessThan(0)
+    // ...and it draws no end-of-series labels (those are the line pair's).
+    expect(f.flowEndLabels).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // #4021 (system_3, operator ruling c20597) — min/max extreme marks: pure math.
 // ---------------------------------------------------------------------------
 test.describe('computeExtremeMarks (#4021)', () => {
@@ -1158,14 +1279,28 @@ test.describe('computeExtremeMarks (#4021)', () => {
       { data: [1, 6, 2] },
       { data: [-3, 0, -5] },
     ])
-    expect(marks).toHaveLength(4)
+    // §3.66d B3: dataset 0 draws max@1 + min@0 (min value 1, non-zero). Dataset
+    // 1's semantic min is its 0 hour (fewest done) — dropped by B3 on the
+    // default magnitude encoding — so it draws MAX only. Three marks, not four.
+    expect(marks).toHaveLength(3)
     const d1 = marks.filter((m) => m.datasetIndex === 1)
-    // Mixed-sign second dataset (a zero hour): NOT all ≤ 0 swaps only when
-    // every value is non-positive — zero IS non-positive, so it swaps here.
-    expect(d1).toEqual([
-      { datasetIndex: 1, index: 2, kind: 'max', negative: true },
-      { datasetIndex: 1, index: 1, kind: 'min', negative: false },
-    ])
+    expect(d1).toEqual([{ datasetIndex: 1, index: 2, kind: 'max', negative: true }])
+  })
+
+  test('§3.66d B3: a magnitude series drops a MIN of 0, keeps a non-zero MIN', () => {
+    // The "two ▼ and two 0 on one card" defect: a 0-count min restates the
+    // baseline, so MAX draws alone.
+    const zeroMin = computeExtremeMarks([{ data: [0, 4, 2, 0] }])
+    expect(zeroMin).toEqual([{ datasetIndex: 0, index: 1, kind: 'max', negative: false }])
+    // A genuinely non-zero floor is a real reading — both marks draw.
+    const liveMin = computeExtremeMarks([{ data: [2, 9, 5] }])
+    expect(liveMin.map((m) => m.kind)).toEqual(['max', 'min'])
+  })
+
+  test('§3.66d B3: a POSITION (stock) series keeps a MIN of 0 — a real level', () => {
+    const marks = computeExtremeMarks([{ data: [0, 4, 2, 0] }], { encoding: 'position' })
+    expect(marks.map((m) => m.kind)).toEqual(['max', 'min'])
+    expect(marks.find((m) => m.kind === 'min').index).toBe(0)
   })
 })
 

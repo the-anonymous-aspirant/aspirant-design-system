@@ -560,6 +560,31 @@ const timeTicks = (timestamps) => ({
  *   exactly as before, so the no-data call path (unit tests, a consumer that
  *   passes no data) is byte-identical.
  */
+
+/**
+ * Promote a `normalizeValueDomain` fragment's SOFT bounds (`suggestedMin`/
+ * `suggestedMax`) to HARD ones (`min`/`max`) for the axis-less sparkline (§3.66e
+ * A2). A magnitude fragment carries only `suggestedMax`, so its baseline is
+ * pinned to 0 (matching `beginAtZero`); a diverging fragment carries both. A
+ * fragment already hard (position, or empty) passes through unchanged, so this
+ * is a no-op everywhere a hard bound or no bound was emitted.
+ */
+export const pinSoftBounds = (d = {}) => {
+  const out = { ...d }
+  if ('suggestedMax' in out) {
+    out.max = out.suggestedMax
+    delete out.suggestedMax
+  }
+  if ('suggestedMin' in out) {
+    out.min = out.suggestedMin
+    delete out.suggestedMin
+  }
+  // A magnitude fragment carries only `suggestedMax`; its baseline stays 0 via
+  // the caller's `beginAtZero`, so no explicit `min` is set (a hard max is all
+  // that is needed to stop the widening — the min was never the widened bound).
+  return out
+}
+
 export const buildBarOptions = ({
   variant = 'regular',
   axisInk,
@@ -595,6 +620,16 @@ export const buildBarOptions = ({
       })
     : {}
 
+  // §3.66e: on the axis-less sparkline the rendered y-domain must be EXACTLY the
+  // one `normalizeValueDomain` returned. A displayed axis emits soft `suggested*`
+  // so a consumer's hard `y:{min,max}` still wins the merge — but with the axis
+  // hidden, Chart.js's nice-tick pass then widens the render far past the
+  // helper's domain (measured: single-series suggestedMax 14 → 20; diverging
+  // ±8 → ±50), which is half of why the glyph drew in a ~13px band. The
+  // sparkline has no consumer override to protect, so pin the emitted bounds
+  // hard here; every other variant keeps `suggested*` untouched.
+  const yDomain = noAxis ? pinSoftBounds(valueDomain) : valueDomain
+
   // `time` mode replaces ONLY the regular variant's x ticks. compact keeps
   // `display: false`: §3.19 derives that from its own budget floor (a 48px
   // cell has room for no interior landmark), so the reading is carried by the
@@ -620,6 +655,23 @@ export const buildBarOptions = ({
     // over two pixels. Deriving per side is what buys the density back without
     // making "the left needs nothing" a standing assumption.
     ...(timeMode ? { layout: { padding: { ...TIME_AXIS_END_PADDING } } } : {}),
+    // §3.66e: a 2px top/bottom breath on the axis-less sparkline. The plot still
+    // clears the 90%-of-48 floor (chartArea ≈ 44px), but a data mark or the
+    // diverging y=0 rule that lands on the domain's own edge (a one-sided
+    // all-created/all-done window puts zero at the bottom/top) renders a hair
+    // inside the canvas rather than clipping to nothing against it. Not the old
+    // 12px marker-headroom padding (which ate half the cell) — just enough that
+    // an edge feature paints.
+    ...(noAxis ? { layout: { padding: { top: 2, bottom: 2 } } } : {}),
+    // §3.66e/a: on the axis-less sparkline a line mark is a point-less trend
+    // glyph (matching buildLineOptions) — default 3px points would both clutter
+    // the 48px cell and make Chart.js reserve ~6px of the plot budget for point
+    // overflow. The §3.66a paired lines still get their min/max LOCATOR DOTS
+    // from extremesPlugin, drawn independently of Chart.js point elements.
+    // Harmless on the bar sparkline (bars have no point/line elements).
+    ...(noAxis
+      ? { elements: { point: { radius: 0, hoverRadius: 3 }, line: { borderWidth: 2 } } }
+      : {}),
     animation: animate ? undefined : false,
     // The bar owns the hit box, but the tooltip should follow the cursor along
     // the category even when it is above the bar's top edge — a 48px compact
@@ -671,6 +723,12 @@ export const buildBarOptions = ({
         // across the plot and no axis, which is what "we don't clearly see the
         // x-axis and y-axis" was describing. The sparkline is the one variant
         // that inverts this on purpose — a trend glyph draws no axis at all.
+        // §3.66e: an axis-less sparkline reserves NO space for its x scale — a
+        // hidden-tick scale still claimed ~8px of the 48px cell below the plot.
+        // `display: false` drops the whole reservation; the scale still maps
+        // data to pixels, so bars/lines and the extremes plugin are unaffected.
+        // regular/compact keep the displayed axis exactly as before.
+        display: !noAxis,
         border: { display: !noAxis, color: axisLine, width: 1 },
         grid: { display: false },
         ticks: { color: axisInk, font, ...ticks.x },
@@ -681,7 +739,9 @@ export const buildBarOptions = ({
         // Empty object when no data was supplied — the scale then auto-fits as
         // before. Placed after beginAtZero and before the overridable ticks so a
         // consumer's `options.scales.y` still merges last and wins (AspBarChart).
-        ...valueDomain,
+        // On the sparkline this is hard-pinned (§3.66e A2, `pinSoftBounds`); on
+        // every other variant it is the soft `suggested*` fragment, unchanged.
+        ...yDomain,
         border: { display: !noAxis, color: axisLine, width: 1 },
         // The diverging sparkline is the only chart that paints a gridline: a
         // single faint rule at y=0, so the up/down split has a reference once
@@ -751,6 +811,11 @@ export const buildLineOptions = ({
 
   return {
     maintainAspectRatio: false,
+    // §3.66e: the position-line sparkline is axis-less too, so it fills its cell
+    // the same way the bar sparkline does — a 2px top/bottom breath keeps an
+    // extreme value mark off the exact canvas edge; the x scale below reserves
+    // nothing. (`buildLineOptions` is sparkline-only, so this is unconditional.)
+    layout: { padding: { top: 2, bottom: 2 } },
     animation: animate ? undefined : false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
@@ -784,11 +849,15 @@ export const buildLineOptions = ({
     },
     scales: {
       x: {
+        // §3.66e: reserve no height for the hidden x scale (see buildBarOptions).
+        display: false,
         border: { display: false },
         grid: { display: false },
         ticks: { color: axisInk, font, ...TICKS.sparkline.x },
       },
       y: {
+        // Position domain is already HARD (`min`/`max` from normalizeValueDomain),
+        // so no `pinSoftBounds` pass is needed — nothing here to nice-widen.
         ...valueDomain,
         border: { display: false },
         grid: { display: false },
@@ -879,31 +948,34 @@ export const thresholdPlugin = {
   },
 }
 
-// --- min/max extreme markers (system_3 #4021, c20597; values #4080/§3.66c) ---
-// Colour-differentiated points with the value drawn ON the mark: a small filled
-// triangle at the min and max slots — ▲ for the semantic max, ▼ for the
-// semantic min — and, since §3.66c, the slot's value beside it in the same
-// derived ink. The two channels (hue + shape) survive monochrome and
-// colourblind reads on their own; the value is an additive third layer on the
-// SAME `markExtremes` toggle (§3.66c decision 4 — no separate flag), never a
-// replacement for the shape channel (§3.21 stays satisfied). Drawn on canvas
-// because bars have no per-point glyph channel; the same draw serves line
-// marks' point elements.
+// --- min/max extreme markers (system_3 #4021, c20597; values #4080/§3.66c;
+// value-primary + locator dot #4102/§3.66d) ---
+// The VALUE is the primary mark: the slot's number drawn near the data point in
+// a derived ink, with a small filled LOCATOR DOT pinning the slot. A number is
+// self-identifying (the larger number IS the max) and its vertical position
+// corroborates it — a strictly stronger non-colour channel than the retired
+// ▲/▼ shape, so §3.21's "never colour alone" is satisfied by upgrade, not
+// downgrade (§3.66d). Both ride the SAME `markExtremes` toggle (§3.66c decision
+// 4 — no separate flag). Drawn on canvas because bars have no per-point glyph
+// channel; the same draw serves line marks' point elements.
 //
 // `opts.marks` = [{ datasetIndex, index, kind: 'max'|'min', color, negative }]
 // — computed by AspBarChart (which owns the §3.18 ink derivation); this plugin
-// only draws what it is handed. `negative` places the glyph on the far side of
+// only draws what it is handed. `negative` places the value on the far side of
 // a diverging bar (below a downward bar) so it never overlaps the baseline.
 /**
- * Pure mark computation for `markExtremes` (#4021): per dataset, the semantic
- * max and min slots. Nulls are skipped; a flat or <2-numeric-value dataset
- * yields no marks (silence, never a lying marker). A dataset whose numeric
- * values are all ≤ 0 — the diverging contract's negated half — swaps the
- * semantic labels so "max" always means "most of the thing counted".
- * Returns [{ datasetIndex, index, kind: 'max'|'min', negative }]; the
- * component applies the derived inks (it owns §3.18).
+ * Pure mark computation for `markExtremes` (#4021; §3.66d B3/B4): per dataset,
+ * the semantic max and min slots. Nulls are skipped; a flat or <2-numeric-value
+ * dataset yields no marks (silence, never a lying marker — B4). A dataset whose
+ * numeric values are all ≤ 0 (the diverging contract's negated half) swaps the
+ * semantic labels so "max" always means "most of the thing counted". On a
+ * zero-based MAGNITUDE series (the default `encoding`), a MIN slot whose value
+ * is 0 is dropped (B3 — the baseline already says it); a POSITION series keeps
+ * every min (a real level). MAX always draws. Returns
+ * [{ datasetIndex, index, kind: 'max'|'min', negative }]; the component applies
+ * the derived inks (it owns §3.18).
  */
-export const computeExtremeMarks = (datasets) => {
+export const computeExtremeMarks = (datasets, { encoding = 'magnitude' } = {}) => {
   const marks = []
   ;(datasets || []).forEach((ds, datasetIndex) => {
     const values = (ds.data || []).map((v) => (typeof v === 'number' ? v : null))
@@ -911,16 +983,23 @@ export const computeExtremeMarks = (datasets) => {
     if (numeric.length < 2) return
     const lo = Math.min(...numeric)
     const hi = Math.max(...numeric)
-    if (lo === hi) return
+    if (lo === hi) return // §3.66d B4: a flat series draws no marks at all.
     const allNonPositive = numeric.every((v) => v <= 0)
     const semanticMax = allNonPositive ? lo : hi
     const semanticMin = allNonPositive ? hi : lo
     const maxIndex = values.indexOf(semanticMax)
     const minIndex = values.indexOf(semanticMin)
-    marks.push(
-      { datasetIndex, index: maxIndex, kind: 'max', negative: values[maxIndex] < 0 },
-      { datasetIndex, index: minIndex, kind: 'min', negative: values[minIndex] < 0 },
-    )
+    // MAX always draws.
+    marks.push({ datasetIndex, index: maxIndex, kind: 'max', negative: values[maxIndex] < 0 })
+    // §3.66d B3: on a zero-based MAGNITUDE series the MIN draws only when its
+    // value is non-zero — a min of 0 spends a dot + numeral to restate what the
+    // zero baseline already says (the "two ▼ and two 0 on one card" defect on
+    // task_flow). A POSITION (stock) series' minimum is a real level, so it
+    // always draws.
+    const minValue = values[minIndex]
+    if (encoding === 'position' || minValue !== 0) {
+      marks.push({ datasetIndex, index: minIndex, kind: 'min', negative: minValue < 0 })
+    }
   })
   return marks
 }
@@ -930,6 +1009,13 @@ export const computeExtremeMarks = (datasets) => {
 // the mark. `10` is the axis-text readable floor (§3.66c decision 3): on-chart
 // numeric text clears the same ≥10px bar a tick label does.
 const EXTREME_VALUE_FONT_PX = 10
+
+// §3.66d B1: the locator-dot radius. The dot only PINS the slot the numeral
+// names, so it is deliberately small — subordinate to the value, which is the
+// primary channel now. 2px reads as a point against the plot without competing
+// with the number the way the retired 7px-wide triangle did (it rendered larger
+// than the data it annotated, the operator's complaint).
+const EXTREME_DOT_RADIUS = 2
 
 /**
  * The on-mark value text for an extreme (§3.66c). Draws the MAGNITUDE of the
@@ -1023,40 +1109,33 @@ export const extremesPlugin = {
       const meta = chart.getDatasetMeta(mark.datasetIndex)
       const el = meta?.data?.[mark.index]
       if (!el || typeof el.x !== 'number' || typeof el.y !== 'number') continue
-      const half = 3.5
-      // Offset away from the mark's data end: above a positive bar/point,
-      // below a negative (diverging) one.
+      // §3.66d B1: the VALUE is the primary mark; the ▲/▼ retires to a small
+      // filled LOCATOR DOT whose only job is to pin the slot the numeral names.
+      // A number is self-identifying — the larger number IS the max, no legend,
+      // shape vocabulary, or colour perception needed — and its vertical
+      // position corroborates it, so the number is a strictly STRONGER second
+      // channel than the shape: retiring the triangle is a channel upgrade, not
+      // the colour-alone regression §3.21 forbids and §3.66b refused.
+      const half = EXTREME_DOT_RADIUS
+      // The value reads away from the mark's data end: above a positive bar/
+      // point, below a negative (diverging) one. `tip` is the dot's far edge
+      // plus a hair, the anchor `computeExtremeValueLayout` reads the value off.
       const dir = mark.negative ? 1 : -1
-      const base = el.y + dir * 4
-      const tip = el.y + dir * 10
+      const tip = el.y + dir * (EXTREME_DOT_RADIUS + 1)
       ctx.save()
       ctx.fillStyle = mark.color
       ctx.beginPath()
-      if (mark.kind === 'max') {
-        // ▲ — apex away from the bar end.
-        ctx.moveTo(el.x, tip)
-        ctx.lineTo(el.x - half, base)
-        ctx.lineTo(el.x + half, base)
-      } else {
-        // ▼ — apex toward the bar end.
-        ctx.moveTo(el.x, base)
-        ctx.lineTo(el.x - half, tip)
-        ctx.lineTo(el.x + half, tip)
-      }
-      ctx.closePath()
+      ctx.arc(el.x, el.y, EXTREME_DOT_RADIUS, 0, Math.PI * 2)
       ctx.fill()
 
-      // §3.66c: draw the value ON the mark, in the SAME derived ink as the
-      // triangle (`mark.color`, §3.18 — shape and number read as one mark, one
-      // hue), canvas-clamped to `chartArea` the way `thresholdPlugin`'s hover
-      // label is (~:858-861). A label measured and clamped against the plot's
-      // own rect cannot run past the card edge, because the canvas edge and the
-      // card edge are the same rect (§3.66c decision 1) — so this reuses the
-      // clamp instead of adding a second box-drawing pass, and needs no per-
-      // card width discipline. NOTE (#4082): §3.66c decision 5's suppress-on-
-      // duplicate rule is a no-op today — the §3.66a end-of-series label it
-      // must not double is ruled but not yet built in this DS, so nothing to
-      // double exists; routed to design_agent for the coordination signal.
+      // §3.66c/d: draw the value in the SAME derived ink as the dot (`mark.color`
+      // — §3.18, dot and number read as one mark, one hue), now the 4.5:1 text
+      // floor since the number is the primary channel (§3.66d B2, derived in
+      // AspBarChart's `extremeInks`). Canvas-clamped to `chartArea` the way
+      // `thresholdPlugin`'s hover label is, so it never runs past the card edge
+      // (§3.66c decision 1 / #4014). NOTE (#4082): §3.66c decision 5's suppress-
+      // on-duplicate rule is a no-op today — the §3.66a end-of-series label it
+      // must not double is not yet built in this DS.
       const label = formatExtremeValue(
         chart.data?.datasets?.[mark.datasetIndex]?.data?.[mark.index]
       )
@@ -1081,5 +1160,42 @@ export const extremesPlugin = {
       }
       ctx.restore()
     }
+  },
+}
+
+// --- §3.66a paired-flow end-of-series labels ---
+// The required non-colour channel for the overlaid line pair (§3.66a decision
+// "labelling is an inline end-of-series text label at the last data point,
+// coloured to its own line"): each line's SERIES NAME drawn at its last point,
+// in the line's own hue, so a reader confirms which line is which without any
+// colour perception (§3.21). Drawn on canvas alongside the line marks.
+//
+// `opts.labels` = [{ datasetIndex, text, color }] — computed by AspBarChart.
+export const flowEndLabelPlugin = {
+  id: 'aspFlowEndLabel',
+
+  afterDatasetsDraw(chart, _args, opts) {
+    if (!opts || !Array.isArray(opts.labels) || opts.labels.length === 0) return
+    const { ctx, chartArea } = chart
+    ctx.save()
+    ctx.font = `${EXTREME_VALUE_FONT_PX}px ${opts.fontFamily || 'sans-serif'}`
+    ctx.textBaseline = 'middle'
+    ctx.textAlign = 'right'
+    for (const lab of opts.labels) {
+      const meta = chart.getDatasetMeta(lab.datasetIndex)
+      const pts = meta?.data
+      const el = pts && pts.length ? pts[pts.length - 1] : null
+      if (!el || typeof el.x !== 'number' || typeof el.y !== 'number') continue
+      const w = ctx.measureText(lab.text).width
+      // The last point sits at the plot's right edge; place the name just LEFT
+      // of it (right-aligned), clamped so the whole label stays inside the plot,
+      // and hold the baseline off the top/bottom edge by half the font.
+      const half = EXTREME_VALUE_FONT_PX / 2
+      const x = Math.max(chartArea.left + w, Math.min(el.x - 2, chartArea.right - 2))
+      const y = Math.max(chartArea.top + half, Math.min(chartArea.bottom - half, el.y))
+      ctx.fillStyle = lab.color
+      ctx.fillText(lab.text, x, y)
+    }
+    ctx.restore()
   },
 }

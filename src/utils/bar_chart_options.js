@@ -879,12 +879,16 @@ export const thresholdPlugin = {
   },
 }
 
-// --- min/max extreme markers (system_3 #4021, operator ruling c20597) --------
-// Colour-differentiated points, value text dropped: a small filled triangle at
-// the min and max slots — ▲ for the semantic max, ▼ for the semantic min — so
-// the two channels (hue + shape) survive monochrome and colourblind reads
-// without any text annotation. Drawn on canvas because bars have no per-point
-// glyph channel; the same draw serves line marks' point elements.
+// --- min/max extreme markers (system_3 #4021, c20597; values #4080/§3.66c) ---
+// Colour-differentiated points with the value drawn ON the mark: a small filled
+// triangle at the min and max slots — ▲ for the semantic max, ▼ for the
+// semantic min — and, since §3.66c, the slot's value beside it in the same
+// derived ink. The two channels (hue + shape) survive monochrome and
+// colourblind reads on their own; the value is an additive third layer on the
+// SAME `markExtremes` toggle (§3.66c decision 4 — no separate flag), never a
+// replacement for the shape channel (§3.21 stays satisfied). Drawn on canvas
+// because bars have no per-point glyph channel; the same draw serves line
+// marks' point elements.
 //
 // `opts.marks` = [{ datasetIndex, index, kind: 'max'|'min', color, negative }]
 // — computed by AspBarChart (which owns the §3.18 ink derivation); this plugin
@@ -921,12 +925,34 @@ export const computeExtremeMarks = (datasets) => {
   return marks
 }
 
+// On-mark value text (system_3 §3.66c, ruling #4080): the operator-preferred
+// hybrid — keep the colourblind-safe ▲/▼ markers AND draw the actual value ON
+// the mark. `10` is the axis-text readable floor (§3.66c decision 3): on-chart
+// numeric text clears the same ≥10px bar a tick label does.
+const EXTREME_VALUE_FONT_PX = 10
+
+/**
+ * The on-mark value text for an extreme (§3.66c). Draws the MAGNITUDE of the
+ * slot value: a diverging series' negated half stores negative numbers whose
+ * "thing counted" is positive (`computeExtremeMarks` swaps the semantic labels
+ * for that half, so its "max" is the most-negative slot), and the operator
+ * wants `7 done`, not `-7`. A non-finite slot (null/undefined) yields null —
+ * the caller draws the triangle only, never a lying `0` (§3.35). Integers
+ * render bare; a fractional value keeps a single decimal so a mean-style series
+ * cannot print a 12-digit float onto a 48px card.
+ */
+export const formatExtremeValue = (value) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  const magnitude = Math.abs(value)
+  return Number.isInteger(magnitude) ? String(magnitude) : String(Math.round(magnitude * 10) / 10)
+}
+
 export const extremesPlugin = {
   id: 'aspExtremes',
 
   afterDatasetsDraw(chart, _args, opts) {
     if (!opts || !Array.isArray(opts.marks) || opts.marks.length === 0) return
-    const { ctx } = chart
+    const { ctx, chartArea } = chart
     for (const mark of opts.marks) {
       const meta = chart.getDatasetMeta(mark.datasetIndex)
       const el = meta?.data?.[mark.index]
@@ -953,6 +979,45 @@ export const extremesPlugin = {
       }
       ctx.closePath()
       ctx.fill()
+
+      // §3.66c: draw the value ON the mark, in the SAME derived ink as the
+      // triangle (`mark.color`, §3.18 — shape and number read as one mark, one
+      // hue), canvas-clamped to `chartArea` the way `thresholdPlugin`'s hover
+      // label is (~:858-861). A label measured and clamped against the plot's
+      // own rect cannot run past the card edge, because the canvas edge and the
+      // card edge are the same rect (§3.66c decision 1) — so this reuses the
+      // clamp instead of adding a second box-drawing pass, and needs no per-
+      // card width discipline. NOTE (#4082): §3.66c decision 5's suppress-on-
+      // duplicate rule is a no-op today — the §3.66a end-of-series label it
+      // must not double is ruled but not yet built in this DS, so nothing to
+      // double exists; routed to design_agent for the coordination signal.
+      const label = formatExtremeValue(chart.data?.datasets?.[mark.datasetIndex]?.data?.[mark.index])
+      if (label !== null) {
+        ctx.font = `${EXTREME_VALUE_FONT_PX}px ${opts.fontFamily || 'sans-serif'}`
+        ctx.textAlign = 'center'
+        const halfW = ctx.measureText(label).width / 2 + 1
+        // Horizontal: centre on the mark, clamp the glyph box inside
+        // [left, right] — the same Math.min/Math.max shape as the threshold
+        // box's `boxX`.
+        const tx = Math.min(chartArea.right - halfW, Math.max(chartArea.left + halfW, el.x))
+        // Vertical: beyond the triangle's far edge (`tip`, away from the bar),
+        // then clamp the whole glyph inside [top, bottom].
+        if (dir < 0) {
+          ctx.textBaseline = 'bottom'
+          ctx.fillText(
+            label,
+            tx,
+            Math.min(chartArea.bottom, Math.max(chartArea.top + EXTREME_VALUE_FONT_PX, tip - 1)),
+          )
+        } else {
+          ctx.textBaseline = 'top'
+          ctx.fillText(
+            label,
+            tx,
+            Math.max(chartArea.top, Math.min(chartArea.bottom - EXTREME_VALUE_FONT_PX, tip + 1)),
+          )
+        }
+      }
       ctx.restore()
     }
   },

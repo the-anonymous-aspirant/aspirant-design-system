@@ -708,7 +708,19 @@ export const buildBarOptions = ({
           title: (items) => (items.length ? `x: ${items[0].label}` : ''),
           label: (item) => {
             const y = item.parsed.y
-            return `y: ${y}${unit ? ` ${unit}` : ''}`
+            const value = `y: ${y}${unit ? ` ${unit}` : ''}`
+            // §3.66g (#4127): name the series in the tooltip once >1 dataset is
+            // present. The paired flow pair (task_flow/pr_flow) renders as LINES
+            // but routes its OPTIONS through this builder's noAxis branch, not
+            // buildLineOptions (the §3.66f-B "one preset in the spec, two in the
+            // code" split — see the matching note there), so retiring the
+            // on-graph end label leaves this callback as the paired pair's only
+            // hover channel for which line is which. The diverging >5× bar
+            // fallback is also multi-series and earns the same naming. A
+            // single-series chart keeps the plain `y:` reading.
+            const seriesLabel = item.dataset?.label
+            const multiSeries = (item.chart?.data?.datasets?.length ?? 1) > 1
+            return multiSeries && seriesLabel ? `${seriesLabel}: ${value}` : value
           },
         },
       },
@@ -850,7 +862,16 @@ export const buildLineOptions = ({
           title: (items) => (items.length ? `x: ${items[0].label}` : ''),
           label: (item) => {
             const y = item.parsed.y
-            return `y: ${y}${unit ? ` ${unit}` : ''}`
+            const value = `y: ${y}${unit ? ` ${unit}` : ''}`
+            // §3.66g (#4127): once >1 dataset is present (the paired flow pair),
+            // name the series in the tooltip. Retiring the on-graph end-of-series
+            // label leaves hover as the only channel a mouse/touch reader has for
+            // which line is which. Single-dataset lines (the stock cards) keep the
+            // plain `y:` reading — the prefix only fires when there is another
+            // series to disambiguate from.
+            const seriesLabel = item.dataset?.label
+            const multiSeries = (item.chart?.data?.datasets?.length ?? 1) > 1
+            return multiSeries && seriesLabel ? `${seriesLabel}: ${value}` : value
           },
         },
       },

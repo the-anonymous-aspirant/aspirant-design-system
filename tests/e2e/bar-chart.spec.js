@@ -25,6 +25,7 @@ import {
   buildBarOptions,
   buildLineOptions,
   computeExtremeMarks,
+  computeExtremeValueLayout,
   formatExtremeValue,
   selectTimeTicks,
   timeAxisEndPadding,
@@ -1192,5 +1193,134 @@ test.describe('formatExtremeValue (§3.66c / #4080)', () => {
     expect(formatExtremeValue(NaN)).toBeNull()
     expect(formatExtremeValue(Infinity)).toBeNull()
     expect(formatExtremeValue('5')).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// #4095 — headroom-aware extreme-VALUE placement (§3.66c follow-on to #4082).
+// A 120x48 sparkline plot; the ▲ half-width is 3.5 and the value font 10px,
+// matching the plugin. The triangle x-band is [x - half, x + half]; a peak
+// value must never land inside it (same-ink text over same-ink glyph), and no
+// value may cross [left, right] (the #4014 card-edge invariant), either branch.
+// ---------------------------------------------------------------------------
+test.describe('computeExtremeValueLayout (#4095)', () => {
+  const AREA = { left: 0, right: 120, top: 0, bottom: 48 }
+  const FONT = 10
+  const HALF = 3.5
+  // Horizontal extent the glyph paints, from the returned anchor + alignment.
+  const span = (layout, w) => {
+    if (layout.textAlign === 'center') return [layout.x - w / 2, layout.x + w / 2]
+    if (layout.textAlign === 'left') return [layout.x, layout.x + w]
+    return [layout.x - w, layout.x] // right
+  }
+  const overlaps = ([a0, a1], [b0, b1]) => a0 < b1 && b0 < a1
+
+  test('headroom on the away side keeps the airy beyond-the-tip centred placement', () => {
+    // A max mark low in the plot: el.y=40 → tip=30, ample space to chartArea.top.
+    const layout = computeExtremeValueLayout({
+      x: 60,
+      tip: 30,
+      dir: -1,
+      half: HALF,
+      chartArea: AREA,
+      labelWidth: 12,
+      fontPx: FONT,
+    })
+    expect(layout.textAlign).toBe('center')
+    expect(layout.textBaseline).toBe('bottom')
+    expect(layout.x).toBe(60)
+    expect(layout.y).toBe(29) // tip - 1, unchanged from #4082
+  })
+
+  test('the centred default still clamps inside the card edge (the #4014 invariant)', () => {
+    const layout = computeExtremeValueLayout({
+      x: 119,
+      tip: 30,
+      dir: -1,
+      half: HALF,
+      chartArea: AREA,
+      labelWidth: 12,
+      fontPx: FONT,
+    })
+    const [lo, hi] = span(layout, 12)
+    expect(lo).toBeGreaterThanOrEqual(AREA.left)
+    expect(hi).toBeLessThanOrEqual(AREA.right)
+  })
+
+  test('a peak max (no headroom above) moves BESIDE the triangle, never onto it', () => {
+    // Mark at the plot ceiling: el.y≈0 → tip=-10, so a beyond-the-tip value
+    // would clamp back down onto the same-ink ▲. It must step aside instead.
+    const layout = computeExtremeValueLayout({
+      x: 30,
+      tip: -10,
+      dir: -1,
+      half: HALF,
+      chartArea: AREA,
+      labelWidth: 12,
+      fontPx: FONT,
+    })
+    expect(layout.textAlign).not.toBe('center')
+    expect(layout.y).toBe(AREA.top + FONT) // held at the plot edge, inside chartArea
+    expect(overlaps(span(layout, 12), [30 - HALF, 30 + HALF])).toBe(false)
+  })
+
+  test('a peak value steps toward the plot centre — the side with room', () => {
+    const left = computeExtremeValueLayout({
+      x: 30, // left half → text reads rightward, into the plot
+      tip: -10,
+      dir: -1,
+      half: HALF,
+      chartArea: AREA,
+      labelWidth: 12,
+      fontPx: FONT,
+    })
+    const right = computeExtremeValueLayout({
+      x: 90, // right half → text reads leftward
+      tip: -10,
+      dir: -1,
+      half: HALF,
+      chartArea: AREA,
+      labelWidth: 12,
+      fontPx: FONT,
+    })
+    expect(left.textAlign).toBe('left')
+    expect(right.textAlign).toBe('right')
+    expect(overlaps(span(left, 12), [30 - HALF, 30 + HALF])).toBe(false)
+    expect(overlaps(span(right, 12), [90 - HALF, 90 + HALF])).toBe(false)
+  })
+
+  test('a peak value near a card edge still never crosses it', () => {
+    for (const x of [2, 118]) {
+      const layout = computeExtremeValueLayout({
+        x,
+        tip: -10,
+        dir: -1,
+        half: HALF,
+        chartArea: AREA,
+        labelWidth: 14,
+        fontPx: FONT,
+      })
+      const [lo, hi] = span(layout, 14)
+      expect(lo).toBeGreaterThanOrEqual(AREA.left)
+      expect(hi).toBeLessThanOrEqual(AREA.right)
+    }
+  })
+
+  test('a diverging negative bar at the plot floor steps aside downward-anchored', () => {
+    // dir=+1 reads toward chartArea.bottom; a mark at the floor (el.y≈48 →
+    // tip=58) has no headroom below, so it too moves beside, held at the floor.
+    const layout = computeExtremeValueLayout({
+      x: 40,
+      tip: 58,
+      dir: 1,
+      half: HALF,
+      chartArea: AREA,
+      labelWidth: 12,
+      fontPx: FONT,
+    })
+    expect(layout.textAlign).not.toBe('center')
+    expect(layout.textBaseline).toBe('top')
+    expect(layout.y).toBe(AREA.bottom - FONT)
+    expect(overlaps(span(layout, 12), [40 - HALF, 40 + HALF])).toBe(false)
   })
 })

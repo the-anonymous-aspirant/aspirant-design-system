@@ -25,6 +25,7 @@ import {
   buildBarOptions,
   buildLineOptions,
   computeExtremeMarks,
+  formatExtremeValue,
   selectTimeTicks,
   timeAxisEndPadding,
 } from '../../src/utils/bar_chart_options.js'
@@ -1164,5 +1165,32 @@ test.describe('computeExtremeMarks (#4021)', () => {
       { datasetIndex: 1, index: 2, kind: 'max', negative: true },
       { datasetIndex: 1, index: 1, kind: 'min', negative: false },
     ])
+  })
+})
+
+test.describe('formatExtremeValue (§3.66c / #4080)', () => {
+  test('an integer count renders bare', () => {
+    expect(formatExtremeValue(9)).toBe('9')
+    expect(formatExtremeValue(0)).toBe('0')
+  })
+
+  test('the MAGNITUDE is drawn — a negated diverging half shows the count, not the sign', () => {
+    // computeExtremeMarks maps the "done" half's semantic max to its most
+    // negative slot (-7 == 7 done); the reader wants "7", never "-7".
+    expect(formatExtremeValue(-7)).toBe('7')
+    expect(formatExtremeValue(-1)).toBe('1')
+  })
+
+  test('a fractional value keeps one decimal — no 12-digit float on a 48px card', () => {
+    expect(formatExtremeValue(3.14159)).toBe('3.1')
+    expect(formatExtremeValue(-2.75)).toBe('2.8')
+  })
+
+  test('a non-finite / non-number slot yields null — the caller draws the triangle only', () => {
+    expect(formatExtremeValue(null)).toBeNull()
+    expect(formatExtremeValue(undefined)).toBeNull()
+    expect(formatExtremeValue(NaN)).toBeNull()
+    expect(formatExtremeValue(Infinity)).toBeNull()
+    expect(formatExtremeValue('5')).toBeNull()
   })
 })

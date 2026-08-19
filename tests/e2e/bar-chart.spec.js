@@ -1459,3 +1459,94 @@ test.describe('computeExtremeValueLayout (#4095)', () => {
     expect(overlaps(span(layout, 12), [40 - HALF, 40 + HALF])).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// #4114-A1 / §3.66f B — line-mark sparklines dot every observed slot. The
+// operator reads per-point dots (as TOKEN USAGE already ships) as more legible
+// than a smooth line. This is a DEFAULT flip in the two presets a line mark can
+// reach — buildLineOptions (isLineMark position stock) and buildBarOptions's
+// noAxis branch (pairedAsLines, #4104) — from point.radius 0 to 2.5. The
+// acceptance is explicitly RENDERED (A1/A2): a radius in the options proves
+// nothing painted, which is the exact miss an options-shape test cannot catch,
+// so the teeth are the canvas readback in the fixture (`dots`): the vertical
+// ink RUN through each point's own pixel vs the run at the gap midpoints — a
+// 2.5px dot swells the point run above the bare 2px line, the gap isolates it
+// from a steep segment. Bars carry no point element, so the same flip on the
+// shared noAxis branch cannot dot a bar sparkline (A3).
+// ---------------------------------------------------------------------------
+test.describe('§3.66f B line-mark dot default (options)', () => {
+  const P = { axisInk: '#000', axisLine: '#000', unit: '', data: null }
+
+  test('A1/A4: buildLineOptions rests a 2.5px dot with a larger hover dot', () => {
+    const pt = buildLineOptions(P).elements.point
+    expect(pt.radius, 'resting radius must dot every slot, not the retired 0').toBe(2.5)
+    expect(pt.hoverRadius, 'hover dot must stay larger than the resting dot').toBeGreaterThan(pt.radius)
+  })
+
+  test('A1/A4: the noAxis line branch (pairedAsLines) shares the same dot default', () => {
+    // pairedAsLines routes through buildBarOptions, not buildLineOptions — the
+    // spec body called it one preset, but the code has two, so the flip must
+    // land in both or the paired-flow cards stay smooth. This guards the second.
+    const pt = buildBarOptions({ ...P, variant: 'sparkline' }).elements.point
+    expect(pt.radius).toBe(2.5)
+    expect(pt.hoverRadius).toBeGreaterThan(pt.radius)
+  })
+
+  test('A3: a regular (axis-bearing) bar chart keeps points off — the dot is sparkline-line-only', () => {
+    // The noAxis branch is what carries the dot; a regular chart never enters it,
+    // so its point elements stay at the library default and no scatter appears.
+    const opts = buildBarOptions({ ...P, variant: 'regular' })
+    expect(opts.elements?.point?.radius ?? 0).toBe(0)
+  })
+})
+
+test.describe('§3.66f B line-mark dot default (rendered)', () => {
+  const read = async (page, theme) => {
+    const q = theme === 'dark' ? '?theme=dark' : ''
+    await page.goto(`/tests/e2e/fixtures/bar-chart-sparkline.html${q}`, { waitUntil: 'networkidle' })
+    await page.waitForFunction(() => window.__sparklineReady === true)
+    return page.evaluate(() => window.__sparkline)
+  }
+
+  for (const theme of THEMES) {
+    // A1: both line-mark encodings — the position stock (buildLineOptions) and
+    // the paired flow (buildBarOptions noAxis) — dot EVERY observed slot.
+    for (const key of ['stock', 'pairedLines']) {
+      test(`A1: ${key} paints a dot at every observed slot (${theme})`, async ({ page }) => {
+        const d = (await read(page, theme))[key].dots
+        expect(d, `${key}: no dot metrics — is it still a line mark?`).not.toBeNull()
+        expect(
+          d.dottedPoints,
+          `${key}: only ${d.dottedPoints}/${d.points} slots carry a dot (min run ${d.minPointRun}px)`
+        ).toBe(d.points)
+        // The dot, not the line: the point-pixel ink run stands proud of the
+        // gap-midpoint run, where only the trend line passes. A radius-0 render
+        // collapses this gap to ~0.
+        expect(
+          d.avgPointRun - d.avgGapRun,
+          `${key}: point run ${d.avgPointRun}px barely exceeds gap run ${d.avgGapRun}px — the line, not a dot`
+        ).toBeGreaterThanOrEqual(1.5)
+      })
+    }
+
+    test(`A2: a single-point stock line renders a dot, not an empty §3.35 frame (${theme})`, async ({
+      page,
+    }) => {
+      // The edge the radius-0 default broke: one value → no line segment (needs
+      // two points) and no point (radius 0) → a blank cell §3.35 forbids. One
+      // real datum must show one real dot.
+      const d = (await read(page, theme)).stockSingle.dots
+      expect(d.points, 'exactly one observed slot in the single-point series').toBe(1)
+      expect(d.dottedPoints, 'the lone datum did not paint a dot — the empty-frame regression').toBe(1)
+      expect(d.minPointRun).toBeGreaterThanOrEqual(4)
+    })
+
+    test(`A3: the bar-mark sparkline is unaffected — no dot metrics, still a bar (${theme})`, async ({
+      page,
+    }) => {
+      const single = (await read(page, theme)).single
+      expect(single.chartType, 'a magnitude sparkline stays a bar mark').toBe('bar')
+      expect(single.dots, 'a bar mark has no point elements to dot').toBeNull()
+    })
+  }
+})

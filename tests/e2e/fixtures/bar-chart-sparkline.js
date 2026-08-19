@@ -90,6 +90,18 @@ const CASES = [
       datasets: [{ label: 'backlog', data: [40, 41, 43, 44, 42, 45, 44, 43] }],
     },
   },
+  // §3.66f B A2 / §3.35: a stock line with a SINGLE observed value. At the old
+  // radius-0 default this renders nothing — no line segment (needs 2 points),
+  // no point (radius 0) — an empty, §3.35-forbidden frame. The dot default must
+  // paint one visible dot here.
+  {
+    key: 'stockSingle',
+    encoding: 'position',
+    data: {
+      labels: HOURS.slice(0, 8),
+      datasets: [{ label: 'backlog', data: [42, null, null, null, null, null, null, null] }],
+    },
+  },
 ]
 
 // Fraction of x columns that carry ink on the canvas row nearest y=0. A
@@ -161,6 +173,65 @@ const sparklineGeom = (canvas, data) => {
   }
 }
 
+// §3.66f B A1/A2 (rendered): does a line-mark sparkline paint a DOT at every
+// observed slot? Measured off the real canvas, never the options — a
+// `point.radius` value in the config proves nothing painted (the exact class of
+// miss the acceptance names). Method: at each data point's own pixel (read from
+// the Chart instance's element meta, so we sample where the mark actually
+// landed, not a guessed x), count the contiguous vertical INK RUN through the
+// point centre. A 2.5px resting dot guarantees a ~5px run there; the bare 2px
+// trend line alone gives ~2px. The control is the same measurement at each
+// GAP midpoint between two points — the line crosses there too, but no dot
+// does — so `pointRun ≫ gapRun` isolates the dot from the line and from a steep
+// segment (a slope inflates point and gap runs alike, so the DIFFERENCE, not
+// the absolute run, is the dot). A radius-0 render collapses the difference to
+// ~0; this is the teeth the options-shape assertion cannot grow.
+const inkRunThrough = (ctx, canvas, dpr, cssX, cssY) => {
+  // Clamp to an in-bounds column: the first/last observed slot sits at the exact
+  // canvas edge (the sparkline reserves no left/right padding), so its dot is a
+  // half-dot whose centre column rounds to canvas.width. Sampling the last
+  // in-bounds column still crosses that half-dot's vertical diameter.
+  const x = Math.min(Math.max(Math.round(cssX * dpr), 0), canvas.width - 1)
+  const col = ctx.getImageData(x, 0, 1, canvas.height).data
+  const y0 = Math.round(cssY * dpr)
+  if (y0 < 0 || y0 >= canvas.height || col[y0 * 4 + 3] <= 20) return 0
+  let run = 1
+  for (let y = y0 - 1; y >= 0 && col[y * 4 + 3] > 20; y -= 1) run += 1
+  for (let y = y0 + 1; y < canvas.height && col[y * 4 + 3] > 20; y += 1) run += 1
+  return run
+}
+
+const dotMetrics = (canvas, isLine) => {
+  const chart = Chart.getChart(canvas)
+  if (!chart || !isLine) return null
+  const ctx = canvas.getContext('2d')
+  const dpr = canvas.width / canvas.getBoundingClientRect().width
+  const pointRuns = []
+  const gapRuns = []
+  for (let di = 0; di < chart.data.datasets.length; di += 1) {
+    const els = chart.getDatasetMeta(di).data || []
+    // Only real (non-skipped) points carry a mark; a null datum yields a NaN
+    // element the render skips, which must not count as a missing dot.
+    const pts = els.filter((e) => e && Number.isFinite(e.x) && Number.isFinite(e.y) && !e.skip)
+    for (const e of pts) pointRuns.push(inkRunThrough(ctx, canvas, dpr, e.x, e.y))
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2
+      const my = (pts[i].y + pts[i + 1].y) / 2
+      gapRuns.push(inkRunThrough(ctx, canvas, dpr, mx, my))
+    }
+  }
+  const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0)
+  return {
+    points: pointRuns.length,
+    // Every observed slot must carry a dot: a dot swells the vertical run to
+    // ~5px (2.5px radius, both sides), so a run ≥ 4 at DPR≥1 is a painted dot.
+    dottedPoints: pointRuns.filter((r) => r >= 4).length,
+    minPointRun: pointRuns.length ? Math.min(...pointRuns) : 0,
+    avgPointRun: +mean(pointRuns).toFixed(2),
+    avgGapRun: +mean(gapRuns).toFixed(2),
+  }
+}
+
 const published = {}
 
 createApp({
@@ -211,6 +282,8 @@ createApp({
           flowRatio: inst.flowRatio,
           flowEndLabels: inst.flowEndLabels,
           chartType: inst.asLineMark ? 'line' : 'bar',
+          // §3.66f B: the rendered per-point dot measurement (line marks only).
+          dots: canvases[i] ? dotMetrics(canvases[i], inst.asLineMark) : null,
         }
       })
       window.__sparkline = published

@@ -661,16 +661,22 @@ export const buildBarOptions = ({
     // all-created/all-done window puts zero at the bottom/top) renders a hair
     // inside the canvas rather than clipping to nothing against it. Not the old
     // 12px marker-headroom padding (which ate half the cell) — just enough that
-    // an edge feature paints.
-    ...(noAxis ? { layout: { padding: { top: 2, bottom: 2 } } } : {}),
-    // §3.66e/a: on the axis-less sparkline a line mark is a point-less trend
-    // glyph (matching buildLineOptions) — default 3px points would both clutter
-    // the 48px cell and make Chart.js reserve ~6px of the plot budget for point
-    // overflow. The §3.66a paired lines still get their min/max LOCATOR DOTS
-    // from extremesPlugin, drawn independently of Chart.js point elements.
-    // Harmless on the bar sparkline (bars have no point/line elements).
+    // an edge feature paints. §3.66f B: `autoPadding: false` keeps the dot
+    // default on the noAxis LINE branch (below, pairedAsLines) from making
+    // Chart.js reserve point-radius padding and shrinking this same plot band
+    // below §3.66e's 90% floor — see the matching note in buildLineOptions.
+    // Harmless on the bar sparkline: bars have no point overflow to auto-pad for.
+    ...(noAxis ? { layout: { padding: { top: 2, bottom: 2 }, autoPadding: false } } : {}),
+    // §3.66f B: on the axis-less sparkline a line mark dots every observed slot
+    // (matching buildLineOptions, and what TOKEN USAGE already ships) — the
+    // operator reads per-point dots as more legible than a smooth line. A 2.5px
+    // resting dot marks each datapoint without Chart.js's cluttering 3px
+    // default; hover enlarges it. The §3.66a paired lines ALSO keep their
+    // min/max LOCATOR DOTS from extremesPlugin, drawn independently of Chart.js
+    // point elements. Harmless on the bar sparkline (bars have no point/line
+    // elements), so this stays a single noAxis branch, not a per-mark split.
     ...(noAxis
-      ? { elements: { point: { radius: 0, hoverRadius: 3 }, line: { borderWidth: 2 } } }
+      ? { elements: { point: { radius: 2.5, hoverRadius: 4 }, line: { borderWidth: 2 } } }
       : {}),
     animation: animate ? undefined : false,
     // The bar owns the hit box, but the tooltip should follow the cursor along
@@ -815,7 +821,15 @@ export const buildLineOptions = ({
     // the same way the bar sparkline does — a 2px top/bottom breath keeps an
     // extreme value mark off the exact canvas edge; the x scale below reserves
     // nothing. (`buildLineOptions` is sparkline-only, so this is unconditional.)
-    layout: { padding: { top: 2, bottom: 2 } },
+    // §3.66f B: `autoPadding: false` is what lets the dot default (below) coexist
+    // with §3.66e's ≥90% plot band. Chart.js's auto-padding would otherwise
+    // reserve ~ceil(radius) px per side to keep a 2.5px dot on-canvas, shrinking
+    // the 48px cell's plot band to ~38px (79%) — re-verified against §3.66e, not
+    // re-litigated. With it off, the plot fills the cell and the focused position
+    // domain (both-ends padded) keeps interior dots clear; an extreme dot at the
+    // very edge renders as a half-dot, exactly as the trend line's own endpoint
+    // meets the edge — visible, which is all §3.66f B's "dot every slot" asks.
+    layout: { padding: { top: 2, bottom: 2 }, autoPadding: false },
     animation: animate ? undefined : false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
@@ -841,10 +855,13 @@ export const buildLineOptions = ({
         },
       },
     },
-    // A trend line, not a scatter: points stay off, a hover dot appears on
-    // proximity (via the index-mode interaction above, not a point hit).
+    // §3.66f B: dot every observed slot. The operator reads per-point dots (as
+    // TOKEN USAGE already ships) as more legible than a smooth trend line, and a
+    // non-zero resting radius also gives a single-point series something to
+    // paint (a radius-0 line of one point renders an empty §3.35-forbidden
+    // frame). The index-mode interaction above still enlarges the dot on hover.
     elements: {
-      point: { radius: 0, hoverRadius: 3 },
+      point: { radius: 2.5, hoverRadius: 4 },
       line: { borderWidth: 2 },
     },
     scales: {

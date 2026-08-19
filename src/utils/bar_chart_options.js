@@ -947,6 +947,72 @@ export const formatExtremeValue = (value) => {
   return Number.isInteger(magnitude) ? String(magnitude) : String(Math.round(magnitude * 10) / 10)
 }
 
+/**
+ * Where the on-mark value text lands (§3.66c value placement + the #4095
+ * headroom refinement). Pure geometry, exported so the placement is asserted
+ * directly rather than read back out of a painted canvas.
+ *
+ * Inputs: `x` the mark's centre, `tip` the triangle apex y (the far edge from
+ * the bar end), `dir` the away-from-bar direction (`-1` a ▲/positive-bar mark
+ * reading up toward `chartArea.top`, `+1` a diverging negative bar reading
+ * down), `half` the triangle half-width, the plot `chartArea`, and the label's
+ * measured `labelWidth`. Returns the fill anchor + `textAlign`/`textBaseline`.
+ *
+ * Default — headroom exists on the away-from-bar side: the value sits just
+ * beyond the triangle tip, centred on the mark (the airy #4082 placement),
+ * clamped inside [left, right] so it never runs past the card edge (the #4014
+ * invariant).
+ *
+ * Peak (#4095) — no headroom: the mark is at the plot ceiling/floor, so its
+ * triangle pokes past `chartArea` and a beyond-the-tip value would clamp back
+ * onto its own same-ink glyph. The value moves BESIDE the triangle — offset one
+ * triangle-half + 1px past the glyph, toward the plot centre (the side with
+ * room), held at the plot edge — so same-ink text never stacks on the same-ink
+ * triangle. Still clamped inside `chartArea`: the #4014 invariant holds either
+ * branch, any width.
+ */
+export const computeExtremeValueLayout = ({
+  x,
+  tip,
+  dir,
+  half,
+  chartArea,
+  labelWidth,
+  fontPx = EXTREME_VALUE_FONT_PX,
+}) => {
+  const baseline = dir < 0 ? 'bottom' : 'top'
+  // Space between the triangle apex and the plot edge the value reads toward.
+  // Below `fontPx + 1` the beyond-the-tip glyph cannot clear the triangle.
+  const awayHeadroom = dir < 0 ? tip - chartArea.top : chartArea.bottom - tip
+  if (awayHeadroom >= fontPx + 1) {
+    const halfW = labelWidth / 2 + 1
+    return {
+      x: Math.min(chartArea.right - halfW, Math.max(chartArea.left + halfW, x)),
+      y: dir < 0 ? tip - 1 : tip + 1,
+      textAlign: 'center',
+      textBaseline: baseline,
+    }
+  }
+  // Beside: hold at the plot edge, step clear of the triangle's x-band toward
+  // whichever side has more room, then clamp the whole glyph inside [left,right].
+  const gap = half + 1
+  const edgeY = dir < 0 ? chartArea.top + fontPx : chartArea.bottom - fontPx
+  if (x < (chartArea.left + chartArea.right) / 2) {
+    return {
+      x: Math.min(x + gap, chartArea.right - labelWidth),
+      y: edgeY,
+      textAlign: 'left',
+      textBaseline: baseline,
+    }
+  }
+  return {
+    x: Math.max(x - gap, chartArea.left + labelWidth),
+    y: edgeY,
+    textAlign: 'right',
+    textBaseline: baseline,
+  }
+}
+
 export const extremesPlugin = {
   id: 'aspExtremes',
 
@@ -991,32 +1057,27 @@ export const extremesPlugin = {
       // duplicate rule is a no-op today — the §3.66a end-of-series label it
       // must not double is ruled but not yet built in this DS, so nothing to
       // double exists; routed to design_agent for the coordination signal.
-      const label = formatExtremeValue(chart.data?.datasets?.[mark.datasetIndex]?.data?.[mark.index])
+      const label = formatExtremeValue(
+        chart.data?.datasets?.[mark.datasetIndex]?.data?.[mark.index]
+      )
       if (label !== null) {
         ctx.font = `${EXTREME_VALUE_FONT_PX}px ${opts.fontFamily || 'sans-serif'}`
-        ctx.textAlign = 'center'
-        const halfW = ctx.measureText(label).width / 2 + 1
-        // Horizontal: centre on the mark, clamp the glyph box inside
-        // [left, right] — the same Math.min/Math.max shape as the threshold
-        // box's `boxX`.
-        const tx = Math.min(chartArea.right - halfW, Math.max(chartArea.left + halfW, el.x))
-        // Vertical: beyond the triangle's far edge (`tip`, away from the bar),
-        // then clamp the whole glyph inside [top, bottom].
-        if (dir < 0) {
-          ctx.textBaseline = 'bottom'
-          ctx.fillText(
-            label,
-            tx,
-            Math.min(chartArea.bottom, Math.max(chartArea.top + EXTREME_VALUE_FONT_PX, tip - 1)),
-          )
-        } else {
-          ctx.textBaseline = 'top'
-          ctx.fillText(
-            label,
-            tx,
-            Math.max(chartArea.top, Math.min(chartArea.bottom - EXTREME_VALUE_FONT_PX, tip + 1)),
-          )
-        }
+        // Placement is pure geometry (`computeExtremeValueLayout`): the airy
+        // beyond-the-tip default where headroom exists, and the #4095 beside-
+        // the-triangle placement at the plot ceiling/floor so the same-ink
+        // value never stacks onto its own same-ink glyph. Both branches stay
+        // inside `chartArea`, so the value never runs past the card edge.
+        const layout = computeExtremeValueLayout({
+          x: el.x,
+          tip,
+          dir,
+          half,
+          chartArea,
+          labelWidth: ctx.measureText(label).width,
+        })
+        ctx.textAlign = layout.textAlign
+        ctx.textBaseline = layout.textBaseline
+        ctx.fillText(label, layout.x, layout.y)
       }
       ctx.restore()
     }

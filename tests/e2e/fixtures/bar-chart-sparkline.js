@@ -281,6 +281,11 @@ createApp({
           pairedAsBars: inst.pairedAsBars,
           flowRatio: inst.flowRatio,
           flowEndLabels: inst.flowEndLabels,
+          // §3.66g (#4127): whether the end-of-series label plugin is actually
+          // wired into the render. The `flowEndLabels` computed is retained
+          // (available for a future consumer) but no longer painted, so a spec
+          // proves the RENDER retirement off the options, not the computed.
+          flowEndLabelWired: !!inst.chartOptions?.plugins?.aspFlowEndLabel,
           chartType: inst.asLineMark ? 'line' : 'bar',
           // §3.66f B: the rendered per-point dot measurement (line marks only).
           dots: canvases[i] ? dotMetrics(canvases[i], inst.asLineMark) : null,

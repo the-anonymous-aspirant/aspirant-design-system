@@ -13,7 +13,6 @@ import {
   buildLineOptions,
   computeExtremeMarks,
   extremesPlugin,
-  flowEndLabelPlugin,
   thresholdPlugin,
 } from '../utils/bar_chart_options.js'
 
@@ -383,9 +382,12 @@ const extremeMarks = computed(() => {
   }))
 })
 
-// §3.66a end-of-series name labels: the required non-colour channel for the
-// overlaid line pair — each line's series name at its last point, in its own
-// hue, so a reader confirms which line is which without colour perception.
+// §3.66a end-of-series name labels: each line's series name at its last point,
+// in its own hue. §3.66g (#4127) retired these on the paired-flow render (the
+// word is redundant with the big-number figure's own same-ink label one line
+// up), so this is no longer wired into the chart — it is kept, unused, and
+// still exposed below for tests/a future consumer, the way §3.66b/c/d's marker
+// machinery was left in place.
 const flowEndLabels = computed(() => {
   if (!pairedAsLines.value) return []
   return (props.data.datasets || []).map((ds, i) => ({
@@ -484,12 +486,16 @@ const chartOptions = computed(() => {
     // clear of the ceiling. Reclaiming this padding is the plot-budget fix.
   }
 
-  if (pairedAsLines.value) {
-    // §3.66a: the inline end-of-series name labels, the required non-colour
-    // channel for the overlaid pair. Reserve a little right padding so a label
-    // drawn past the last point (at the plot's right edge) is not clipped.
-    preset.plugins.aspFlowEndLabel = { labels: flowEndLabels.value, fontFamily: p.fontFamily }
-  }
+  // §3.66g (#4127): the inline end-of-series name labels are retired on the
+  // paired-flow render — the big-number figure above the chart already states
+  // each series' name once, in the same ink, so a second on-graph label is the
+  // redundancy the operator named. `flowEndLabelPlugin`/`flowEndLabels` are left
+  // in place (unused), the same way §3.66b/c/d's marker machinery was, available
+  // for a future consumer; identity for non-visual/hover-only readers now rides
+  // the chart aria-label (set by the consumer) and the tooltip's per-dataset
+  // label (added to buildBarOptions — the paired-flow render's actual options
+  // path — and buildLineOptions, guarded to fire only on >1 dataset), neither of
+  // which named the series before.
 
   // Three ordered layers: AspChart's theme defaults (applied inside AspChart),
   // then this preset, then the consumer's `options`. Merging the consumer's
@@ -504,7 +510,9 @@ const chartOptions = computed(() => {
 const chartPlugins = computed(() => [
   ...(typeof props.threshold === 'number' ? [thresholdPlugin] : []),
   ...(props.markExtremes ? [extremesPlugin] : []),
-  ...(pairedAsLines.value ? [flowEndLabelPlugin] : []),
+  // §3.66g (#4127): flowEndLabelPlugin no longer wired on the paired-flow
+  // render (colour + the big-number figure carry series identity; see the
+  // preset note above). The plugin export stays in bar_chart_options.js.
 ])
 
 onMounted(() => {

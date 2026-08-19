@@ -102,6 +102,46 @@ test.describe('P8: hover exposes x AND y', () => {
   })
 })
 
+test.describe('§3.66g (#4127): the tooltip names the series once >1 dataset is present', () => {
+  // Retiring the on-graph end-of-series label leaves the tooltip as a mouse/touch
+  // reader's only channel for which line is which on the paired flow pair. The
+  // paired flow renders as LINES but routes its OPTIONS through buildBarOptions
+  // (the §3.66f-B split — one preset in the spec, two builders in the code), so
+  // BOTH builders carry the guarded prefix. It fires only when there is a second
+  // series to disambiguate from — a single-series line keeps the plain `y:`.
+  const item = (nDatasets, label = 'created', y = 7) => ({
+    parsed: { y },
+    dataset: { label },
+    chart: { data: { datasets: Array.from({ length: nDatasets }, () => ({})) } },
+  })
+
+  for (const [name, build] of [
+    ['buildBarOptions (paired-flow render + diverging fallback)', (o) => buildBarOptions(o)],
+    ['buildLineOptions (single-series stock line)', (o) => buildLineOptions(o)],
+  ]) {
+    test(`${name}: >1 dataset prefixes the dataset label`, () => {
+      const cb = build({ unit: '' }).plugins.tooltip.callbacks
+      expect(cb.label(item(2))).toBe('created: y: 7')
+      expect(cb.label(item(2, 'merged'))).toBe('merged: y: 7')
+    })
+
+    test(`${name}: a single dataset keeps the plain y: reading`, () => {
+      const cb = build({ unit: '' }).plugins.tooltip.callbacks
+      expect(cb.label(item(1))).toBe('y: 7')
+    })
+
+    test(`${name}: the unit still trails a named-series value`, () => {
+      const cb = build({ unit: 'ms' }).plugins.tooltip.callbacks
+      expect(cb.label(item(2, 'created', 12))).toBe('created: y: 12 ms')
+    })
+
+    test(`${name}: a bare item (no chart/dataset) does not throw and stays plain`, () => {
+      const cb = build({ unit: '' }).plugins.tooltip.callbacks
+      expect(cb.label({ parsed: { y: 3 } })).toBe('y: 3')
+    })
+  }
+})
+
 test.describe('P8: denser axis labels', () => {
   // Asserted on what RENDERS, not on the flag. The first version of this suite
   // asserted `autoSkip === false` and passed while the 30-category chart drew
@@ -1213,13 +1253,19 @@ test.describe('§3.66a paired-flow lines (rendered)', () => {
     expect(p.geom.yMax).toBeGreaterThan(0)
   })
 
-  test('C4: each line carries an end-of-series name label inked to its own line', async ({
+  test('C4 (§3.66g #4127): the on-graph end-of-series label is retired — the computed is kept, unused, but no longer wired into the render', async ({
     page,
   }) => {
     const p = (await read(page)).pairedLines
+    // The plugin is NOT wired: no series-name text paints at the line ends. The
+    // big-number figure above the chart already states each series' name once,
+    // in the same ink, so a second on-graph label is the redundancy §3.66g
+    // retires — and no replacement mark takes its place.
+    expect(p.flowEndLabelWired).toBe(false)
+    // But the `flowEndLabels` computed is deliberately KEPT (like §3.66b/c/d's
+    // marker machinery), available for a future consumer, so it still derives
+    // each series' name inked to its own line — it is simply no longer painted.
     expect(p.flowEndLabels.map((l) => l.text)).toEqual(['created', 'done'])
-    // The label ink is the line's own derived series ink — the non-colour
-    // channel rides the same hue, so figure-above and line-below read as one.
     const s = await read(page)
     expect(p.flowEndLabels[0].color).toBe(s.pairedLines.barFills[0])
     expect(p.flowEndLabels[1].color).toBe(s.pairedLines.barFills[1])
@@ -1233,8 +1279,11 @@ test.describe('§3.66a paired-flow lines (rendered)', () => {
     expect(f.chartType).toBe('bar')
     // The fallback is diverging: the second series is negated below zero.
     expect(f.geom.yMin).toBeLessThan(0)
-    // ...and it draws no end-of-series labels (those are the line pair's).
+    // The diverging fallback never derived end-of-series labels (they were the
+    // line pair's), and §3.66g retires them on the line pair too, so neither
+    // render wires the plugin now.
     expect(f.flowEndLabels).toEqual([])
+    expect(f.flowEndLabelWired).toBe(false)
   })
 })
 

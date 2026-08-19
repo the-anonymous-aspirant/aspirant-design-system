@@ -13,6 +13,7 @@ import { createApp, h, ref } from 'vue'
 import '../../../build/tokens.css'
 import AspBarChart from '../../../src/components/AspBarChart.vue'
 import AspCard from '../../../src/components/AspCard.vue'
+import { normalizeValueDomain } from '../../../src/utils/normalize_value_domain.js'
 
 const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
 
@@ -52,11 +53,43 @@ const DIVERGING_ALL_DONE = {
   ],
 }
 
+// §3.66a paired-flow cases — BOTH series positive (no diverging negation). The
+// lines case clears the 5× window-ratio cap and overlays as lines; the fallback
+// case blows past it (max 40 vs 4 = 10×) and reverts to the diverging bars.
+const PAIRED_CREATED = [2, 3, 1, 0, 0, 1, 2, 4, 5, 3, 2, 6, 7, 5, 3, 2, 0, 1, 3, 4, 5, 3, 1, 2]
+const PAIRED_DONE = [1, 2, 0, 0, 1, 0, 1, 3, 4, 2, 1, 5, 6, 4, 2, 1, 0, 1, 2, 3, 4, 2, 1, 1]
+const PAIRED_LINES = {
+  labels: HOURS,
+  datasets: [
+    { label: 'created', data: PAIRED_CREATED },
+    { label: 'done', data: PAIRED_DONE },
+  ],
+}
+const PAIRED_FALLBACK = {
+  labels: HOURS,
+  datasets: [
+    { label: 'created', data: PAIRED_CREATED.map((v) => v * 6) }, // max 42
+    { label: 'done', data: PAIRED_DONE },
+  ],
+}
+
 const CASES = [
   { key: 'single', data: SINGLE },
   { key: 'diverging', data: DIVERGING },
   { key: 'divergingAllCreated', data: DIVERGING_ALL_CREATED },
   { key: 'divergingAllDone', data: DIVERGING_ALL_DONE },
+  { key: 'pairedLines', data: PAIRED_LINES, pairedFlow: true },
+  { key: 'pairedFallback', data: PAIRED_FALLBACK, pairedFlow: true },
+  // A STOCK/position line (§3.66): a level hovering above zero, focused range.
+  // Exercises the §3.66e plot-budget fix on the buildLineOptions path too.
+  {
+    key: 'stock',
+    encoding: 'position',
+    data: {
+      labels: HOURS.slice(0, 8),
+      datasets: [{ label: 'backlog', data: [40, 41, 43, 44, 42, 45, 44, 43] }],
+    },
+  },
 ]
 
 // Fraction of x columns that carry ink on the canvas row nearest y=0. A
@@ -83,6 +116,49 @@ const zeroLineInkFraction = (canvas) => {
     best = Math.max(best, ink / W)
   }
   return +best.toFixed(2)
+}
+
+// #4102/§3.66e: the rendered plot band and the y-domain the render actually
+// used, read straight off the Chart instance. `chartAreaHeight` proves the plot
+// fills the 48px cell (A1); `yMax`/`yMin` are what a downstream nice-tick pass
+// would have widened, so a spec compares them to `normalizeValueDomain`'s own
+// output (A2); the per-dataset window max and its rendered pixel height let a
+// spec check the max draws at `value/domain × plotHeight`.
+const sparklineGeom = (canvas, data) => {
+  const chart = Chart.getChart(canvas)
+  if (!chart) return null
+  const ca = chart.chartArea
+  const sy = chart.scales.y
+  const pxZero = sy.getPixelForValue(0)
+  const datasets = (data.datasets || []).map((ds) => {
+    const nums = (ds.data || []).filter((v) => typeof v === 'number')
+    const maxAbs = nums.length ? Math.max(...nums.map((v) => Math.abs(v))) : 0
+    const signedExtreme = nums.length
+      ? nums.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0)
+      : 0
+    return {
+      maxAbs,
+      renderedMaxHeightPx: +Math.abs(pxZero - sy.getPixelForValue(signedExtreme)).toFixed(2),
+    }
+  })
+  // §3.66e A2: the domain the DOMAIN HELPER returned — what the render's y-scale
+  // must equal, un-widened. A two-series card is `magnitude-diverging`, a single
+  // is `magnitude` (mirroring AspBarChart's zeroBaseline rule). `beginAtZero`
+  // supplies the 0 baseline a magnitude fragment omits.
+  const diverging = (data.datasets || []).length > 1
+  const dom = normalizeValueDomain(data, {
+    encoding: diverging ? 'magnitude-diverging' : 'magnitude',
+  })
+  return {
+    chartAreaHeight: +ca.height.toFixed(2),
+    canvasHeight: +canvas.getBoundingClientRect().height.toFixed(2),
+    yMin: sy.min,
+    yMax: sy.max,
+    // The helper's own bounds, for the un-widened assertion. Magnitude → 0 min.
+    expectedMin: 'suggestedMin' in dom ? dom.suggestedMin : 0,
+    expectedMax: 'suggestedMax' in dom ? dom.suggestedMax : dom.max,
+    datasets,
+  }
 }
 
 const published = {}
@@ -123,6 +199,18 @@ createApp({
           // Rendered proof the rule painted (diverging cases only; a single
           // series has no rule to find).
           zeroLineInkFrac: canvases[i] ? zeroLineInkFraction(canvases[i]) : null,
+          // #4102/§3.66e: the RENDERED plot geometry, so a spec asserts the plot
+          // fills its cell (A1) and the domain the render used is the one
+          // `normalizeValueDomain` returned, un-widened (A2) — both measured off
+          // the real chart, never an options-shape read.
+          geom: canvases[i] ? sparklineGeom(canvases[i], c.data) : null,
+          // #4102/§3.66a: the render DECISION and the end-of-series labels, so a
+          // spec checks a paired flow overlays as lines (or falls back at >5×).
+          pairedAsLines: inst.pairedAsLines,
+          pairedAsBars: inst.pairedAsBars,
+          flowRatio: inst.flowRatio,
+          flowEndLabels: inst.flowEndLabels,
+          chartType: inst.asLineMark ? 'line' : 'bar',
         }
       })
       window.__sparkline = published
@@ -140,6 +228,8 @@ createApp({
               variant: 'sparkline',
               data: c.data,
               markExtremes: true,
+              pairedFlow: !!c.pairedFlow,
+              encoding: c.encoding || 'magnitude',
               ariaLabel: `${c.key} sparkline`,
             }),
           ])

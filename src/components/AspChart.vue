@@ -112,6 +112,40 @@ const withAlpha = (hex, alpha) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+// Axis/legend ink AND grid ink, resolved for canvas consumption (§3.78). A
+// currentColor-relative token (`--text-muted` = `color-mix(in srgb,
+// currentColor 88%, transparent)`, §3.65; `--border-subtle` for the grid) is a
+// cascade-only expression: read raw off a custom property and handed to
+// Chart.js as a canvas fillStyle, its `currentColor` resolves to opaque black
+// regardless of theme ("black on black", #4173), and a flat `--border-subtle`
+// cannot clear the 3:1 floor on both a light page and a dark card at once (the
+// two sanctioned worst cases are disjoint — design_agent ruling on #4175). So
+// we resolve the element's actual inherited `color` — always cascade-resolved
+// to rgb()/rgba(), unlike a custom property's raw serialization — and apply an
+// alpha toward transparent. Surface-aware by construction: the ink is dark on a
+// light page and white on a dark card, so it stays legible on every surface.
+//
+//   MUTED_ALPHA 0.88 — the §3.65 muted figure; axis/legend text clears WCAG-AA
+//     text (4.5:1) on all four sanctioned surfaces (5.86–11.39:1 measured).
+//   GRID_ALPHA 0.65  — faintest that clears the WCAG-AA non-text floor (3:1)
+//     for grid lines on all four surfaces; binds on the light page at 3.34:1.
+const MUTED_ALPHA = 0.88
+const GRID_ALPHA = 0.65
+const resolvedInk = (alpha) => {
+  const fallback = `rgba(108, 117, 125, ${alpha})` // resolved-ink of #6c757d
+  if (!canvas.value) return fallback
+  const ink = getComputedStyle(canvas.value).color.trim()
+  // getComputedStyle().color is normalized to rgb(r, g, b) or rgba(r, g, b, a)
+  // (comma or space separated depending on the engine).
+  const m = /^rgba?\(([^)]+)\)$/i.exec(ink)
+  if (!m) return ink || fallback
+  const parts = m[1].split(/[\s,/]+/).filter(Boolean)
+  if (parts.length < 3) return ink
+  const [r, g, b] = parts
+  const a = parts[3] != null ? parseFloat(parts[3]) : 1
+  return `rgba(${r}, ${g}, ${b}, ${alpha * a})`
+}
+
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia &&
@@ -155,8 +189,8 @@ const themedData = () => {
 }
 
 const themedDefaults = () => {
-  const axis = cssVar('--text-muted', '#6c757d')
-  const grid = cssVar('--border-subtle', '#cccccc')
+  const axis = resolvedInk(MUTED_ALPHA)
+  const grid = resolvedInk(GRID_ALPHA)
   const font = cssVar('--font-family-base', 'system-ui, sans-serif')
   const cardBg = cssVar('--surface-card', '#424242')
   const cardText = cssVar('--text-on-dark', '#ffffff')

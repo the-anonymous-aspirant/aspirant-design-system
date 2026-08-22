@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DS contrast probe — AspChart axis/legend ink (§3.78)</title>
+<!-- Theme is set BEFORE any stylesheet applies, from ?theme=dark, matching the
+     other fixtures. AspChart reads its tokens off the live element, so the
+     [data-theme] attribute is all it takes to re-theme. -->
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  /* Match production: the app sets the ambient text ink to --text-body
+     (#424242 light / #e0e0e0 dark). AspChart's §3.78 fix resolves this
+     inherited color for the axis/legend ink, so the fixture must carry it or
+     the canvas inherits the browser default (black) and the resolved-ink math
+     has nothing themed to work from. This is exactly the value §3.78 measured
+     (5.86:1 light / 10.40:1 dark). -->
+  body { margin: 0; background: var(--surface-page); color: var(--text-body); }
+  .probe-slot { position: relative; }
+</style>
+<div id="app"></div>
+<script type="module" src="./asp-chart-contrast.js"></script>

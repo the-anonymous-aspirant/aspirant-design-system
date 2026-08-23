@@ -289,6 +289,18 @@ const SERIES_FALLBACKS = ['#ffb300', '#0072b2', '#009e73', '#d55e00']
 const barFills = computed(() => {
   void themeTick.value
   const bg = resolvedBackground()
+  // §3.78 item 2 (#4187): series colors are surface-resolved — the dark-surface
+  // set (`--chart-series-*-on-dark`) on a dark background, the light-surface set
+  // otherwise, selected by the resolved background's luminance (not the theme).
+  // This sparkline sits on the dark KPI card, so it takes the dark set and its
+  // hues match AspChart's. deriveInk below leaves the already-clearing value
+  // essentially untouched, keeping the AA safety net.
+  const lin = (v) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  const seriesSuffix =
+    0.2126 * lin(bg[0]) + 0.7152 * lin(bg[1]) + 0.0722 * lin(bg[2]) < 0.4 ? '-on-dark' : '-on-light'
   const datasets = props.data.datasets || []
   const multi = datasets.length > 1
   return datasets.map((ds, i) => {
@@ -299,10 +311,10 @@ const barFills = computed(() => {
       name = STATE_TOKENS[props.state]
       fallback = SERIES_FALLBACKS[0]
     } else if (multi) {
-      name = `--chart-series-${i + 1}`
+      name = `--chart-series-${i + 1}${seriesSuffix}`
       fallback = SERIES_FALLBACKS[i % SERIES_FALLBACKS.length]
     } else if (props.variant === 'sparkline') {
-      name = '--chart-series-1'
+      name = `--chart-series-1${seriesSuffix}`
       fallback = SERIES_FALLBACKS[0]
     } else {
       name = '--brand-primary-alpha'

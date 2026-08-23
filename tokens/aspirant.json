@@ -114,7 +114,7 @@
       }
     },
     "chart": {
-      "$comment": "Gap 3 — 10-color categorical chart palette. Base is the Okabe-Ito color-blind-safe set (7 colors) extended with brand amber + two neutrals for continuity with the design language. Contrast between adjacent pairs >= 3:1 sRGB (WCAG AA non-text). Use in Chart.js via chart.data.datasets[i].backgroundColor.",
+      "$comment": "Gap 3 / §3.78 item 2 (#4187) — 10-color categorical chart palette, SURFACE-RESOLVED. A single flat set cannot clear the 3:1 non-text floor on both a light page (#e4e4e4) and a dark card (#424242) — the two sanctioned worst cases are disjoint (design_agent ruling on #4175). So the CHARTS select between two derived sets by the resolved background's luminance in AspChart.palette()/AspBarChart (NOT the page theme): `series-*-on-light` (darkened, >=3.2:1 vs #e4e4e4) and `series-*-on-dark` (>=3.2:1 vs #424242, the tightest dark surface, and clears #1a1a1a/#2a2a2a). Both re-checked color-blind-safe (CIEDE2000 + Machado-2009 sim): on-light min dE00 3.502, on-dark 3.363 (= the Okabe-Ito base bar). See docs/chart-series-cvd-4187.md. The bare `series-*` set is LEFT UNCHANGED as the Okabe-Ito base — it is ALSO consumed by AspContent's syntax-highlight ramp against the code surface (AspContent.vue:527/541), which is a different surface with its own cleared AA; darkening it would regress that ramp (found via content.spec). Base hues preserved per family; s1 stays amber (brand).",
       "series-1": {
         "value": "#ffb300",
         "comment": "Brand amber (aspirant identity carrier)"
@@ -154,6 +154,86 @@
       "series-10": {
         "value": "#82b1ff",
         "comment": "Brand accent (soft blue) — for continuity with links"
+      },
+      "series-1-on-light": {
+        "value": "#8d6101",
+        "comment": "Brand amber, darkened for the light chart surface #e4e4e4"
+      },
+      "series-2-on-light": {
+        "value": "#0072b2",
+        "comment": "Okabe-Ito blue (already clears #e4e4e4)"
+      },
+      "series-3-on-light": {
+        "value": "#008b66",
+        "comment": "Okabe-Ito bluish-green, darkened"
+      },
+      "series-4-on-light": {
+        "value": "#cc5a00",
+        "comment": "Okabe-Ito vermillion, darkened"
+      },
+      "series-5-on-light": {
+        "value": "#ad668d",
+        "comment": "Okabe-Ito reddish-purple, darkened"
+      },
+      "series-6-on-light": {
+        "value": "#3e83aa",
+        "comment": "Okabe-Ito sky-blue, darkened"
+      },
+      "series-7-on-light": {
+        "value": "#857f24",
+        "comment": "Okabe-Ito yellow, darkened"
+      },
+      "series-8-on-light": {
+        "value": "#936b2c",
+        "comment": "Okabe-Ito orange, darkened + hue-nudged off amber (s1) to hold dE00 under deuteranopia"
+      },
+      "series-9-on-light": {
+        "value": "#6c757d",
+        "comment": "Neutral grey (already clears #e4e4e4)"
+      },
+      "series-10-on-light": {
+        "value": "#5a7dbc",
+        "comment": "Brand accent (soft blue), darkened"
+      },
+      "series-1-on-dark": {
+        "value": "#ffb300",
+        "comment": "Brand amber — dark-surface set (drawn on --surface-card #424242 / --surface-page dark)"
+      },
+      "series-2-on-dark": {
+        "value": "#4a9bc8",
+        "comment": "Okabe-Ito blue, lightened for the dark surface"
+      },
+      "series-3-on-dark": {
+        "value": "#1aa881",
+        "comment": "Okabe-Ito bluish-green, lightened"
+      },
+      "series-4-on-dark": {
+        "value": "#dc7728",
+        "comment": "Okabe-Ito vermillion, lightened"
+      },
+      "series-5-on-dark": {
+        "value": "#cc79a7",
+        "comment": "Okabe-Ito reddish-purple"
+      },
+      "series-6-on-dark": {
+        "value": "#56b4e9",
+        "comment": "Okabe-Ito sky-blue"
+      },
+      "series-7-on-dark": {
+        "value": "#f0e442",
+        "comment": "Okabe-Ito yellow"
+      },
+      "series-8-on-dark": {
+        "value": "#e69f00",
+        "comment": "Okabe-Ito orange (distinct from brand amber under color-blind simulation)"
+      },
+      "series-9-on-dark": {
+        "value": "#8b9398",
+        "comment": "Neutral grey, lightened"
+      },
+      "series-10-on-dark": {
+        "value": "#82b1ff",
+        "comment": "Brand accent (soft blue)"
       }
     },
     "feedback": {

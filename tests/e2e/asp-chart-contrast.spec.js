@@ -67,8 +67,10 @@ async function sampleInk(page, selector, yFrom, yTo) {
   }, { bytes: [...shot], yFrom, yTo })
 }
 
-// Legend text lives in the top band, clear of grid lines.
-const sampleLegendInk = (page, selector) => sampleInk(page, selector, 0, 0.16)
+// Axis-tick text lives in the bottom band (legend is disabled on these charts,
+// so there are no swatches to confuse the achromatic-ink sampler). Same muted
+// ink the legend uses (§3.78 item 1).
+const sampleLegendInk = (page, selector) => sampleInk(page, selector, 0.86, 1)
 // Grid lines live in the plot mid-band, clear of the top legend and the bottom
 // axis tick labels.
 const sampleGridInk = (page, selector) => sampleInk(page, selector, 0.42, 0.74)
@@ -79,8 +81,55 @@ async function loadFixture(page, theme) {
   // chart.js loads at runtime; wait for every AspChart to signal first paint.
   await page.waitForFunction(() => {
     const els = [...document.querySelectorAll('.asp-chart')]
-    return els.length >= 3 && els.every((el) => el.dataset.rendered === 'true')
+    return els.length >= 6 && els.every((el) => el.dataset.rendered === 'true')
   })
+}
+
+// Sample the SATURATED (series) marks off a chart canvas and return the surface
+// (bg, from an empty corner) and the significant color clusters — one per series
+// fill. Achromatic marks (axis/legend/grid) are excluded by the chroma filter,
+// so what remains is the series ink. Bars give large solid regions, so a cluster
+// with a healthy pixel count is a real series, not anti-alias noise.
+async function sampleSeriesInks(page, selector) {
+  const shot = await page.locator(selector).screenshot()
+  return page.evaluate(async (bytes) => {
+    const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' })
+    const bmp = await createImageBitmap(blob)
+    const cv = new OffscreenCanvas(bmp.width, bmp.height)
+    const ctx = cv.getContext('2d')
+    ctx.drawImage(bmp, 0, 0)
+    const { width: W, height: H } = bmp
+    const px = ctx.getImageData(0, 0, W, H).data
+    const at = (x, y) => {
+      const i = (y * W + x) * 4
+      return [px[i], px[i + 1], px[i + 2], px[i + 3]]
+    }
+    const bg = at(2, 2)
+    const chroma = (c) => Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2])
+    const counts = new Map()
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const c = at(x, y)
+        if (c[3] < 200) continue
+        if (chroma(c) <= 40) continue // keep only saturated series ink
+        const key = `${c[0] >> 4}|${c[1] >> 4}|${c[2] >> 4}`
+        const e = counts.get(key) || { n: 0, r: 0, g: 0, b: 0 }
+        e.n++
+        e.r += c[0]
+        e.g += c[1]
+        e.b += c[2]
+        counts.set(key, e)
+      }
+    }
+    // Rank by pixel count and return the solid cores first. A bar's solid
+    // interior dwarfs its anti-aliased edge blends, so the top-K clusters are
+    // the real series fills; edge/AA artifacts fall below them.
+    const clusters = [...counts.values()]
+      .filter((e) => e.n >= 200)
+      .sort((a, b) => b.n - a.n)
+      .map((e) => ({ ink: [Math.round(e.r / e.n), Math.round(e.g / e.n), Math.round(e.b / e.n)], n: e.n }))
+    return { bg: bg.slice(0, 3), clusters }
+  }, [...shot])
 }
 
 for (const theme of THEMES) {
@@ -128,4 +177,56 @@ test('[dark] teeth: raw --text-muted token renders black-on-black and fails the 
     ratio,
     `broken legend ink ${JSON.stringify(ink)} vs surface ${JSON.stringify(bg)} = ${ratio.toFixed(2)}:1 — the probe must see this fail`,
   ).toBeLessThan(AA)
+})
+
+// §3.78 item 2 (#4187): every rendered series clears the 3:1 non-text floor
+// against the surface it composites on. The palette is surface-resolved — a
+// light-surface set on the page, a dark-surface set on the card (dark in both
+// themes) — selected by the resolved background luminance.
+for (const theme of THEMES) {
+  test(`[${theme}] every page-mounted series clears the non-text floor vs --surface-page`, async ({
+    page,
+  }) => {
+    await loadFixture(page, theme)
+    const { bg, clusters } = await sampleSeriesInks(page, '#chart-page-series canvas')
+    // 5 datasets → the 5 solid bar fills are the 5 largest clusters.
+    const series = clusters.slice(0, 5).map((c) => c.ink)
+    expect(series.length, 'expected 5 rendered series fills').toBe(5)
+    for (const ink of series) {
+      const ratio = contrastRatio([...ink, 1], [...bg, 1])
+      expect(
+        ratio,
+        `page series ${JSON.stringify(ink)} vs ${JSON.stringify(bg)} = ${ratio.toFixed(2)}:1 (need >= ${AA_NON_TEXT})`,
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT)
+    }
+  })
+
+  test(`[${theme}] every card-mounted series clears the non-text floor vs --surface-card`, async ({
+    page,
+  }) => {
+    await loadFixture(page, theme)
+    const { bg, clusters } = await sampleSeriesInks(page, '#chart-card-series canvas')
+    const series = clusters.slice(0, 5).map((c) => c.ink)
+    expect(series.length, 'expected 5 rendered series fills').toBe(5)
+    for (const ink of series) {
+      const ratio = contrastRatio([...ink, 1], [...bg, 1])
+      expect(
+        ratio,
+        `card series ${JSON.stringify(ink)} vs ${JSON.stringify(bg)} = ${ratio.toFixed(2)}:1 (need >= ${AA_NON_TEXT})`,
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT)
+    }
+  })
+}
+
+// Series teeth — a deliberately near-surface series fill MUST be caught, or the
+// per-series probe is measuring nothing.
+test('[light] teeth: a near-surface series fill fails the non-text floor', async ({ page }) => {
+  await loadFixture(page, 'light')
+  const { bg, clusters } = await sampleSeriesInks(page, '#chart-series-teeth canvas')
+  // 2 datasets → the two solid fills; the near-surface one must read below 3:1.
+  const ratios = clusters.slice(0, 2).map((c) => contrastRatio([...c.ink, 1], [...bg, 1]))
+  expect(
+    Math.min(...ratios),
+    `the near-surface bar must read below ${AA_NON_TEXT}: ratios ${ratios.map((r) => r.toFixed(2)).join(', ')}`,
+  ).toBeLessThan(AA_NON_TEXT)
 })

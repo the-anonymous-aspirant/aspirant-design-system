@@ -41,14 +41,43 @@ const noGridBorder = {
   y: { grid: { display: false }, border: { display: false } },
 }
 
-const fixedOptions = { scales: noGridBorder }
+// Legend OFF so the only ink on the canvas is axis-tick TEXT + series marks —
+// no legend swatches whose anti-aliased edges would masquerade as text/series
+// ink under the samplers. The axis/legend text probe samples the bottom
+// axis-tick band; the series probe samples the plot bars.
+const fixedOptions = { plugins: { legend: { display: false } }, scales: noGridBorder }
 
 const brokenOptions = {
-  plugins: { legend: { labels: { color: RAW_MUTED } } },
+  plugins: { legend: { display: false } },
   scales: {
     x: { ...noGridBorder.x, ticks: { color: RAW_MUTED } },
     y: { ...noGridBorder.y, ticks: { color: RAW_MUTED } },
   },
+}
+
+// §3.78 item 2 (#4187): 5 datasets so series 1–5 render as distinct fills the
+// spec can sample per-series. Bars (thick solid fills) sample far more robustly
+// than thin lines. Grid off so the only saturated marks are the series bars.
+const SERIES_DATA = {
+  labels: ['A', 'B', 'C', 'D'],
+  datasets: [
+    { label: 's1', data: [10, 14, 9, 12] },
+    { label: 's2', data: [8, 11, 13, 7] },
+    { label: 's3', data: [12, 9, 15, 10] },
+    { label: 's4', data: [6, 13, 8, 14] },
+    { label: 's5', data: [11, 7, 12, 9] },
+  ],
+}
+
+// Teeth for the series floor: a dataset with an explicit near-surface fill the
+// probe MUST flag as sub-3:1. Saturated (so the series sampler keeps it) but a
+// pale yellow that is low-contrast on the light page #e4e4e4 (~1.1:1).
+const teethData = {
+  labels: ['A', 'B'],
+  datasets: [
+    { label: 'ok', data: [10, 12] },
+    { label: 'bad', data: [8, 11], backgroundColor: '#e0e090', borderColor: '#e0e090' },
+  ],
 }
 
 createApp({
@@ -56,6 +85,9 @@ createApp({
     const fixed = ref(null)
     const grid = ref(null)
     const broken = ref(null)
+    const pageSeries = ref(null)
+    const cardSeries = ref(null)
+    const seriesTeeth = ref(null)
     return () =>
       h('div', { style: 'background: var(--surface-page); color: var(--text-body); padding: 24px' }, [
         // Grid/border off — isolates the axis/legend TEXT ink (§3.78 item 1).
@@ -74,6 +106,41 @@ createApp({
             data: DATA,
             height: 300,
             options: brokenOptions,
+          }),
+        ]),
+        // Series on the page (light surface) → the light-surface set.
+        h('div', { id: 'chart-page-series', class: 'probe-slot' }, [
+          h(AspChart, {
+            ref: pageSeries,
+            type: 'bar',
+            data: SERIES_DATA,
+            height: 300,
+            options: fixedOptions,
+          }),
+        ]),
+        // Series on a --surface-card (dark in BOTH themes, §1.2) → the dark set,
+        // selected by resolved-background luminance, not the page theme.
+        h(
+          'div',
+          { id: 'chart-card-series', class: 'probe-slot', style: 'background: var(--surface-card)' },
+          [
+            h(AspChart, {
+              ref: cardSeries,
+              type: 'bar',
+              data: SERIES_DATA,
+              height: 300,
+              options: fixedOptions,
+            }),
+          ]
+        ),
+        // Teeth: an explicit near-surface series fill the probe must catch.
+        h('div', { id: 'chart-series-teeth', class: 'probe-slot' }, [
+          h(AspChart, {
+            ref: seriesTeeth,
+            type: 'bar',
+            data: teethData,
+            height: 300,
+            options: fixedOptions,
           }),
         ]),
       ])

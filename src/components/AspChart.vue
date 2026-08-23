@@ -94,10 +94,43 @@ const cssVar = (name, fallback = '') => {
   return v || fallback
 }
 
+// Which series set to draw. Unlike the axis/grid ink (which is currentColor-
+// derived, §3.78), series colors carry identity and can't be derived from the
+// ink — so per the #4187 ruling the palette is surface-resolved: a light-surface
+// set (darkened, clears 3:1 on --surface-page light) and a dark-surface set
+// (--chart-series-*-on-dark, lightened, clears 3:1 on the tightest dark surface
+// #424242). Selection is by the RESOLVED background's luminance, not the page
+// theme — a dark card in light theme (§1.2) takes the dark set. Walk to the
+// first opaque background the canvas composites against (§3.18 ink-follows-
+// setter); if none resolves, fail safe to the dark set — the signature
+// --surface-card that the operator-facing KPI sparklines sit on.
+const surfaceIsDark = () => {
+  if (!canvas.value) return true
+  const lin = (v) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  let node = canvas.value
+  while (node) {
+    const m = /^rgba?\(([^)]+)\)$/i.exec(getComputedStyle(node).backgroundColor)
+    if (m) {
+      const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number)
+      const a = p[3] != null ? p[3] : 1
+      if (a > 0 && p.length >= 3) {
+        const L = 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2])
+        return L < 0.4
+      }
+    }
+    node = node.parentElement
+  }
+  return true
+}
+
 const palette = () => {
+  const suffix = surfaceIsDark() ? '-on-dark' : '-on-light'
   const out = []
   for (let i = 1; i <= 10; i += 1) {
-    const c = cssVar(`--chart-series-${i}`)
+    const c = cssVar(`--chart-series-${i}${suffix}`)
     if (c) out.push(c)
   }
   // Guard against a missing token build so the chart still renders.

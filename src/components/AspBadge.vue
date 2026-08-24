@@ -61,6 +61,21 @@ const props = defineProps({
    * and `status`/`dot` carry no remove affordance at all.
    */
   removable: { type: Boolean, default: false },
+  /**
+   * Compositing surface the badge is mounted on, for the surface-resolved
+   * status/dot mark fills (#4209 §3.82). `page` (default) follows the theme;
+   * `card` is dark in BOTH themes, so its marks always take the on-dark set and
+   * the status pill takes an opaque on-card fill. Declared at the mount site
+   * rather than auto-detected: a badge is a many-per-page primitive, so a
+   * per-mount surface probe is exactly the "on every mount" cost §3.50 warns
+   * against — and a card being dark in both themes lets the resolution stay
+   * pure CSS. Additive: `page` renders byte-for-byte as before this prop.
+   */
+  surface: {
+    type: String,
+    default: 'page',
+    validator: (v) => ['page', 'card'].includes(v),
+  },
 })
 
 const emit = defineEmits(['remove'])
@@ -110,6 +125,9 @@ const classes = computed(() => ({
   // that omits `removable` gets no new class, so its DOM stays byte-for-byte
   // what it was before this prop existed.
   'badge--removable': props.variant === 'chip' && props.removable,
+  // Only ever added for the non-default surface — a `page` badge gets no new
+  // class, so its DOM stays byte-for-byte what it was before this prop existed.
+  'badge--surface-card': props.surface === 'card',
 }))
 
 const onRemove = (event) => {
@@ -231,6 +249,25 @@ const onRemove = (event) => {
   color: var(--feedback-neutral-text);
 }
 
+/*
+ * Status pill on a card (#4209 §3.82). The default tinted pill is self-contained
+ * for its own text (#2417, ≥4.63:1 ink-vs-fill in both themes) but its EDGE
+ * against a dark card drops to 1.30:1 in the dark theme — present but invisible.
+ * Rather than flood the pill with a bright opaque fill (loud beside the calmer
+ * page pills, §1.2 restraint budget), keep the subtle fill and carry the edge
+ * with a ≥3:1 status-coloured ring: the on-dark mark colour measures ≥3.98:1 vs
+ * the light-theme card (#424242) and ≥5.69:1 vs the dark-theme card (#2a2a2a).
+ * box-shadow (not border) so there is no layout shift and it follows the pill
+ * radius. The page/default pill is untouched.
+ */
+.badge--surface-card.badge--status {
+  box-shadow: 0 0 0 1px var(--_ring);
+}
+.badge--surface-card.badge--status-positive { --_ring: var(--feedback-success-on-dark); }
+.badge--surface-card.badge--status-caution { --_ring: var(--feedback-warning-on-dark); }
+.badge--surface-card.badge--status-negative { --_ring: var(--feedback-error-on-dark); }
+.badge--surface-card.badge--status-neutral { --_ring: var(--feedback-neutral-on-dark); }
+
 /* --- Label / capability chip + removable filter-chip: neutral surface --- */
 .badge--chip,
 .badge--filter {
@@ -290,13 +327,40 @@ const onRemove = (event) => {
   display: inline-block;
   flex-shrink: 0;
 }
-.badge--status-positive .badge__dot { background: var(--feedback-success); }
-.badge--status-caution .badge__dot { background: var(--feedback-warning); }
-.badge--status-negative .badge__dot { background: var(--feedback-error); }
-.badge--status-neutral .badge__dot {
-  background: var(--feedback-neutral);
-  opacity: 0.55;
+/*
+ * Dot fill — surface-resolved status mark (#4209 §3.82). The flat --feedback-*
+ * fills measured 1.5–2.8:1 on the light page and the light card (disjoint worst
+ * cases: a dot on #e4e4e4 needs a dark fill, the same dot on #424242 needs a
+ * light one — the #4187 finding). Each status declares a light-surface and a
+ * dark-surface fill; the generic rules below select between them by surface +
+ * theme. Neutral drops its old 0.55 opacity — a mark that fails 3:1 on every
+ * surface is invisible, not de-emphasised (§3.65).
+ */
+.badge--status-positive .badge__dot {
+  --_dot: var(--feedback-success-on-light);
+  --_dot-dark: var(--feedback-success-on-dark);
 }
+.badge--status-caution .badge__dot {
+  --_dot: var(--feedback-warning-on-light);
+  --_dot-dark: var(--feedback-warning-on-dark);
+}
+.badge--status-negative .badge__dot {
+  --_dot: var(--feedback-error-on-light);
+  --_dot-dark: var(--feedback-error-on-dark);
+}
+.badge--status-neutral .badge__dot {
+  --_dot: var(--feedback-neutral-on-light);
+  --_dot-dark: var(--feedback-neutral-on-dark);
+}
+
+/* Page/default surface, light theme → the light set. */
+.badge__dot { background: var(--_dot); }
+/* Page/default surface, dark theme → the dark set. The DS is [data-theme]-
+   driven (not prefers-color-scheme), matching the token build's own override. */
+[data-theme='dark'] .badge__dot { background: var(--_dot-dark); }
+/* surface="card" is dark in BOTH themes → always the dark set. Placed LAST so
+   it wins the equal-specificity tie against the light-theme default (§3.82). */
+.badge--surface-card .badge__dot { background: var(--_dot-dark); }
 
 @media (prefers-reduced-motion: reduce) {
   .badge__remove { transition: none; }

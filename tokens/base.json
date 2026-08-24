@@ -139,6 +139,38 @@
       "neutral-solid": {
         "value": "#495057",
         "comment": "Task-#2089 \u2014 bold full-bleed neutral surface tuned for white body text at WCAG AA (contrast 8.18:1 vs #ffffff). Pair with color.text.on-dark."
+      },
+      "success-on-light": {
+        "value": "#2e7d32",
+        "comment": "#4209 \u00a73.82 \u2014 surface-resolved status MARK FILL (dot / on-card pill), the LIGHT-surface set. A single flat --feedback-* fill cannot clear 3:1 on both a light page (#e4e4e4) and a dark card (#424242) \u2014 disjoint worst cases, same finding as the #4187 chart ruling. Reuses --feedback-success-solid (no new colour): 4.03:1 vs #e4e4e4, 3.56:1 vs the worst sanctioned page-tint #d7d7d7. Selected by AspBadge on the page/default surface in the light theme."
+      },
+      "success-on-dark": {
+        "value": "#4de292",
+        "comment": "#4209 \u00a73.82 \u2014 surface-resolved status MARK FILL, the DARK-surface set (lightened, matches the dark success-text value). 6.03:1 vs the tightest dark surface #424242, 8.62 vs #2a2a2a, 10.45 vs #1a1a1a. Selected by AspBadge on surface=\"card\" (dark in both themes) and on the page in the dark theme."
+      },
+      "warning-on-light": {
+        "value": "#b45309",
+        "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, light-surface set (= --feedback-warning-solid). 3.95:1 vs #e4e4e4, 3.49:1 vs #d7d7d7."
+      },
+      "warning-on-dark": {
+        "value": "#ffb75f",
+        "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, dark-surface set (= dark warning-text). 5.83:1 vs #424242, 8.33 vs #2a2a2a."
+      },
+      "error-on-light": {
+        "value": "#c62828",
+        "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, light-surface set (= --feedback-error-solid). 4.42:1 vs #e4e4e4, 3.91:1 vs #d7d7d7."
+      },
+      "error-on-dark": {
+        "value": "#ff7a7c",
+        "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, dark-surface set (= dark error-text). 3.98:1 vs the tightest dark surface #424242, 5.69 vs #2a2a2a."
+      },
+      "neutral-on-light": {
+        "value": "#495057",
+        "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, light-surface set (= --feedback-neutral-solid). 6.43:1 vs #e4e4e4. Replaces the old 0.55-opacity dot fill, which measured 1.53\u20131.91:1 on every surface \u2014 a mark that fails 3:1 everywhere is invisible, not de-emphasised (\u00a73.65)."
+      },
+      "neutral-on-dark": {
+        "value": "#b8bec5",
+        "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, dark-surface set (= dark neutral-text). 5.36:1 vs #424242, 7.66 vs #2a2a2a. Also the on-card status-pill RING colour (edge \u22653.98:1 vs the light-theme card, \u22655.69:1 vs the dark-theme card)."
       }
     },
     "border": {

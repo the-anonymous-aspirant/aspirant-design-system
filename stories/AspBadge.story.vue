@@ -104,6 +104,46 @@ const removeEditLabel = (name) => {
       </div>
     </Variant>
 
+    <Variant title="Surface × theme matrix (#4209)">
+      <p style="margin: 0 0 12px; font-size: 13px;">
+        A status mark must clear its contrast floor on both a light page and a
+        dark card, in both themes — disjoint worst cases (§3.82). The default
+        <code>surface="page"</code> follows the theme; <code>surface="card"</code>
+        (dark in both themes) takes the on-dark set. Dot fill vs surface ≥ 3:1;
+        status text ≥ 4.5:1; on-card pill carries a ≥ 3:1 ring.
+      </p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <template v-for="theme in ['light', 'dark']" :key="theme">
+          <div
+            v-for="surf in ['page', 'card']"
+            :key="theme + surf"
+            :data-theme="theme === 'dark' ? 'dark' : undefined"
+            :style="{
+              padding: '14px',
+              borderRadius: '8px',
+              background: surf === 'card' ? 'var(--surface-card)' : 'var(--surface-page)',
+            }"
+          >
+            <div style="font-size: 12px; margin-bottom: 8px; color: var(--text-muted);">
+              {{ theme }} · surface="{{ surf }}"
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+              <AspBadge :surface="surf" status="positive">Active</AspBadge>
+              <AspBadge :surface="surf" status="caution">In progress</AspBadge>
+              <AspBadge :surface="surf" status="negative">Failed</AspBadge>
+              <AspBadge :surface="surf" status="neutral">Archived</AspBadge>
+            </div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <AspBadge :surface="surf" variant="dot" status="positive">Working</AspBadge>
+              <AspBadge :surface="surf" variant="dot" status="caution">Blocked</AspBadge>
+              <AspBadge :surface="surf" variant="dot" status="negative">Error</AspBadge>
+              <AspBadge :surface="surf" variant="dot" status="neutral">Idle</AspBadge>
+            </div>
+          </div>
+        </template>
+      </div>
+    </Variant>
+
     <Variant title="Sizes">
       <div style="display: flex; gap: 8px; align-items: center;">
         <AspBadge size="sm" status="positive">Small</AspBadge>

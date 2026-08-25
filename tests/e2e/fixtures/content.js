@@ -65,6 +65,30 @@ const HOSTILE = [
   'Markdown still renders **normally** around it.',
 ].join('\n')
 
+// §3.84: an untrusted markdown link destination must not survive as a live
+// href when its scheme is dangerous. Safe hrefs stay clickable; unsafe ones
+// (including case-, whitespace- and entity-obfuscated `javascript:`) are
+// neutralised to their visible text. Each unsafe payload sets a distinct
+// window flag so the test can prove none of them produced a live, clickable
+// anchor — the visible text remaining is the whole point.
+const LINKS = [
+  'Safe links stay live:',
+  '',
+  '- [external](https://example.com/a?x=1&y=2)',
+  '- [mail](mailto:a@b.com)',
+  '- [relative](/tasks/1)',
+  '- [anchor](#section)',
+  '',
+  'Unsafe hrefs are neutralised to plain text:',
+  '',
+  '- [js-link](javascript:window.__LINKXSS_1 = true)',
+  '- [mixedcase-js](  JavaScript:window.__LINKXSS_2 = true)',
+  '- [entity-js](&#106;avascript:window.__LINKXSS_3 = true)',
+  '- [entity-ctrl-js](java&#09;script:window.__LINKXSS_4 = true)',
+  '- [data-link](data:text/html,alert(1))',
+  '- [vbscript-link](vbscript:msgbox(1))',
+].join('\n')
+
 createApp({
   setup: () => () =>
     h(
@@ -106,6 +130,9 @@ createApp({
         ]),
         h('div', { id: 'probe-hostile', 'data-surface': 'content-hostile' }, [
           h(AspContent, { content: HOSTILE, type: 'markdown' }),
+        ]),
+        h('div', { id: 'probe-links', 'data-surface': 'content-links' }, [
+          h(AspContent, { content: LINKS, type: 'markdown' }),
         ]),
       ]
     ),

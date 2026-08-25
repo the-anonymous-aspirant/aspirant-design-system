@@ -33,7 +33,7 @@ const open = async (page, theme) => {
   // body immediately; a markdown/code body once the engines resolve or are
   // known absent). Geometry and highlight assertions must run after that, or
   // they measure the loading placeholder. Wait for EVERY mount point, not just
-  // the first — this fixture has eight.
+  // the first — this fixture has nine.
   await page.waitForFunction(() =>
     [...document.querySelectorAll('.asp-content')].every((el) => el.dataset.ready === 'true')
   )
@@ -169,6 +169,57 @@ test('raw HTML in the body is escaped, not executed', async ({ page }) => {
   expect(await page.locator('#probe-hostile').innerText()).toContain('window.__XSS = true')
   // ...and markdown still works around it.
   await expect(page.locator('#probe-hostile strong')).toHaveCount(1)
+})
+
+// --- §3.84: markdown link href hardening -------------------------------------
+// marked ships no URL sanitiser since v5, so before the link() override a
+// `[x](javascript:…)` rendered as a live `<a href="javascript:…">`. These
+// assertions each fail on the pre-fix component.
+
+test('unsafe link hrefs are neutralised, not rendered as live anchors', async ({ page }) => {
+  await open(page, 'light')
+  // No anchor in the specimen may carry a dangerous scheme — including the
+  // case-, whitespace- and entity-obfuscated variants a browser would still
+  // execute. Decode + strip control chars in the BROWSER (where `document`
+  // exists), matching exactly what the browser resolves from the href.
+  const survivors = await page.locator('#probe-links a').evaluateAll((els) => {
+    const decode = (s) => {
+      const el = document.createElement('textarea')
+      el.innerHTML = s
+      return el.value
+    }
+    const dangerous = /^(javascript|data|vbscript|file):/i
+    return els
+      .map((a) => a.getAttribute('href') || '')
+      // eslint-disable-next-line no-control-regex
+      .filter((h) => dangerous.test(decode(h).replace(/[\u0000-\u0020\u007f]/g, '')))
+  })
+  expect(survivors, `live anchors with a dangerous href survived: ${survivors}`).toEqual([])
+  // And none of the unsafe payloads executed (they cannot: neutralised links
+  // are plain text, so there is no anchor to activate).
+  const flags = await page.evaluate(() => [1, 2, 3, 4].map((n) => window[`__LINKXSS_${n}`]))
+  expect(flags.every((f) => f === undefined)).toBe(true)
+})
+
+test('neutralised links keep their visible text', async ({ page }) => {
+  await open(page, 'light')
+  // Dropping the href must not drop the label — an honest render shows the text
+  // it could not safely link (mirrors the escaped-not-dropped rule for html()).
+  const text = await page.locator('#probe-links').innerText()
+  for (const label of ['js-link', 'mixedcase-js', 'entity-js', 'data-link', 'vbscript-link']) {
+    expect(text).toContain(label)
+  }
+})
+
+test('safe link hrefs stay live and clickable', async ({ page }) => {
+  await open(page, 'light')
+  const links = page.locator('#probe-links a')
+  const byText = async (t) => links.filter({ hasText: t })
+  // http(s), mailto, relative, and #anchor all keep a real href.
+  await expect(await byText('external')).toHaveAttribute('href', 'https://example.com/a?x=1&y=2')
+  await expect(await byText('mail')).toHaveAttribute('href', 'mailto:a@b.com')
+  await expect(await byText('relative')).toHaveAttribute('href', '/tasks/1')
+  await expect(await byText('anchor')).toHaveAttribute('href', '#section')
 })
 
 // --- the contrast contract (spec amendment #2382 comment 9767) ---------------

@@ -137,6 +137,15 @@ const filtered = () => rows.filter((r) => r.toLowerCase().includes(search.value.
         mixes them with plain text fields, and a form where one field is DS-styled and its siblings
         are native is worse than one that is uniformly either.
       </p>
+      <p style="color: var(--text-muted); margin-bottom: 12px">
+        The list is a <strong>closed allowlist</strong> of those seven (§3.85). The native-widget
+        types are out of contract on purpose — <code>date</code>, <code>time</code>,
+        <code>datetime-local</code>, <code>month</code>, <code>week</code>, <code>color</code>,
+        <code>range</code>, <code>file</code>, <code>checkbox</code>, <code>radio</code>,
+        <code>submit</code>, <code>reset</code>, <code>button</code> — because each summons native
+        chrome this box does not govern. Reach for a dedicated component instead
+        (<code>AspCheckbox</code> exists; the rest do not yet).
+      </p>
       <div style="display: flex; flex-direction: column; gap: 12px; max-width: 320px">
         <AspInput v-model="text" label="Username" autocomplete="username" />
         <AspInput type="password" label="Password" autocomplete="current-password" />

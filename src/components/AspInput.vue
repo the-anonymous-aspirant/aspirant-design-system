@@ -12,10 +12,17 @@ defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
+  // The single-line text-shaped input modes, and only those. Each renders in
+  // the identical box and differs only in what the browser does with the
+  // keystrokes — masking, the soft keyboard, autofill. The types deliberately
+  // absent (checkbox, radio, range, color, file, date) are not text-shaped:
+  // they have their own control geometry, so accepting them here would style a
+  // wrong-shaped native widget rather than reuse this one.
   type: {
     type: String,
     default: 'text',
-    validator: (v) => ['text', 'search', 'number'].includes(v),
+    validator: (v) =>
+      ['text', 'search', 'number', 'password', 'email', 'tel', 'url'].includes(v),
   },
   placeholder: { type: String, default: null },
   label: { type: String, default: null },

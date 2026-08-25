@@ -29,6 +29,7 @@ createApp({
         h(AspInput, {
           ref: field,
           label: 'Name',
+          'data-field': 'rename',
           modelValue: value.value,
           'onUpdate:modelValue': (v) => (value.value = v),
         }),
@@ -50,6 +51,21 @@ createApp({
         // needs something the two convenience methods do not cover should not
         // have to query the DOM by class name to get it.
         h('output', { id: 'el-tag', style: 'display:block' }, elTag.value),
+
+        // One field per accepted text-shaped mode. The spec reads the rendered
+        // `type` attribute AND watches the console: a rejected value passes the
+        // prop validator's warning to stderr and still renders, so asserting
+        // the attribute alone would go green on a type the contract refuses.
+        ...['password', 'email', 'tel', 'url'].map((mode) =>
+          h(AspInput, {
+            key: mode,
+            type: mode,
+            label: mode,
+            'data-mode': mode,
+            modelValue: '',
+            'onUpdate:modelValue': () => {},
+          })
+        ),
       ])
   },
 }).mount('#app')

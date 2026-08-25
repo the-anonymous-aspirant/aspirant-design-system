@@ -57,9 +57,11 @@ Reference: `aspirant-client/src/components/sidebar/Sidebar.vue`, `SidebarLink.vu
 
 Text input replacing `<v-text-field>`. Label + hint + error states. Control height is 34px (the §3.10 filter-row canon), overridable per call site via `--asp-input-height`.
 
-Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search | number), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
+Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search | number | password | email | tel | url), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
 
 Exposes `focus()`, `select()`, and `el` (the inner `<input>`) to a caller holding a template ref. A `ref` on a component yields the *instance*, so without the exposure `x.focus()` is `undefined` and an open-and-type affordance — inline rename, inline create — degrades in the one way a test suite does not catch: the field still renders, still binds, still submits, and the caret never arrives. `tests/e2e/input.spec.js` asserts it through the same `ref` a consumer uses.
+
+The accepted `type` set is the single-line **text-shaped** input modes. Each renders in the identical box and differs only in what the browser does with the keystrokes — masking, the soft keyboard, autofill. `checkbox`, `radio`, `range`, `color`, `file` and the date family are deliberately absent: they are not text-shaped, they carry their own control geometry, and accepting them here would wrap a wrong-shaped native widget in this component's box rather than reuse it. A form mixing a text field with a password or an email field is the common case (a login, a profile) and needs all of its fields on one contract, or the DS-styled field sits visibly apart from its native siblings.
 
 `error` takes a string (rendered as the message) or a bare `true` (styles the field invalid with no message, for callers that surface the text elsewhere). An error supersedes a hint — only one message line shows at a time. The `search` type renders a leading `AspIcon`.
 

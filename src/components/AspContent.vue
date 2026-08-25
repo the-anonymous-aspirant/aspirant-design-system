@@ -125,6 +125,51 @@ const resolvedType = computed(() => (props.type === 'auto' ? sniffType(props.con
 const escapeHtml = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+// --- link href safety (§3.84) -----------------------------------------------
+// AspContent already declares itself an untrusted-input renderer (see the
+// `html()` override below — raw HTML is escaped, not passed through). But marked
+// has shipped no URL sanitiser since v5, so a link destination is emitted
+// verbatim: `[x](javascript:alert(1))` becomes a LIVE `<a href="javascript:…">`.
+// The `link()` override closes that hole for every consumer, unconditionally.
+//
+// Allowlist of schemes that may survive as a live href. Everything else —
+// javascript:, data:, vbscript:, file:, and any scheme not listed — is
+// neutralised (default-deny). A scheme-less href (relative path, `#anchor`,
+// protocol-relative `//host`, `./`, `../`) carries no scheme and is allowed.
+// @security ratifies this set on task #4223 (AC-7); keep it in sync with their
+// confirmation before the DS PR merges.
+const SAFE_URL_SCHEMES = new Set(['http', 'https', 'mailto', 'tel'])
+
+// Decode HTML character references the way a browser will when it parses the
+// href attribute. marked 18 leaves entities INTACT in `token.href` (verified:
+// `&#106;avascript:` and `java&#09;script:` arrive un-decoded), so without this
+// the scheme test is trivially bypassed — the string starts with `&`, reads as
+// scheme-less, and the browser then decodes it back to `javascript:` and runs
+// it. A detached `<textarea>` decodes references exactly as the browser does
+// and, being RCDATA, executes nothing and loads nothing from its assigned HTML.
+// The markdown path is client-only (marked loads in `onMounted`), so `document`
+// is always present when this runs; the guard is defensive for any SSR caller.
+const decodeHtmlEntities = (s) => {
+  if (typeof document === 'undefined') return s
+  const el = document.createElement('textarea')
+  el.innerHTML = s
+  return el.value
+}
+
+const isSafeHref = (href) => {
+  if (typeof href !== 'string') return false
+  // Browsers ignore ASCII whitespace around a URL and strip embedded C0 control
+  // chars + DEL when resolving the scheme, so `  javascript:` and (post-decode)
+  // `java\tscript:` both execute. Decode entities first, then strip those chars,
+  // then read the scheme — matching what the browser actually parses.
+  // Stripping C0 control chars + DEL is the point of the check, not an accident.
+  // eslint-disable-next-line no-control-regex
+  const normalized = decodeHtmlEntities(href).replace(/[\u0000-\u0020\u007f]/g, '')
+  const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(normalized)
+  if (!scheme) return true // scheme-less: relative, #anchor, //host, ./, ../
+  return SAFE_URL_SCHEMES.has(scheme[1].toLowerCase())
+}
+
 // A highlight function bound to a loaded hljs instance.
 const makeHighlight = (hljs) => (code, language) => {
   const lang = (language || '').toLowerCase()
@@ -184,6 +229,28 @@ const loadContentLibs = () => {
             const lang = (token.lang || '').split(/\s+/)[0]
             const cls = lang ? ` class="language-${escapeHtml(lang)}"` : ''
             return `<pre class="asp-content__code"><code${cls}>${highlight(token.text, lang)}</code></pre>`
+          },
+          link(token) {
+            // `this.parser` is bound by marked when a renderer runs; parse the
+            // link's inner tokens so a `[**bold**](…)` label keeps its markup.
+            const text = this.parser.parseInline(token.tokens)
+            if (!isSafeHref(token.href)) {
+              // Neutralise: keep the visible text, drop the href. Mirrors the
+              // §3.23 honesty root already applied to html() — an unsafe token
+              // renders as its honest visible text, never a live-but-dangerous
+              // `<a>` and never a silently-dropped one.
+              return text
+            }
+            let href
+            try {
+              // marked's own cleanUrl: percent-encode so `"`/`<`/`>`/space in a
+              // safe href cannot break out of the attribute. Malformed → drop.
+              href = encodeURI(token.href).replace(/%25/g, '%')
+            } catch {
+              return text
+            }
+            const title = token.title ? ` title="${escapeHtml(token.title)}"` : ''
+            return `<a href="${escapeHtml(href)}"${title}>${text}</a>`
           },
         },
         gfm: true,

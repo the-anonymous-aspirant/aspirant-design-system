@@ -5,7 +5,7 @@ let idCounter = 0
 </script>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AspIcon from './AspIcon.vue'
 
 defineOptions({ inheritAttrs: false })
@@ -46,6 +46,21 @@ const messageId = computed(() => {
 })
 
 const onInput = (event) => emit('update:modelValue', event.target.value)
+
+// `ref` on this component yields the component instance, not the inner
+// `<input>`, so a caller writing `ref="x"` + `x.focus()` gets a silent no-op
+// unless the methods are exposed. Callers that focus a field on open — an
+// inline rename, an inline create — depend on it, and nothing in a test
+// suite fails when focus quietly stops happening, so the capability has to
+// be part of the contract rather than something a consumer reaches around.
+const inputEl = ref(null)
+
+defineExpose({
+  /** The inner `<input>` element, for the rare caller that needs the node itself. */
+  el: inputEl,
+  focus: (options) => inputEl.value?.focus(options),
+  select: () => inputEl.value?.select(),
+})
 </script>
 
 <template>
@@ -65,6 +80,7 @@ const onInput = (event) => emit('update:modelValue', event.target.value)
       <AspIcon v-if="type === 'search'" name="search" size="sm" class="field__icon" />
       <input
         :id="uid"
+        ref="inputEl"
         class="field__input"
         :type="type"
         :value="modelValue"

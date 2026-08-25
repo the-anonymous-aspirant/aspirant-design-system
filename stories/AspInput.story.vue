@@ -3,6 +3,12 @@ import { ref } from 'vue'
 import AspInput from '../src/components/AspInput.vue'
 
 const text = ref('')
+const renaming = ref('existing name')
+const renameField = ref(null)
+const startRename = () => {
+  renameField.value.focus()
+  renameField.value.select()
+}
 const filled = ref('scheduled-maintenance')
 const search = ref('')
 const rows = ['Deploy pipeline', 'Message board', 'Scheduled maintenance', 'Token pipeline']
@@ -121,6 +127,20 @@ const filtered = () => rows.filter((r) => r.toLowerCase().includes(search.value.
         <AspInput model-value="locked-value" label="Filled + disabled" disabled />
         <AspInput type="search" placeholder="Filter tasks" />
       </div>
+    </Variant>
+
+    <Variant title="Imperative focus (inline rename)">
+      <p style="color: var(--text-muted); margin-bottom: 12px">
+        A caller holding a template ref can call <code>focus()</code>, <code>select()</code>, or
+        reach the node via <code>el</code>. Without the exposure, <code>ref</code> yields the
+        component instance and the call is a silent no-op — the field renders and binds correctly
+        and the caret simply never arrives, which is why this is part of the contract rather than
+        something a consumer reaches around.
+      </p>
+      <AspInput ref="renameField" v-model="renaming" label="Goal name" />
+      <button type="button" style="margin-top: 12px" @click="startRename">
+        Rename (focus + select)
+      </button>
     </Variant>
 
     <Variant title="Unstyled structure">

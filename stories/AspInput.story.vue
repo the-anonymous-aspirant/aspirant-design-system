@@ -129,6 +129,23 @@ const filtered = () => rows.filter((r) => r.toLowerCase().includes(search.value.
       </div>
     </Variant>
 
+    <Variant title="Text-shaped modes (a credential form)">
+      <p style="color: var(--text-muted); margin-bottom: 12px">
+        <code>password</code>, <code>email</code>, <code>tel</code> and <code>url</code> render in
+        the identical box and differ only in what the browser does with the keystrokes — masking,
+        the soft keyboard, autofill. They are on the contract because a login or a profile form
+        mixes them with plain text fields, and a form where one field is DS-styled and its siblings
+        are native is worse than one that is uniformly either.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px; max-width: 320px">
+        <AspInput v-model="text" label="Username" autocomplete="username" />
+        <AspInput type="password" label="Password" autocomplete="current-password" />
+        <AspInput type="email" label="Email" placeholder="name@example.com" />
+        <AspInput type="tel" label="Phone" />
+        <AspInput type="url" label="Website" placeholder="https://" />
+      </div>
+    </Variant>
+
     <Variant title="Imperative focus (inline rename)">
       <p style="color: var(--text-muted); margin-bottom: 12px">
         A caller holding a template ref can call <code>focus()</code>, <code>select()</code>, or

@@ -12,12 +12,15 @@ defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
-  // The single-line text-shaped input modes, and only those. Each renders in
-  // the identical box and differs only in what the browser does with the
-  // keystrokes — masking, the soft keyboard, autofill. The types deliberately
-  // absent (checkbox, radio, range, color, file, date) are not text-shaped:
-  // they have their own control geometry, so accepting them here would style a
-  // wrong-shaped native widget rather than reuse this one.
+  // §3.85: a CLOSED allowlist of the single-line text-entry family, never an
+  // open string. Each of the seven renders in the identical box and differs
+  // only in what the browser does with the keystrokes — masking, inputmode,
+  // the soft keyboard, autofill. The native-widget types are excluded on
+  // purpose: date/time/datetime-local/month/week, color, range, file,
+  // checkbox, radio, and submit/reset/button each summon native chrome this
+  // box does not govern, so admitting one would render a mismatched widget
+  // inside a control claiming to be a text field. Any of those is its own
+  // component.
   type: {
     type: String,
     default: 'text',

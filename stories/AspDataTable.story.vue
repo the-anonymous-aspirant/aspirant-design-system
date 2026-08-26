@@ -39,6 +39,10 @@ const manyRows = Array.from({ length: 500 }, (_, i) => ({
 
 const lastClicked = ref('(none)')
 
+// #4318 / §3.88 — per-row hooks demos.
+const rowAttrsDemo = (row) => ({ 'data-test-row-id': row.id, 'data-test-source': row.owner })
+const rowStateDemo = (row, i) => (i === 1 ? 'active' : i === 3 ? 'muted' : null)
+
 // Inline status pill for the #cell-status slot demo (kept self-contained;
 // AspBadge would be the real consumer here once both land on main).
 const statusText = { positive: 'Active', caution: 'Draft', negative: 'Failed', neutral: 'Archived' }
@@ -117,6 +121,48 @@ const statusStyle = (v) => ({
           <span style="color: var(--text-muted);">No records match — try widening your filters.</span>
         </template>
       </AspDataTable>
+    </Variant>
+
+    <Variant title="Per-row test hooks (rowAttrs)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        <code>rowAttrs(row, i)</code> spreads plain attributes (e.g. <code>data-test-row-id</code>,
+        <code>data-test-source</code>) onto each data <code>&lt;tr&gt;</code>. Reserved keys
+        (<code>class</code>/<code>tabindex</code>/<code>data-row-index</code>/handlers) are stripped —
+        attributes only, no styling opinion. Inspect a row in devtools to see the hooks.
+      </p>
+      <AspDataTable :columns="columns" :rows="rows" row-key="id" :row-attrs="rowAttrsDemo">
+        <template #cell-status="{ value }">
+          <span
+            :style="`display:inline-block;padding:0.1rem 0.5rem;border-radius:var(--radius-pill);font-size:var(--text-xs);${statusStyle(value)}`"
+          >{{ statusText[value] }}</span>
+        </template>
+      </AspDataTable>
+    </Variant>
+
+    <Variant title="Row emphasis (rowState: muted / active)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        <code>rowState(row, i) → 'muted' | 'active' | null</code> is a closed, token-backed vocabulary
+        the DS styles itself — <strong>not</strong> a raw <code>rowClass</code> hatch.
+        <code>active</code> = current-row highlight (a low-emphasis brand tint + left accent bar);
+        <code>muted</code> = a de-emphasised summary / remainder row. Shown in both themes; both stay
+        WCAG-AA and distinct from the interactive hover-fill.
+      </p>
+      <AspDataTable :columns="columns" :rows="rows" row-key="id" :row-state="rowStateDemo">
+        <template #cell-status="{ value }">
+          <span
+            :style="`display:inline-block;padding:0.1rem 0.5rem;border-radius:var(--radius-pill);font-size:var(--text-xs);${statusStyle(value)}`"
+          >{{ statusText[value] }}</span>
+        </template>
+      </AspDataTable>
+      <div data-theme="dark" style="background: var(--surface-page); padding: 16px; margin-top: 16px;">
+        <AspDataTable :columns="columns" :rows="rows" row-key="id" :row-state="rowStateDemo">
+          <template #cell-status="{ value }">
+            <span
+              :style="`display:inline-block;padding:0.1rem 0.5rem;border-radius:var(--radius-pill);font-size:var(--text-xs);${statusStyle(value)}`"
+            >{{ statusText[value] }}</span>
+          </template>
+        </AspDataTable>
+      </div>
     </Variant>
 
     <Variant title="Dark theme">

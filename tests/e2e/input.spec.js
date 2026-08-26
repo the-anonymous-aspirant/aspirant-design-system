@@ -73,3 +73,18 @@ test('the widened modes keep the shared 34px control box', async ({ page }) => {
     expect(box.height).toBeCloseTo(base.height, 0)
   }
 })
+
+// #4330: `.field__control` declares `height: var(--asp-input-height)` (34px)
+// but no `box-sizing`. In content-box (the browser default), the 1px
+// top+bottom border adds on top of the declared height, so the rendered
+// height silently becomes 36px whenever the host page supplies no border-box
+// reset of its own — this fixture page supplies none, matching a real
+// consumer that has none (aspirant-client relied on Vuetify's global reset
+// until #4294 retired Vuetify). This is the absolute-value counterpart to the
+// relative check above, which would pass equally at 34px or 36px.
+test('the control box measures the declared 34px, not 34px + the border (#4330)', async ({
+  page,
+}) => {
+  const box = await page.locator('.field__control').first().boundingBox()
+  expect(box.height).toBeCloseTo(34, 0)
+})

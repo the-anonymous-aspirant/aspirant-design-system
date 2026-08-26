@@ -40,7 +40,9 @@ Reference: `aspirant-client/src/components/ApplicationCard.vue`, `ApiCard.vue`.
 
 Replaces plain `<button>` in aspirant-client + `<v-btn>` in MessageBoardView. Consistent focus ring, amber-hover border, disabled state.
 
-Props: `variant` (primary | secondary | ghost | destructive), `size`, `loading`, `disabled`, `icon-left`, `icon-right`. Slot: default (label).
+Props: `variant` (primary | secondary | ghost | destructive), `size` (sm | md | lg | **icon**), `loading`, `disabled`, `icon-left`, `icon-right`. Slot: default (label, or the glyph in icon mode).
+
+`size="icon"` (§3.89) is a fixed **square** ≥44×44px hit target for a glyph-only button — the box does not grow with content (§3.23 rule-4), the `.btn__label` wrapper is suppressed, and `iconLeft`/`iconRight` are inert. The glyph rides the default slot. An **accessible name is required**: pass `aria-label` (or `aria-labelledby`); omit it and the component emits a dev-mode `console.warn`. Composes with every variant (toolbar/close glyphs → `ghost`; delete/× → `destructive`). Colour swatches and the back-chevron stay bespoke / `AspBackButton`.
 
 Loading state: spinner or skeleton — decide during implementation.
 

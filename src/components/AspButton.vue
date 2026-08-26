@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, useAttrs, watchEffect } from 'vue'
 
 const props = defineProps({
   variant: {
@@ -7,10 +7,13 @@ const props = defineProps({
     default: 'primary',
     validator: (v) => ['primary', 'secondary', 'ghost', 'destructive'].includes(v),
   },
+  // 'icon' is a fixed SQUARE shape (§3.89 / §3.23 rule-4) for a glyph-only
+  // button — a fixed ≥44px box, never label-width-driven. The default slot
+  // carries the glyph; iconLeft/iconRight are inert in icon mode.
   size: {
     type: String,
     default: 'md',
-    validator: (v) => ['sm', 'md', 'lg'].includes(v),
+    validator: (v) => ['sm', 'md', 'lg', 'icon'].includes(v),
   },
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
@@ -22,6 +25,24 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['click'])
+
+const attrs = useAttrs()
+const isIcon = computed(() => props.size === 'icon')
+
+// Accessible-name hard gate: an icon-only button has no visible text, so it
+// MUST carry an accessible name. Warn in dev when the shape is set and neither
+// aria-label nor aria-labelledby is present (§3.89; the a11y counterpart of
+// §3.85's "the control must not silently render a mismatched affordance").
+if (import.meta.env?.DEV) {
+  watchEffect(() => {
+    if (isIcon.value && !attrs['aria-label'] && !attrs['aria-labelledby']) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[AspButton] size="icon" has no accessible name — pass aria-label or aria-labelledby.',
+      )
+    }
+  })
+}
 
 const isBlocked = computed(() => props.disabled || props.loading)
 
@@ -50,7 +71,7 @@ const onClick = (event) => {
     :aria-busy="loading || undefined"
     @click="onClick"
   >
-    <span v-if="$slots.iconLeft && !loading" class="btn__icon btn__icon--left">
+    <span v-if="$slots.iconLeft && !loading && !isIcon" class="btn__icon btn__icon--left">
       <slot name="iconLeft" />
     </span>
     <span v-if="loading" class="btn__spinner" aria-hidden="true">
@@ -67,8 +88,11 @@ const onClick = (event) => {
         />
       </svg>
     </span>
-    <span class="btn__label"><slot /></span>
-    <span v-if="$slots.iconRight && !loading" class="btn__icon btn__icon--right">
+    <!-- Icon mode: the glyph rides the default slot with NO .btn__label wrapper,
+         so it centres in the square instead of being padded to a text pill. -->
+    <slot v-if="isIcon && !loading" />
+    <span v-else-if="!isIcon" class="btn__label"><slot /></span>
+    <span v-if="$slots.iconRight && !loading && !isIcon" class="btn__icon btn__icon--right">
       <slot name="iconRight" />
     </span>
   </button>
@@ -105,6 +129,18 @@ const onClick = (event) => {
 }
 .btn--size-lg {
   padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-lg);
+}
+/* Icon-only: a FIXED square (§3.89 / §3.23 rule-4), never label-width-driven.
+   ≥44px touch floor; padding is zeroed and width/height pinned so a lone glyph
+   centres (via the flex container) in a square hit target rather than a pill. */
+.btn--size-icon {
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  flex: none;
   font-size: var(--text-lg);
 }
 

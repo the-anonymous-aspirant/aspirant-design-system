@@ -46,6 +46,14 @@ Props: `variant` (primary | secondary | ghost | destructive), `size` (sm | md | 
 
 Loading state: spinner or skeleton — decide during implementation.
 
+### 3b. `AspSegmented` — ✅ shipped (§3.89)
+
+Single-select strip primitive (tab / mode / filter toggle) for a small, fixed set of mutually-exclusive choices. Selection is a **declared single-select state**, not a variant-flip of `AspButton` — unselected members stay calm, the selected one carries a subtle token-backed emphasis (a `currentColor`-mix fill + a thin `--brand-primary` underline), so the accent budget stays honest (§1).
+
+Props: `options` (`[{ value, label, disabled?, icon?, controls? }]`), `modelValue` (v-model — the selected `value`), `size` (`sm` | `md`), `as` (`radiogroup` default | `tabs`), `ariaLabel`, `disabled` (whole group). Emits `update:modelValue`.
+
+The `as` prop declares which a11y pattern the strip is: `radiogroup` (`role=radiogroup` + members `role=radio`/`aria-checked`) for a filter/mode that switches no named panel; `tabs` (`role=tablist` + `role=tab`/`aria-selected` + `aria-controls` from `option.controls`) only where a real `tabpanel` exists. Keyboard: roving tabindex (one tab-stop for the group), arrow keys move focus **and** selection (skipping disabled members), Home/End, Space/Enter. Ink is `inherit`/`currentColor`-relative (§3.18), so the strip composites on the light page and the dark card alike.
+
 ### 4. `AspSidebar` + `AspSidebarLink`
 
 Fixed left sidebar with mobile collapse. Handles the hamburger toggle + overlay pattern already in `App.vue`. Mobile-first: full-height overlay on small screens, fixed rail on desktop.

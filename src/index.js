@@ -13,6 +13,7 @@
 // none of the three (system_3 #2636).
 export { default as AspCard } from './components/AspCard.vue'
 export { default as AspButton } from './components/AspButton.vue'
+export { default as AspSegmented } from './components/AspSegmented.vue'
 export { default as AspSelect } from './components/AspSelect.vue'
 export { default as AspSidebar } from './components/AspSidebar.vue'
 export { default as AspSidebarLink } from './components/AspSidebarLink.vue'

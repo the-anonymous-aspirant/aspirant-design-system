@@ -57,7 +57,13 @@ Reference: `aspirant-client/src/components/sidebar/Sidebar.vue`, `SidebarLink.vu
 
 Text input replacing `<v-text-field>`. Label + hint + error states. Control height is 34px (the §3.10 filter-row canon), overridable per call site via `--asp-input-height`.
 
-Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search | number), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
+Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search | number | password | email | tel | url), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
+
+Exposes `focus()`, `select()`, and `el` (the inner `<input>`) to a caller holding a template ref. A `ref` on a component yields the *instance*, so without the exposure `x.focus()` is `undefined` and an open-and-type affordance — inline rename, inline create — degrades in the one way a test suite does not catch: the field still renders, still binds, still submits, and the caret never arrives. `tests/e2e/input.spec.js` asserts it through the same `ref` a consumer uses.
+
+The accepted `type` set is a **closed allowlist** of the single-line text-entry family (§3.85) — never an open string. Each of the seven renders in the identical box and differs only in what the browser does with the keystrokes: masking, `inputmode`, the soft keyboard, autofill. A form mixing a text field with a password or an email field is the common case (a login, a profile) and needs all its fields on one contract, or the DS-styled field sits visibly apart from its native siblings. `type="email"` and `type="password"` are also an a11y *gain* — the right soft keyboard, real masking, password-manager integration.
+
+**Out of contract, deliberately:** `date` / `time` / `datetime-local` / `month` / `week`, `color`, `range`, `file`, `checkbox`, `radio`, and `submit` / `reset` / `button`. Each summons native chrome this component's box does not govern, so admitting one would render a mismatched widget inside a control that claims to be a text field. Reach for a dedicated component instead — `AspCheckbox` exists; the rest do not yet. Autocomplete tokens (`autocomplete="current-password"`, `"email"`) are the caller's to set through the `$attrs` fall-through and are never hardcoded here.
 
 `error` takes a string (rendered as the message) or a bare `true` (styles the field invalid with no message, for callers that surface the text elsewhere). An error supersedes a hint — only one message line shows at a time. The `search` type renders a leading `AspIcon`.
 

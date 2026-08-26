@@ -5,17 +5,27 @@ let idCounter = 0
 </script>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AspIcon from './AspIcon.vue'
 
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
+  // §3.85: a CLOSED allowlist of the single-line text-entry family, never an
+  // open string. Each of the seven renders in the identical box and differs
+  // only in what the browser does with the keystrokes — masking, inputmode,
+  // the soft keyboard, autofill. The native-widget types are excluded on
+  // purpose: date/time/datetime-local/month/week, color, range, file,
+  // checkbox, radio, and submit/reset/button each summon native chrome this
+  // box does not govern, so admitting one would render a mismatched widget
+  // inside a control claiming to be a text field. Any of those is its own
+  // component.
   type: {
     type: String,
     default: 'text',
-    validator: (v) => ['text', 'search', 'number'].includes(v),
+    validator: (v) =>
+      ['text', 'search', 'number', 'password', 'email', 'tel', 'url'].includes(v),
   },
   placeholder: { type: String, default: null },
   label: { type: String, default: null },
@@ -46,6 +56,21 @@ const messageId = computed(() => {
 })
 
 const onInput = (event) => emit('update:modelValue', event.target.value)
+
+// `ref` on this component yields the component instance, not the inner
+// `<input>`, so a caller writing `ref="x"` + `x.focus()` gets a silent no-op
+// unless the methods are exposed. Callers that focus a field on open — an
+// inline rename, an inline create — depend on it, and nothing in a test
+// suite fails when focus quietly stops happening, so the capability has to
+// be part of the contract rather than something a consumer reaches around.
+const inputEl = ref(null)
+
+defineExpose({
+  /** The inner `<input>` element, for the rare caller that needs the node itself. */
+  el: inputEl,
+  focus: (options) => inputEl.value?.focus(options),
+  select: () => inputEl.value?.select(),
+})
 </script>
 
 <template>
@@ -65,6 +90,7 @@ const onInput = (event) => emit('update:modelValue', event.target.value)
       <AspIcon v-if="type === 'search'" name="search" size="sm" class="field__icon" />
       <input
         :id="uid"
+        ref="inputEl"
         class="field__input"
         :type="type"
         :value="modelValue"

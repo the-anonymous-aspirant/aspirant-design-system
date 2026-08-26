@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { AA, MEASURE } from './contrast-measure.js'
+
 // The acceptance criterion for #2779 is crash-safety: with a full §3.28 window
 // (500 rows) the rendered DOM node count is bounded to ~viewport+overscan, NOT
 // 500. These assertions read the bound off the real DOM, and check the a11y
@@ -59,4 +61,89 @@ test('sorting the windowed table reorders and resets the viewport to the top', a
   // A sort returns the reader to the top of the newly-ordered list.
   await expect(bigRows(page).first()).toHaveAttribute('data-row-index', '0')
   expect(await bigRows(page).count()).toBeLessThan(100)
+})
+
+// --- Per-row hooks (§3.88, #4318) -------------------------------------------
+// rowAttrs (attribute pass-through + reserved-key guard) and rowState (closed,
+// token-backed emphasis vocabulary), including under virtualization.
+
+test('rowAttrs spreads consumer test hooks onto the data <tr>', async ({ page }) => {
+  const first = page.locator('#attrs .data-table__row').first()
+  await expect(first).toHaveAttribute('data-test-row-id', '1')
+  await expect(first).toHaveAttribute('data-test-source', 'aspirant')
+})
+
+test('rowAttrs cannot clobber the component-owned reserved keys', async ({ page }) => {
+  const first = page.locator('#attrs .data-table__row').first()
+  // Consumer class is stripped — only the component's own class survives.
+  await expect(first).toHaveClass(/data-table__row/)
+  await expect(first).not.toHaveClass(/consumer-hacked/)
+  // data-row-index is the component's absolute index (0), not the consumer's 999.
+  await expect(first).toHaveAttribute('data-row-index', '0')
+  // tabindex (consumer 99) and role ('presentation') are reserved → not present.
+  expect(await first.getAttribute('tabindex')).toBeNull()
+  expect(await first.getAttribute('role')).toBeNull()
+  // The consumer's onClick was stripped — clicking wires nothing.
+  await first.click()
+  expect(await page.evaluate(() => window.__consumerClicked)).toBeFalsy()
+})
+
+test('rowState applies only the closed muted|active vocabulary', async ({ page }) => {
+  const rows = page.locator('#state .data-table__row')
+  await expect(rows.nth(0)).toHaveClass(/data-table__row--muted/)
+  await expect(rows.nth(1)).toHaveClass(/data-table__row--active/)
+  // Row 2 returned an out-of-set value → neither modifier, and no raw class leak.
+  await expect(rows.nth(2)).not.toHaveClass(/data-table__row--muted/)
+  await expect(rows.nth(2)).not.toHaveClass(/data-table__row--active/)
+  await expect(rows.nth(2)).not.toHaveClass(/bogus/)
+})
+
+test('rowState emphasis is token-painted and distinct (active tint + accent, muted de-emphasised)', async ({
+  page,
+}) => {
+  const activeCell = page.locator('#state .data-table__row--active td').first()
+  const bg = await activeCell.evaluate((el) => getComputedStyle(el).backgroundColor)
+  expect(bg).not.toBe('rgba(0, 0, 0, 0)') // the brand tint resolved and painted
+  expect(bg).not.toBe('transparent')
+  const shadow = await activeCell.evaluate((el) => getComputedStyle(el).boxShadow)
+  expect(shadow).not.toBe('none') // the left accent bar
+  // A muted row's ink is de-emphasised vs a plain (stateless) row's ink.
+  const mutedInk = await page
+    .locator('#state .data-table__row--muted td')
+    .first()
+    .evaluate((el) => getComputedStyle(el).color)
+  const plainInk = await page
+    .locator('#state .data-table__row')
+    .nth(3)
+    .locator('td')
+    .first()
+    .evaluate((el) => getComputedStyle(el).color)
+  expect(mutedInk).not.toBe(plainInk)
+})
+
+for (const surface of ['state', 'state-dark']) {
+  test(`rowState rows stay AA on the ${surface} surface`, async ({ page }) => {
+    const sites = await page.evaluate(MEASURE, `#${surface}`)
+    expect(sites.length).toBeGreaterThan(0)
+    const failures = sites.filter((s) => s.ratio < AA)
+    expect(
+      failures,
+      failures.map((f) => `"${f.text}" ${f.ratio}:1`).join(', '),
+    ).toHaveLength(0)
+  })
+}
+
+test('per-row hooks key off the absolute index under virtualization', async ({ page }) => {
+  const rows = () => page.locator('#bighooks .data-table__row')
+  // First visible row: rowAttrs stamped the absolute index, matching data-row-index.
+  await expect(rows().first()).toHaveAttribute('data-abs', '0')
+  await expect(rows().first()).toHaveAttribute('data-row-index', '0')
+  // The active row (absolute index 250) is outside the initial window...
+  await expect(page.locator('#bighooks .data-table__row--active')).toHaveCount(0)
+  // ...scroll it into view (250 × 40 = 10000px); it appears, keyed by absolute index.
+  await page.locator('#bighooks .data-table__scroll').evaluate((el) => (el.scrollTop = 10000))
+  const active = page.locator('#bighooks .data-table__row--active')
+  await expect(active).toHaveCount(1)
+  await expect(active).toHaveAttribute('data-row-index', '250')
+  await expect(active).toHaveAttribute('data-abs', '250')
 })

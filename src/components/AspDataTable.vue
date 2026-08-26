@@ -34,6 +34,20 @@ const props = defineProps({
   rowKey: { type: [String, Function], default: '' },
   caption: { type: String, default: '' },
 
+  // --- Per-row hooks (§3.88, task #4318) -------------------------------------
+  // rowAttrs(row, index) → object of attributes spread onto the data <tr> (test
+  // hooks / data-*). Carries NO styling opinion. The component's own bindings
+  // are reserved and win: class/key/tabindex/aria-rowindex/data-row-index/role
+  // and the click/keydown handlers are stripped from the returned object, so a
+  // consumer can never clobber the interactive / virtualization / a11y contract.
+  rowAttrs: { type: Function, default: null },
+  // rowState(row, index) → 'muted' | 'active' | null. A CLOSED, token-backed
+  // emphasis vocabulary the component styles itself (data-table__row--muted /
+  // --active) — deliberately NOT an open rowClass hatch. Any value outside the
+  // closed set is ignored. The enum is extended only by a design-of-record
+  // amendment (§3.85 closed-allowlist reasoning applied to rows).
+  rowState: { type: Function, default: null },
+
   // --- Virtualization (crash-safety §3.25/§3.29, task #2779-A1) ---------------
   // Above `virtualizeThreshold` rows the <tbody> renders only a windowed slice
   // (~viewport + overscan) with top/bottom spacer rows holding the full scroll
@@ -155,6 +169,51 @@ const keyFor = (row, index) => {
   return index
 }
 
+// --- Per-row hooks (§3.88) ----------------------------------------------------
+// Keys the component owns on the data <tr>; a consumer's rowAttrs cannot set
+// them (class/style/handlers would otherwise MERGE in Vue rather than lose to
+// the component, so stripping — not ordering alone — is what enforces the
+// contract). Matched case-insensitively; any on*-prefixed handler is stripped.
+const RESERVED_ROW_ATTRS = new Set([
+  'class', 'style', 'key', 'tabindex', 'aria-rowindex',
+  'data-row-index', 'role',
+])
+const isReservedRowAttr = (k) =>
+  RESERVED_ROW_ATTRS.has(String(k).toLowerCase()) || /^on[a-z]/i.test(k)
+
+const rowAttrsFor = (row, index) => {
+  if (!props.rowAttrs) return null
+  const raw = props.rowAttrs(row, index)
+  if (!raw || typeof raw !== 'object') return null
+  const clean = {}
+  for (const k of Object.keys(raw)) {
+    if (isReservedRowAttr(k)) {
+      if (import.meta.env?.DEV)
+        // eslint-disable-next-line no-console
+        console.warn(`[AspDataTable] rowAttrs: reserved key "${k}" ignored — the component owns it.`)
+      continue
+    }
+    clean[k] = raw[k]
+  }
+  return clean
+}
+
+// Closed emphasis vocabulary; anything else is ignored (never rendered as a raw
+// class). Returns the modifier class, or null.
+const ROW_STATES = new Set(['muted', 'active'])
+const rowStateClass = (row, index) => {
+  if (!props.rowState) return null
+  const s = props.rowState(row, index)
+  if (s == null) return null
+  if (!ROW_STATES.has(s)) {
+    if (import.meta.env?.DEV)
+      // eslint-disable-next-line no-console
+      console.warn(`[AspDataTable] rowState: "${s}" is not one of muted|active|null — ignored.`)
+    return null
+  }
+  return `data-table__row--${s}`
+}
+
 const ariaSortFor = (col) => {
   if (curSortBy.value !== col.key) return isSortable(col) ? 'none' : undefined
   return curSortDir.value === 'asc' ? 'ascending' : 'descending'
@@ -231,8 +290,9 @@ const tableClasses = computed(() => ({
           <tr
             v-for="(row, i) in windowedRows"
             :key="keyFor(row, startIndex + i)"
+            v-bind="rowAttrsFor(row, startIndex + i)"
             class="data-table__row"
-            :class="{ 'data-table__row--interactive': interactive }"
+            :class="[{ 'data-table__row--interactive': interactive }, rowStateClass(row, startIndex + i)]"
             :tabindex="interactive ? 0 : undefined"
             :aria-rowindex="virtualize ? startIndex + i + 2 : undefined"
             :data-row-index="startIndex + i"
@@ -394,6 +454,32 @@ const tableClasses = computed(() => ({
 .data-table__row--interactive:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--focus-ring-color, var(--brand-primary));
+}
+
+/* Row emphasis (rowState §3.88) — a CLOSED, token-backed vocabulary owned by the
+   component, not a consumer class hatch. Both members are relative to the
+   surface's own ink (--text-muted is a currentColor mix) or a brand tint, so
+   they hold their contrast in light AND dark, and both stay distinct from the
+   grey --interactive hover-fill above. */
+.data-table__row--muted td {
+  color: var(--text-muted);
+}
+/* A muted row reads as de-emphasized, so it must not take the interactive
+   hover-fill — that would re-emphasize it on hover. */
+.data-table--interactive tbody tr.data-table__row--muted:hover {
+  background: transparent;
+}
+
+.data-table__row--active td {
+  /* A low-emphasis brand tint over whatever surface the row sits on — NOT a
+     saturated fill — so row text keeps its AA contrast in both themes. */
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+/* A left accent bar so --active reads even where the tint is subtle and
+   regardless of hue perception; box-shadow on the first cell renders reliably
+   where a <tr> box-shadow would not. */
+.data-table__row--active td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--brand-primary);
 }
 
 /* Empty */

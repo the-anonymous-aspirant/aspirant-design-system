@@ -77,6 +77,31 @@ const runAsync = async () => {
       </div>
     </Variant>
 
+    <Variant title="Icon-only (size=icon)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        <code>size="icon"</code> is a fixed square ≥44px hit target for a lone glyph (rides the
+        default slot; <code>iconLeft</code>/<code>iconRight</code> are inert). An accessible name is
+        <strong>required</strong> — pass <code>aria-label</code> (omit it and the component dev-warns).
+        Shown in each variant, light and dark.
+      </p>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <AspButton size="icon" variant="primary" aria-label="Zoom in"><span>+</span></AspButton>
+        <AspButton size="icon" variant="secondary" aria-label="Row menu"><span>⋮</span></AspButton>
+        <AspButton size="icon" variant="ghost" aria-label="Close"><span>✕</span></AspButton>
+        <AspButton size="icon" variant="destructive" aria-label="Delete"><span>🗑</span></AspButton>
+        <AspButton size="icon" variant="ghost" loading aria-label="Loading" />
+      </div>
+      <div
+        data-theme="dark"
+        style="margin-top: 16px; padding: 16px; background: var(--surface-page); display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"
+      >
+        <AspButton size="icon" variant="primary" aria-label="Zoom in"><span>+</span></AspButton>
+        <AspButton size="icon" variant="secondary" aria-label="Row menu"><span>⋮</span></AspButton>
+        <AspButton size="icon" variant="ghost" aria-label="Close"><span>✕</span></AspButton>
+        <AspButton size="icon" variant="destructive" aria-label="Delete"><span>🗑</span></AspButton>
+      </div>
+    </Variant>
+
     <Variant title="Dark theme">
       <div data-theme="dark" style="padding: 24px; background: var(--surface-page); display: flex; gap: 12px; flex-wrap: wrap;">
         <AspButton variant="primary">Primary</AspButton>

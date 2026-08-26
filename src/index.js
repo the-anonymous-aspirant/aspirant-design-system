@@ -3,6 +3,11 @@
 //   import { AspCard, AspButton, AspSidebar, AspSidebarLink, AspIcon } from '@aspirant/design-system'
 //   import '@aspirant/design-system/tokens.css'
 //
+// base.css ships the universal box-sizing:border-box reset every component's
+// scoped styles assume (#4330) — imported here (not per-component) so it
+// lands once in the bundled dist/style.css output.
+import './base.css'
+//
 // Every component is exported statically here — the barrel stays a plain,
 // single import path. Three peers (chart.js, marked, highlight.js) are declared
 // OPTIONAL in package.json; the components that use them (AspChart, AspBarChart,

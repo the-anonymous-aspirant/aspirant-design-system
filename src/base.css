@@ -1,0 +1,14 @@
+/* Universal border-box reset — shipped once from the DS's own bundled CSS
+   output rather than patched per-component. Every scoped component SFC
+   declares its control heights/paddings assuming border-box (e.g. AspInput's
+   `.field__control { height: var(--asp-input-height) }`); without this rule
+   the browser default (content-box) adds the border on top of the declared
+   height, so every bordered control renders 2px taller than spec whenever
+   the consuming app supplies no border-box reset of its own (#4330 —
+   aspirant-client's Vuetify retirement in #4294 removed the reset Vuetify
+   used to provide, which had masked this gap). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

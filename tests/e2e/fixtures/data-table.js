@@ -29,6 +29,21 @@ const small = Array.from({ length: 5 }, (_, i) => ({
   owner: 'aspirant',
 }))
 
+// A wide table (12 fixed-width columns) for the #4529 horizontal-overflow cue —
+// dropped in a narrow (max-width) container in the fixture so it overflows.
+const wide = Array.from({ length: 12 }, (_, i) => ({
+  key: `c${i}`,
+  label: `Column ${i + 1}`,
+  width: '10rem',
+}))
+const wideRows = Array.from({ length: 4 }, (_, r) => {
+  const row = {}
+  wide.forEach((c, i) => {
+    row[c.key] = `r${r + 1}-${i + 1}`
+  })
+  return row
+})
+
 // rowAttrs: real test hooks PLUS a deliberate attempt to clobber reserved keys,
 // so the spec can prove the component's own bindings win (the reserved keys are
 // stripped, never rendered).
@@ -82,6 +97,33 @@ createApp({
           },
           [h(AspDataTable, { columns, rows: small, rowKey: 'id', rowState: stateFn })],
         ),
+        // #4529 horizontal-overflow edge cue. A wide table (12 fixed-width cols)
+        // inside a narrow container overflows → the viewport toggles
+        // --overflow-start / --overflow-end as it scrolls. On a LIGHT surface and
+        // a DARK card surface, so the spec can also prove the fade colour
+        // (--asp-dt-surface) resolves to each surface's own background.
+        h(
+          'section',
+          {
+            id: 'overflow-light',
+            style: 'margin-top:24px; max-width:320px; background: var(--surface-page); padding:8px',
+          },
+          [h(AspDataTable, { columns: wide, rows: wideRows, rowKey: 'c0', caption: 'overflow' })],
+        ),
+        h(
+          'section',
+          {
+            id: 'overflow-dark',
+            style:
+              'margin-top:24px; max-width:320px; background: var(--surface-card); color: var(--text-on-dark); padding:8px',
+          },
+          [h(AspDataTable, { columns: wide, rows: wideRows, rowKey: 'c0', caption: 'overflow' })],
+        ),
+        // A table that FITS its container: no overflow either way, so neither cue
+        // class is ever set.
+        h('section', { id: 'fits', style: 'margin-top:24px; max-width:800px' }, [
+          h(AspDataTable, { columns, rows: small, rowKey: 'id', caption: 'fits' }),
+        ]),
         // Virtualized: hooks must key off the ABSOLUTE index, not the window-local
         // one — rowAttrs stamps the absolute index, rowState marks row 250 active.
         h('section', { id: 'bighooks', style: 'margin-top:24px' }, [

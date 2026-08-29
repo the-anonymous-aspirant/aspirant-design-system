@@ -133,6 +133,62 @@ for (const surface of ['state', 'state-dark']) {
   })
 }
 
+// --- Horizontal-overflow edge cue (#4529) -----------------------------------
+// A wide table in a narrow container overflows horizontally; the viewport
+// toggles --overflow-start / --overflow-end so an edge-fade signals "more to
+// scroll" at each end. A table that fits shows neither.
+
+const viewport = (page, id) => page.locator(`#${id} .data-table__viewport`)
+const scrollOf = (page, id) => page.locator(`#${id} .data-table__scroll`)
+
+test('a table that fits its container shows no overflow cue', async ({ page }) => {
+  const vp = viewport(page, 'fits')
+  await expect(vp).not.toHaveClass(/data-table__viewport--overflow-start/)
+  await expect(vp).not.toHaveClass(/data-table__viewport--overflow-end/)
+})
+
+test('an overflowing table cues the trailing edge at rest and swaps as it scrolls', async ({
+  page,
+}) => {
+  const vp = viewport(page, 'overflow-light')
+  const scroll = scrollOf(page, 'overflow-light')
+  // Sanity: the table really does overflow its narrow container.
+  const overflows = await scroll.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+  expect(overflows).toBe(true)
+
+  // At rest (scrollLeft 0): trailing cue on, leading cue off.
+  await expect(vp).toHaveClass(/data-table__viewport--overflow-end/)
+  await expect(vp).not.toHaveClass(/data-table__viewport--overflow-start/)
+
+  // Scroll partway: both edges cue.
+  await scroll.evaluate((el) => (el.scrollLeft = 40))
+  await expect(vp).toHaveClass(/data-table__viewport--overflow-start/)
+  await expect(vp).toHaveClass(/data-table__viewport--overflow-end/)
+
+  // Scroll to the true end: leading cue on, trailing cue off.
+  await scroll.evaluate((el) => (el.scrollLeft = el.scrollWidth))
+  await expect(vp).toHaveClass(/data-table__viewport--overflow-start/)
+  await expect(vp).not.toHaveClass(/data-table__viewport--overflow-end/)
+})
+
+test('the edge-fade colour resolves to the table’s own surface, light and dark', async ({
+  page,
+}) => {
+  // The fade dissolves into --asp-dt-surface, set inline to the resolved
+  // ancestor background — the light page on one section, the dark card on the
+  // other — so it composites without a visible band on either.
+  const lightSurface = await viewport(page, 'overflow-light').evaluate((el) =>
+    el.style.getPropertyValue('--asp-dt-surface').trim(),
+  )
+  const darkSurface = await viewport(page, 'overflow-dark').evaluate((el) =>
+    el.style.getPropertyValue('--asp-dt-surface').trim(),
+  )
+  expect(lightSurface).not.toBe('')
+  expect(darkSurface).not.toBe('')
+  // Different surfaces → different resolved fade colours (no single hardcoded value).
+  expect(lightSurface).not.toBe(darkSurface)
+})
+
 test('per-row hooks key off the absolute index under virtualization', async ({ page }) => {
   const rows = () => page.locator('#bighooks .data-table__row')
   // First visible row: rowAttrs stamped the absolute index, matching data-row-index.

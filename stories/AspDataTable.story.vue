@@ -26,6 +26,22 @@ const longCols = [
   { key: 'text', label: 'Text', truncate: true, width: '18ch' },
 ]
 
+// Wide table (many fixed-width columns) shown inside a deliberately narrow
+// container so the content overflows horizontally — exercises the #4529
+// edge-fade discoverability cue.
+const wideCols = Array.from({ length: 12 }, (_, i) => ({
+  key: `c${i}`,
+  label: `Column ${i + 1}`,
+  width: '10rem',
+}))
+const wideRows = Array.from({ length: 4 }, (_, r) => {
+  const row = {}
+  wideCols.forEach((c, i) => {
+    row[c.key] = `r${r + 1}·${i + 1}`
+  })
+  return row
+})
+
 // 500 rows — the §3.28 fetch window. Above the 100-row threshold the table
 // windows its <tbody> to ~viewport+overscan; the DOM holds a few dozen <tr>,
 // not 500. (#2779-A1)
@@ -113,6 +129,27 @@ const statusStyle = (v) => ({
           >{{ statusText[value] }}</span>
         </template>
       </AspDataTable>
+    </Variant>
+
+    <Variant title="Horizontal-overflow edge cue">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        When a table is wider than its container, <code>.data-table__scroll</code> scrolls
+        horizontally — but a native scrollbar is thin / auto-hiding on many configs, so the extra
+        columns can read as truncated rather than scrollable. A soft trailing-edge fade (to the
+        surface's own background) signals “more to the right”; scroll and it fades in on the leading
+        edge too, then fades out at each true end. A table that fits its container shows no cue.
+      </p>
+      <div style="max-width: 22rem; border: 1px dashed var(--border-subtle); padding: 8px;">
+        <AspDataTable :columns="wideCols" :rows="wideRows" row-key="c0" />
+      </div>
+      <p style="margin: 8px 0; color: var(--text-muted);">Same table on a dark card surface:</p>
+      <div data-theme="dark" style="max-width: 22rem; background: var(--surface-card); color: var(--text-on-dark); padding: 8px;">
+        <AspDataTable :columns="wideCols" :rows="wideRows" row-key="c0" />
+      </div>
+      <p style="margin: 12px 0 8px; color: var(--text-muted);">A narrow table that fits — no cue:</p>
+      <div style="max-width: 22rem; border: 1px dashed var(--border-subtle); padding: 8px;">
+        <AspDataTable :columns="longCols" :rows="longRows" row-key="key" />
+      </div>
     </Variant>
 
     <Variant title="Empty slot">

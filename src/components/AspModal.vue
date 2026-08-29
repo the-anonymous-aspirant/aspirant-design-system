@@ -27,6 +27,19 @@ const props = defineProps({
     default: 'md',
     validator: (v) => ['sm', 'md', 'lg', 'fullscreen'].includes(v),
   },
+  /**
+   * `center` (default) is the centred dialog. `end` is an edge-anchored,
+   * full-height side sheet at the inline-end edge from the `md` breakpoint up
+   * (below it every placement is the full-screen sheet). A side sheet is still
+   * a modal dialog — trapped, scrimmed, Esc-closable — it only changes anchor
+   * and entry motion. `size` keeps its meaning: for a sheet it is the width
+   * (`max-inline-size`).
+   */
+  placement: {
+    type: String,
+    default: 'center',
+    validator: (v) => ['center', 'end'].includes(v),
+  },
   /** Allow scrim click and Esc to close. Set false for must-answer dialogs. */
   dismissible: { type: Boolean, default: true },
   /** Accessible name when no visible `title` is given. */
@@ -130,11 +143,14 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <Transition name="modal-fade">
+    <Transition :name="placement === 'end' ? 'sheet-slide' : 'modal-fade'">
       <div
         v-if="open"
         class="modal__scrim"
-        :class="{ 'modal__scrim--fullscreen': size === 'fullscreen' }"
+        :class="{
+          'modal__scrim--fullscreen': size === 'fullscreen',
+          'modal__scrim--end': placement === 'end',
+        }"
         @pointerdown="onScrimPointerDown"
         @keydown="onKeydown"
       >
@@ -146,7 +162,7 @@ onBeforeUnmount(() => {
           :id="`${uid}-panel`"
           ref="panel"
           class="modal__panel"
-          :class="`modal__panel--${size}`"
+          :class="[`modal__panel--${size}`, { 'modal__panel--end': placement === 'end' }]"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="labelledBy"
@@ -320,6 +336,25 @@ onBeforeUnmount(() => {
     max-height: 100dvh;
     border-radius: 0;
   }
+
+  /*
+   * placement="end": an edge-anchored, full-height side sheet. `flex-end` is
+   * direction-aware, so the panel lands on the inline-end edge and is RTL-correct
+   * without a hardcoded `right`; the `size` cap above still sets its width
+   * (max-inline-size). Below md, the mobile base already is a full-width sheet,
+   * so nothing here is needed there.
+   */
+  .modal__scrim--end {
+    align-items: stretch;
+    justify-content: flex-end;
+    padding: 0;
+  }
+
+  .modal__panel--end {
+    block-size: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
 }
 
 .modal-fade-enter-active,
@@ -332,10 +367,52 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
+/*
+ * placement="end" entry/exit: the scrim fades while the panel slides in from the
+ * anchored edge. The Transition classes land on the scrim (the transitioned
+ * root); the panel is targeted as its descendant. `translateX(100%)` is the
+ * inline-end edge in LTR; the [dir="rtl"] pair flips the sign so the sheet
+ * always enters from the edge it anchors to.
+ */
+.sheet-slide-enter-active,
+.sheet-slide-leave-active {
+  transition: opacity var(--transition-base);
+}
+
+.sheet-slide-enter-active .modal__panel,
+.sheet-slide-leave-active .modal__panel {
+  transition: transform var(--transition-moderate);
+}
+
+.sheet-slide-enter-from,
+.sheet-slide-leave-to {
+  opacity: 0;
+}
+
+.sheet-slide-enter-from .modal__panel,
+.sheet-slide-leave-to .modal__panel {
+  transform: translateX(100%);
+}
+
+[dir='rtl'] .sheet-slide-enter-from .modal__panel,
+[dir='rtl'] .sheet-slide-leave-to .modal__panel {
+  transform: translateX(-100%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-fade-enter-active,
-  .modal-fade-leave-active {
+  .modal-fade-leave-active,
+  .sheet-slide-enter-active,
+  .sheet-slide-leave-active,
+  .sheet-slide-enter-active .modal__panel,
+  .sheet-slide-leave-active .modal__panel {
     transition: none;
+  }
+
+  /* Opacity-only: the panel appears at rest, never translated. */
+  .sheet-slide-enter-from .modal__panel,
+  .sheet-slide-leave-to .modal__panel {
+    transform: none;
   }
 }
 </style>

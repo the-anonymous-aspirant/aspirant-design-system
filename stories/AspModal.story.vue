@@ -17,6 +17,9 @@ const bodyOnly = ref(false)
 const nestedOuter = ref(false)
 const nestedInner = ref(false)
 const dark = ref(false)
+const sheetSm = ref(false)
+const sheetMd = ref(false)
+const sheetLg = ref(false)
 
 const taskTitle = ref('')
 const assignee = ref('engineer')
@@ -42,27 +45,34 @@ const paragraphs = Array.from(
       <p>
         <strong>When to use:</strong> a short, focused task that must be finished or abandoned
         before the page underneath is useful again — confirm a destructive action, fill one small
-        form. <strong>When not to use:</strong> anything long enough to need its own scroll
-        context and back-button behaviour (that is a page), or a passive message (that is a toast,
-        unbuilt).
+        form. <strong>When not to use:</strong> anything long enough to need its own scroll context
+        and back-button behaviour (that is a page), or a passive message (that is a toast, unbuilt).
       </p>
       <p>
-        <strong>Teleported to <code>&lt;body&gt;</code>.</strong> A dialog authored inside a card
-        or any ancestor with <code>overflow: hidden</code>, <code>transform</code> or
+        <strong>Teleported to <code>&lt;body&gt;</code>.</strong> A dialog authored inside a card or
+        any ancestor with <code>overflow: hidden</code>, <code>transform</code> or
         <code>filter</code> would be clipped or positioned against that ancestor rather than the
         viewport — and its call sites are exactly that shape.
       </p>
       <p>
         <strong>Surface note.</strong> The panel sits on <code>--surface-card</code>, which is
-        <em>dark even in the light theme</em>, so it sets its own ink
-        (<code>--text-on-dark</code>) instead of inheriting the ambient one; the title takes the
-        same amber as <code>AspCard</code>. Children inherit from the panel. This is the
-        distinction behind #2415: a component that sets a background must set the ink with it.
+        <em>dark even in the light theme</em>, so it sets its own ink (<code>--text-on-dark</code>)
+        instead of inheriting the ambient one; the title takes the same amber as
+        <code>AspCard</code>. Children inherit from the panel. This is the distinction behind #2415:
+        a component that sets a background must set the ink with it.
       </p>
       <p>
         <strong>Mobile is the base, not an override.</strong> Below the <code>md</code> breakpoint
-        every size is a full-screen sheet; the sized, centred, rounded dialog appears from 768px
-        up via <code>min-width</code>. Narrow the Histoire viewport to see it.
+        every size is a full-screen sheet; the sized, centred, rounded dialog appears from 768px up
+        via <code>min-width</code>. Narrow the Histoire viewport to see it.
+      </p>
+      <p>
+        <strong>Side sheet (<code>placement="end"</code>).</strong> An edge-anchored, full-height
+        variant for detail panels and inspectors. It is a <em>modal</em> dialog — trapped, scrimmed,
+        Esc-closable — that only changes anchor and entry motion: it slides in from the inline-end
+        edge (RTL-correct via logical flex, so it enters from the left under <code>dir="rtl"</code>)
+        and <code>size</code> sets its width. Below <code>md</code> it is the same full-screen sheet
+        as the centred dialog. Under <code>prefers-reduced-motion</code> the slide is dropped.
       </p>
       <p>
         <strong>Keyboard and focus:</strong> focus enters the panel on open and returns to the
@@ -115,6 +125,34 @@ const paragraphs = Array.from(
       </AspModal>
     </Variant>
 
+    <Variant title="Side sheet (placement=end)">
+      <div class="row">
+        <AspButton @click="sheetSm = true">sm sheet</AspButton>
+        <AspButton @click="sheetMd = true">md sheet</AspButton>
+        <AspButton @click="sheetLg = true">lg sheet</AspButton>
+      </div>
+      <AspModal v-model:open="sheetSm" placement="end" size="sm" title="Filters">
+        <p>
+          Edge-anchored, full-height side sheet. <code>size</code> sets the width (sm = 24rem); it
+          slides in from the inline-end edge and stays a modal dialog — trapped, scrimmed,
+          Esc-closable. Below the <code>md</code> breakpoint it is a full-screen sheet.
+        </p>
+      </AspModal>
+      <AspModal v-model:open="sheetMd" placement="end" size="md" title="Node detail">
+        <div class="form">
+          <AspInput v-model="taskTitle" label="Label" placeholder="Rename this node" />
+          <AspSelect v-model="assignee" label="Owner" :options="ASSIGNEES" />
+        </div>
+        <template #footer>
+          <AspButton variant="ghost" @click="sheetMd = false">Cancel</AspButton>
+          <AspButton variant="primary" @click="sheetMd = false">Save</AspButton>
+        </template>
+      </AspModal>
+      <AspModal v-model:open="sheetLg" placement="end" size="lg" title="Run forensic">
+        <p v-for="p in paragraphs" :key="p">{{ p }}</p>
+      </AspModal>
+    </Variant>
+
     <Variant title="Non-dismissible (must answer)">
       <AspButton variant="secondary" @click="sticky = true">Delete branch…</AspButton>
       <AspModal v-model:open="sticky" size="sm" title="Delete branch?" :dismissible="false">
@@ -140,9 +178,8 @@ const paragraphs = Array.from(
       <AspButton @click="bodyOnly = true">Open message</AspButton>
       <AspModal v-model:open="bodyOnly" title="Nothing to focus" :show-close="false">
         <p>
-          No close button, no controls. The panel itself takes focus
-          (<code>tabindex="-1"</code>) so Tab cannot walk out into the page behind it. Esc still
-          closes.
+          No close button, no controls. The panel itself takes focus (<code>tabindex="-1"</code>) so
+          Tab cannot walk out into the page behind it. Esc still closes.
         </p>
       </AspModal>
     </Variant>
@@ -172,8 +209,8 @@ const paragraphs = Array.from(
           <p>
             The panel is teleported to <code>&lt;body&gt;</code>, so it reads the
             <em>document</em> theme, not this pane's. In a real app the theme lives on
-            <code>:root</code> and the two agree; a scoped <code>data-theme</code> like this one
-            is a story artefact.
+            <code>:root</code> and the two agree; a scoped <code>data-theme</code> like this one is
+            a story artefact.
           </p>
         </AspModal>
       </div>

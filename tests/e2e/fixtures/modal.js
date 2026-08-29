@@ -19,6 +19,7 @@ createApp({
     const main = ref(false)
     const sticky = ref(false)
     const bare = ref(false)
+    const sheet = ref(false)
     const text = ref('')
     const closes = ref(0)
 
@@ -29,6 +30,7 @@ createApp({
         h(AspButton, { id: 'open-main', onClick: () => (main.value = true) }, () => 'Open main'),
         h(AspButton, { id: 'open-sticky', onClick: () => (sticky.value = true) }, () => 'Open sticky'),
         h(AspButton, { id: 'open-bare', onClick: () => (bare.value = true) }, () => 'Open bare'),
+        h(AspButton, { id: 'open-sheet', onClick: () => (sheet.value = true) }, () => 'Open sheet'),
         h('button', { id: 'behind', type: 'button' }, 'behind the dialog'),
         h('output', { id: 'closes' }, String(closes.value)),
         // Forces a document scrollbar so `overflow: hidden` on <body> is visible
@@ -74,6 +76,22 @@ createApp({
             showClose: false,
           },
           { default: () => h('p', null, 'Nothing focusable in here.') }
+        ),
+
+        // placement="end" side sheet — same modality, edge-anchored geometry.
+        h(
+          AspModal,
+          {
+            open: sheet.value,
+            'onUpdate:open': (v) => (sheet.value = v),
+            onClose: countClose,
+            title: 'Sheet dialog',
+            placement: 'end',
+            size: 'md',
+          },
+          {
+            default: () => [h(AspInput, { id: 'sheet-field', label: 'Note', modelValue: text.value })],
+          }
         ),
       ])
   },

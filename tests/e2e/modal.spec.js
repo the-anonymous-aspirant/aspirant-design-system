@@ -128,3 +128,78 @@ test('the panel is teleported to <body>, not left at the call site', async ({ pa
   // assert the placement rather than the symptom.
   expect(await scrim(page).evaluate((el) => el.parentElement === document.body)).toBe(true)
 })
+
+// --- placement="end" side sheet ---------------------------------------------
+// A side sheet is a MODAL dialog with a different anchor and entry motion, so
+// the ARIA/focus/Esc behaviour is asserted to be inherited unchanged, and the
+// geometry (edge-anchored, full-height, width-capped) is asserted directly —
+// that is the only thing a sheet is that a centred dialog is not. Geometry is
+// read under reduced motion so the panel is measured at rest, not mid-slide.
+
+const sheetPanel = (page) => page.locator('.modal__panel').filter({ hasText: 'Sheet dialog' })
+const openSheet = async (page) => {
+  await page.locator('#open-sheet').click()
+  await expect(sheetPanel(page)).toBeVisible()
+}
+
+test('the side sheet keeps dialog role, aria-modal and an accessible name', async ({ page }) => {
+  await openSheet(page)
+  await expect(sheetPanel(page)).toHaveRole('dialog')
+  await expect(sheetPanel(page)).toHaveAttribute('aria-modal', 'true')
+  await expect(sheetPanel(page)).toHaveAccessibleName('Sheet dialog')
+})
+
+test('the side sheet traps focus and closes on Esc, returning focus to the trigger', async ({
+  page,
+}) => {
+  await page.locator('#open-sheet').focus()
+  await page.locator('#open-sheet').click()
+  await expect(sheetPanel(page)).toBeVisible()
+  await expect(page.locator('.modal__close')).toBeFocused()
+
+  await page.keyboard.press('Escape')
+  await expect(sheetPanel(page)).toBeHidden()
+  await expect(page.locator('#open-sheet')).toBeFocused()
+})
+
+test('the side sheet is edge-anchored, full-height and width-capped by size on desktop', async ({
+  page,
+}) => {
+  // Reduced motion pins the panel at its resting position immediately, so the
+  // geometry is measured after the slide would have settled, not mid-transition.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const vp = page.viewportSize()
+  expect(vp.width).toBeGreaterThanOrEqual(768) // md+; the sheet geometry only applies here
+  await openSheet(page)
+  const box = await sheetPanel(page).boundingBox()
+
+  // Anchored to the inline-end (right, in this LTR fixture): the panel's right
+  // edge sits at the viewport's right edge.
+  expect(Math.abs(box.x + box.width - vp.width)).toBeLessThanOrEqual(2)
+  // Full viewport height.
+  expect(Math.abs(box.height - vp.height)).toBeLessThanOrEqual(2)
+  // Width capped at the `size="md"` scale (34rem = 544px), not the full width.
+  expect(box.width).toBeLessThanOrEqual(546)
+  expect(box.width).toBeGreaterThan(400)
+})
+
+test('below the md breakpoint the side sheet is a full-width sheet', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.setViewportSize({ width: 375, height: 800 })
+  await openSheet(page)
+  const box = await sheetPanel(page).boundingBox()
+  expect(Math.abs(box.x)).toBeLessThanOrEqual(2)
+  expect(Math.abs(box.width - 375)).toBeLessThanOrEqual(2)
+})
+
+test('the side sheet anchors to the inline-end under RTL (left edge)', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.evaluate(() => document.documentElement.setAttribute('dir', 'rtl'))
+  const vp = page.viewportSize()
+  await openSheet(page)
+  const box = await sheetPanel(page).boundingBox()
+  // inline-end in RTL is the left edge: the panel's left edge sits at x≈0.
+  expect(Math.abs(box.x)).toBeLessThanOrEqual(2)
+  expect(box.width).toBeLessThanOrEqual(546)
+  expect(box.x + box.width).toBeLessThan(vp.width) // not full-width; still a capped sheet
+})

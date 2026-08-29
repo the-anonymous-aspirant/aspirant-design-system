@@ -143,8 +143,21 @@ The scrim uses the new `--surface-scrim` token, which is the literal
 `AspSidebar`'s mobile overlay had hardcoded; the sidebar now reads the token
 too, at the same value.
 
+**Side sheet (`placement="end"`).** The default `placement="center"` is the
+centred dialog. `placement="end"` is an edge-anchored, full-height side sheet at
+the inline-end edge — the shape a detail panel or inspector wants (NodeDetailPanel,
+run forensics). It is still a **modal** dialog: focus-trapped, scrimmed,
+Esc-closable, body-scroll-locked — everything above is inherited, only the anchor
+and the entry motion change. `size` keeps its meaning and sets the sheet's **width**
+(`max-inline-size`: sm/md/lg = 24/34/48rem); the sheet is full-height (`100dvh`) and
+square-cornered. The geometry applies from the `md` breakpoint up; below it every
+placement is the full-screen sheet already described. Anchoring is direction-aware
+(logical flex, no hardcoded `right`), so under `dir="rtl"` the sheet anchors to —
+and slides in from — the left. The entry is a slide from the anchored edge with a
+scrim fade; under `prefers-reduced-motion: reduce` the transform is dropped.
+
 Props: `open` (v-model), `title`, `size` (`sm` | `md` | `lg` | `fullscreen`),
-`dismissible`, `showClose`, `closeLabel`, `ariaLabel`.
+`placement` (`center` | `end`), `dismissible`, `showClose`, `closeLabel`, `ariaLabel`.
 Slots: default (body), `footer`.
 Emits: `update:open`, `open`, `close`.
 

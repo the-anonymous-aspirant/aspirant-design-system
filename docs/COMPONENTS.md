@@ -678,6 +678,37 @@ load order, so the override is not a race. The composer's old manual `resize: ve
 handle is gone — auto-grow supersedes it, the same way it does for every other consumer of this
 primitive.
 
+### 23. `AspSelect` — ✅ shipped
+
+The dropdown-of-record (corpus §3.10). The trigger carries the same filter-control treatment as
+`AspInput` (34px, `--surface-elevated`, radius 8, `--border-control`) and reads `Label ▾`; the
+open panel sits on `--surface-card` with a shadow, a capped height and internal scroll. Keyboard
+(↑/↓ over the options skipping disabled ones, Enter to select, Escape to close, Tab commits
+nothing) is handled in the component rather than a shared composable — one consumer is not enough
+to know the shape of a general `useKeyboard`.
+
+**Caption typography matches the field-control family** (§3.95). `.select__label` renders at
+`--text-sm` / `--font-weight-medium` / `line-height: 1.3`, identical to `AspInput` and
+`AspTextarea`'s `.field__label` — a form built from all three shows one caption treatment, not
+two. The former `--text-xs` was silent divergence, not a documented variant; the
+`caption-parity` e2e spec now reads the resolved caption typography off all three controls and
+turns red if a fourth ever mismatches.
+
+**A consumer `id` forwards to the labelable trigger, not the wrapper** (§3.95). `inheritAttrs`
+is off and `$attrs` is bound onto the `.select__trigger` `<button>` (the labelable element),
+exactly as `AspInput`/`AspTextarea` forward onto their inner control — a fall-through `id` on
+the wrapper `<div>` is unreachable to a `<label for>` (#4477's defect). The id is
+label-conditional: when the `label` prop is present the component's own `<label for>` owns the
+generated trigger id and a consumer id does not override it (the internal association is never
+broken); with no `label` prop, a consumer `id` forwards to the trigger so an external
+`<label for="x">` names it. The component's own trigger bindings — `role="combobox"`, the
+`aria-expanded`/`aria-controls`/`aria-activedescendant` wiring, `disabled`, the click/keydown
+handlers — are reserved and win over any colliding fall-through attr.
+
+Props: `modelValue` (v-model), `options` (`[{ value, label, disabled? }]`), `placeholder`
+(default `Select`), `label`, `disabled`, `ariaLabel` (accessible name when no visible `label`).
+Emits `update:modelValue`, `open`, `close`.
+
 ## Deferred (not in v0 10)
 
 - `AsTable` — data table. Defer until we redesign a table-heavy surface.

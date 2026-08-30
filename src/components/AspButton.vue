@@ -5,7 +5,10 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'primary',
-    validator: (v) => ['primary', 'secondary', 'ghost', 'destructive'].includes(v),
+    // 'link' (§3.97) is an unboxed inline text-link that stays a real <button>:
+    // no box in any state, font/color inherited from the ambient run, underline
+    // as the affordance. It amends §3.89's "NO link/text variant" clause.
+    validator: (v) => ['primary', 'secondary', 'ghost', 'destructive', 'link'].includes(v),
   },
   // 'icon' is a fixed SQUARE shape (§3.89 / §3.23 rule-4) for a glyph-only
   // button — a fixed ≥44px box, never label-width-driven. The default slot
@@ -202,6 +205,33 @@ const onClick = (event) => {
 }
 .btn--destructive:hover:not(:disabled) {
   filter: brightness(0.92);
+}
+
+/* Link variant (§3.97): an unboxed inline text-link that is still a real
+   <button>. NO box in any state — zero padding, no border, no fill, no radius,
+   no min-height box — so it reads as a word inside a run of text, not a pill.
+   Declared AFTER the size rules so `font: inherit` and `padding: 0` win the
+   cascade over the size-prop metrics: `size` is inert for this variant's box.
+   `font: inherit` sizes it from the ambient run; `color: inherit` means the ink
+   FOLLOWS THE SETTER (§3.18) — the consumer's ambient/call-site colour decides
+   it (muted for NodeDetailPanel, --brand-primary for ValuationStatement), never
+   a hardcoded brand. The underline is the non-colour affordance (§3.29–§3.31 /
+   §3.72), since inherited colour is not a reliable one. It keeps the shared
+   :focus-visible ring and :disabled semantics below. */
+.btn--link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  min-block-size: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+}
+/* Hover strengthens the affordance WITHOUT re-boxing (a fill would re-pill it):
+   a thicker underline, not a background. */
+.btn--link:hover:not(:disabled) {
+  text-decoration-thickness: 2px;
 }
 
 /* Focus */

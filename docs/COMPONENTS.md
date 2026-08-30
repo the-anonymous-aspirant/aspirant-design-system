@@ -107,8 +107,24 @@ of the ink and has no margin to spend.
 Hover tints from `currentColor` rather than `--surface-card-inner`, for the reason recorded
 in §10 — that token is a white wash that lightens every surface, including light ones.
 
+**Menu mode** (§3.98). `as="menu"` on the list declares the ARIA pattern — a semantic axis
+orthogonal to `variant` (the visual one): a menu is `variant="interactive"` + `as="menu"`, the
+same way `AspSegmented`'s `as` sits beside its `size`. It renders `<ul role="menu">`, and — via
+the same `aspListContext` the list already provides — each item coordinates its own roles: the
+`<li>` becomes `role="none"` (a listitem may not remain inside a `role="menu"`) and the
+interactive inner `<button>` becomes `role="menuitem"`. The consumer cannot mis-wire it, which
+is the point of a declared mode over a loose `role` prop. `as="list"` (default) is unchanged.
+The menu **trigger** pairing (`aria-haspopup`/`aria-expanded`) is the consumer's `AspButton`, out
+of scope here.
+
+**Attr forwarding** (§3.94/#4450, second component). `AspListItem` sets `inheritAttrs: false`
+and binds `$attrs` onto the interactive inner control, so a consumer's `data-*`, a finer `aria-*`
+(e.g. `aria-haspopup` on a submenu item), or an `id` land on the `<button>`, not the `<li>`. The
+DS-owned bindings are reserved and win over any colliding fall-through: `type`, `disabled`,
+`aria-current`, the coordinated `role`, `class` (merges additively), and the click handler.
+
 Props (List): `variant` (`default` | `divided` | `interactive`), `spacing` (`sm` | `md` |
-`lg`), `ariaLabel`.
+`lg`), `as` (`list` default | `menu`), `ariaLabel`.
 Props (Item): `icon` (registry name or raw glyph), `label`, `meta`, `active`, `disabled`.
 Slots (Item): default (overrides `label`). Emits: `click`.
 

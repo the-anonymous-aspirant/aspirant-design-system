@@ -1,8 +1,15 @@
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, useAttrs } from 'vue'
 
 import AspIcon from './AspIcon.vue'
 import { registryFallback } from '../icons/registry.js'
+
+// §3.94/#4450 discipline (second component): a consumer's fall-through attrs
+// (data-*, a finer aria-* such as aria-haspopup on a submenu item, an id) reach
+// the interactive inner control, NOT the <li> wrapper — a row that looks
+// migrated but drops the attr on the wrong node. inheritAttrs is off and $attrs
+// is bound onto .list-item__inner, matching AspInput/AspTextarea/AspSelect.
+defineOptions({ inheritAttrs: false })
 
 // AspListItem — one row of AspList (docs/COMPONENTS.md §6).
 //
@@ -32,8 +39,24 @@ const emit = defineEmits(['click'])
 const listContext = inject('aspListContext', null)
 const variant = computed(() => listContext?.variant?.value ?? 'default')
 const spacing = computed(() => listContext?.spacing?.value ?? 'md')
+// The list's declared pattern axis (§3.98), coordinated down the same context.
+const asMode = computed(() => listContext?.as?.value ?? 'list')
 
 const isInteractive = computed(() => variant.value === 'interactive')
+const isMenu = computed(() => asMode.value === 'menu')
+// In a `role="menu"`, the <li> must NOT stay a listitem (WAI-ARIA) — it is a
+// presentational wrapper and the interactive inner <button> is the menuitem. A
+// non-interactive (div) row in a menu is a consumer error, so menuitem lands
+// ONLY on the interactive inner control.
+const itemRole = computed(() => (isMenu.value ? 'none' : undefined))
+// The coordinated `menuitem` is RESERVED and wins over any consumer `role` in
+// $attrs (it is bound after `v-bind="$attrs"`). Outside menu mode there is no
+// coordinated role, so pass a consumer's own `role` through rather than let the
+// explicit binding strip it back to undefined.
+const attrs = useAttrs()
+const innerRole = computed(() =>
+  isMenu.value && isInteractive.value ? 'menuitem' : (attrs.role ?? undefined)
+)
 const isNamedIcon = computed(() => props.icon !== null && registryFallback(props.icon) !== null)
 
 const onClick = (event) => {
@@ -57,13 +80,16 @@ const onClick = (event) => {
         'list-item--disabled': disabled,
       },
     ]"
+    :role="itemRole"
   >
     <component
       :is="isInteractive ? 'button' : 'div'"
+      v-bind="$attrs"
       class="list-item__inner"
       :type="isInteractive ? 'button' : undefined"
       :disabled="isInteractive && disabled ? true : undefined"
       :aria-current="isInteractive && active ? 'true' : undefined"
+      :role="innerRole"
       @click="onClick"
     >
       <span v-if="icon" class="list-item__icon" aria-hidden="true">

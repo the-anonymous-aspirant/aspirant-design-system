@@ -128,20 +128,29 @@ The component workbench is served in production at
 `https://the-aspirant.com/admin/histoire/` (admin-gated; system_3 #2218).
 Publishing is a side effect of pushing `main` — no manual rebuild step:
 
-1. `scripts/git-hooks/pre-push` runs `scripts/build-and-push-image.sh` on
-   any push to `main`, which builds `Dockerfile.histoire` (multi-stage:
-   `npm ci` + `histoire build` inside the image → nginx serving the static
-   output) and pushes `ghcr.io/the-anonymous-aspirant/aspirant-histoire`
-   (`:latest` + `:sha-<short>`).
+1. `.github/workflows/build-image.yml` builds `Dockerfile.histoire`
+   (multi-stage: `npm ci` + `histoire build` inside the image → nginx
+   serving the static output) and pushes
+   `ghcr.io/the-anonymous-aspirant/aspirant-histoire` (`:latest` +
+   `:sha-<short>`) on every push to `main`. This is the only lane that
+   fires on the fleet's `gh pr merge` path.
 2. The cell's auto-pull cron (aspirant-deploy) picks up `:latest` within
    ~5 minutes and restarts the `histoire` service.
 
-**Fresh-checkout setup — the complete list** (no sibling checkout, no host
-node version requirement; the image build is self-contained):
+> The previous client-side `scripts/git-hooks/pre-push` lane was removed in
+> system_3 #4559: it never fired for a GitHub-merged PR, so merges silently
+> published nothing for weeks. The 2026-06-24 Actions billing block that
+> once justified it has been lifted.
+
+### Manual fallback
+
+`scripts/build-and-push-image.sh` builds and pushes the same tags from a
+local checkout — use it only to publish current `main` out-of-band (before
+the workflow has run, or when Actions is unavailable). It needs the GHCR
+push scope once per machine:
 
 ```
-git config core.hooksPath scripts/git-hooks   # once per clone
-gh auth refresh -s write:packages,read:packages  # once per machine, for GHCR pushes
+gh auth refresh -s write:packages,read:packages
 ```
 
 To build/serve locally without publishing:

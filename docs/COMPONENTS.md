@@ -40,9 +40,11 @@ Reference: `aspirant-client/src/components/ApplicationCard.vue`, `ApiCard.vue`.
 
 Replaces plain `<button>` in aspirant-client + `<v-btn>` in MessageBoardView. Consistent focus ring, amber-hover border, disabled state.
 
-Props: `variant` (primary | secondary | ghost | destructive), `size` (sm | md | lg | **icon**), `loading`, `disabled`, `icon-left`, `icon-right`. Slot: default (label, or the glyph in icon mode).
+Props: `variant` (primary | secondary | ghost | destructive | **link**), `size` (sm | md | lg | **icon**), `loading`, `disabled`, `icon-left`, `icon-right`. Slot: default (label, or the glyph in icon mode).
 
 `size="icon"` (§3.89) is a fixed **square** ≥44×44px hit target for a glyph-only button — the box does not grow with content (§3.23 rule-4), the `.btn__label` wrapper is suppressed, and `iconLeft`/`iconRight` are inert. The glyph rides the default slot. An **accessible name is required**: pass `aria-label` (or `aria-labelledby`); omit it and the component emits a dev-mode `console.warn`. Composes with every variant (toolbar/close glyphs → `ghost`; delete/× → `destructive`). Colour swatches and the back-chevron stay bespoke / `AspBackButton`.
+
+`variant="link"` (§3.97) is an **unboxed inline text-link** that is still a real `<button>` (an action, not navigation — never an `<a>`). It draws **no box in any state**: zero padding, no border, no background at rest _or_ hover, no border-radius, no min-height box, so it reads as a word inside a run of text rather than a pill. `font: inherit` sizes it from the ambient run (**`size` is inert** for this variant's box — a consumer need not pass it), and `color: inherit` means the ink **follows the setter** (§3.18): the consumer's ambient/call-site `color` decides it (e.g. `--text-muted` for NodeDetailPanel's edit/delete, `--brand-primary` for ValuationStatement's "+ add"), never a hardcoded brand. `text-decoration: underline` at rest is the non-colour affordance (§3.29–§3.31 / §3.72); hover thickens the underline instead of adding a fill. It keeps the shared `--shadow-focus` focus ring and `:disabled` (opacity + `not-allowed`) semantics. `iconLeft`/`iconRight` still render inline (the "+ " can be label text or an inline icon). Amends §3.89's "NO link/text variant" clause; a true navigation link is a different primitive (§3.24), out of scope.
 
 Loading state: spinner or skeleton — decide during implementation.
 

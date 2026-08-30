@@ -110,7 +110,10 @@ const goBack = () => {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  /* 44px minimum hit target, WCAG 2.5.8. */
+  /* 44px touch target — WCAG 2.5.5 (Enhanced) / Apple HIG + Material touch
+     guidance, NOT 2.5.8, whose AA floor is 24px. The back-chevron is a
+     standalone touch-first affordance, so it takes the §3.99 Tier-2 target;
+     the value is right, only the citation was. */
   min-height: 44px;
   padding: var(--space-2xs) var(--space-xs);
   background: none;

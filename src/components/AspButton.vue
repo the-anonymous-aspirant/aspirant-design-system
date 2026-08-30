@@ -118,7 +118,13 @@ const onClick = (event) => {
   appearance: none;
 }
 
-/* Size */
+/* Size — sm/md/lg are PADDING-DRIVEN by design and carry NO min-height. A
+   labelled button is wide and only ever short in height; ~34px clears the 24px
+   WCAG 2.5.8 (AA) target-size floor comfortably (§3.99 Tier 1). The 44px Tier-2
+   touch target is deliberately NOT applied here — it is reserved for controls
+   small in BOTH dimensions (size="icon" above) or standalone touch-first
+   affordances, and inflating the ~108 labelled call sites to 44px would serve
+   no one. The absence of a min-height is intentional. Ruling: §3.99 / #4461. */
 .btn--size-sm {
   padding: var(--space-2xs) var(--space-sm);
   font-size: var(--text-sm);
@@ -131,9 +137,12 @@ const onClick = (event) => {
   padding: var(--space-sm) var(--space-lg);
   font-size: var(--text-lg);
 }
-/* Icon-only: a FIXED square (§3.89 / §3.23 rule-4), never label-width-driven.
-   ≥44px touch floor; padding is zeroed and width/height pinned so a lone glyph
-   centres (via the flex container) in a square hit target rather than a pill. */
+/* Icon-only: a FIXED square (§3.89), never label-width-driven. The 44px is the
+   §3.99 Tier-2 touch target — WCAG 2.5.5 (Enhanced) / Apple HIG + Material touch
+   guidance, NOT the 2.5.8 AA floor (which is 24px): an icon-only control is
+   small in BOTH dimensions, with no label to widen it, so it earns the enhanced
+   target. Padding is zeroed and width/height pinned so a lone glyph centres (via
+   the flex container) in a square hit target rather than a pill. */
 .btn--size-icon {
   padding: 0;
   width: 44px;

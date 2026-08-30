@@ -17,7 +17,16 @@ import { expect, test } from '@playwright/test'
 import { AA_NON_TEXT, compositeOver, contrastRatio, parseColor } from '../../src/utils/color_contrast.js'
 
 const THEMES = ['light', 'dark']
-const CONTROLS = ['.field__control', '.select__trigger', '.textarea__control']
+// The checkbox is measured only in its REST state: :checked / :indeterminate
+// deliberately override the rest boundary with --brand-primary, whose amber
+// fill plus the drawn checkmark carry that state, so the amber edge is not a
+// rest boundary and must not be swept as one (task #4482).
+const CONTROLS = [
+  '.field__control',
+  '.select__trigger',
+  '.textarea__control',
+  '.checkbox__box:not(:checked):not(:indeterminate)',
+]
 
 // Read each control's rendered rest boundary, its own fill, and the first
 // OPAQUE ancestor background behind it. Alpha is recovered from two underlays:

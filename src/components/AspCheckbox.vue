@@ -104,7 +104,19 @@ const ariaChecked = computed(() => (props.indeterminate ? 'mixed' : undefined))
   height: 1rem;
   margin: 0;
   background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
+  /*
+   * The rest boundary is what identifies this as an operable control, so it
+   * carries the WCAG 1.4.11 non-text 3:1 floor rather than --border-subtle's
+   * decorative one. --border-subtle (#cccccc) measured 1.26:1 against the
+   * light page and 1.53:1 against this component's own --surface-elevated
+   * fill: on the light theme the box had no visible edge on either side. The
+   * :checked / :indeterminate states below override this with --brand-primary,
+   * whose amber fill plus the drawn checkmark carry that state instead of the
+   * rest edge. See system_3 corpus §3.72 / task #4061; AspInput, AspSelect and
+   * AspTextarea share this token, and AspCheckbox is the fifth control brought
+   * onto it (task #4482).
+   */
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-sm);
   cursor: inherit;
   display: grid;

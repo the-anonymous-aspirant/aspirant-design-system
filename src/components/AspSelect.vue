@@ -1,5 +1,13 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
+
+// §3.95: the trigger is the labelable control, so a consumer's fall-through
+// attrs (an `id` that an external `<label for>` targets, an `aria-describedby`)
+// must reach the `<button>`, not the wrapper `<div>` — a non-labelable element
+// where a `<label for>` associates with nothing (#4477's defect). inheritAttrs
+// is off and $attrs is forwarded onto the trigger, exactly as AspInput/
+// AspTextarea forward onto their inner control.
+defineOptions({ inheritAttrs: false })
 
 // AspSelect — the dropdown-of-record (system_3_design_conventions.md §3.10).
 // The trigger carries the same filter-control treatment as AspInput (34px,
@@ -26,6 +34,14 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'open', 'close'])
 
 const uid = `asp-select-${Math.random().toString(36).slice(2, 9)}`
+const attrs = useAttrs()
+
+// The component's OWN <label for> association owns the trigger id whenever a
+// `label` prop is present — the internal association wins and a consumer id
+// must not break it (criterion 3). With no `label`, a consumer `id` forwards
+// to the trigger so an external `<label for="x">` can name it (criterion 4).
+const triggerId = computed(() => (props.label ? `${uid}-trigger` : attrs.id || `${uid}-trigger`))
+
 const root = ref(null)
 const panel = ref(null)
 const open = ref(false)
@@ -156,7 +172,8 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
     <label v-if="label" class="select__label" :for="`${uid}-trigger`">{{ label }}</label>
 
     <button
-      :id="`${uid}-trigger`"
+      v-bind="$attrs"
+      :id="triggerId"
       type="button"
       class="select__trigger"
       role="combobox"
@@ -219,7 +236,13 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
 }
 
 .select__label {
-  font-size: var(--text-xs);
+  /* §3.95: one caption treatment across the field-control family — identical to
+     AspInput/AspTextarea's `.field__label`. The former `--text-xs` was silent
+     divergence, not a documented variant; a form built from all three showed
+     two caption sizes. Locked by the caption-parity e2e test. */
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
   /* Sits on the ambient surface, so it takes the ambient ink. */
   color: inherit;
 }

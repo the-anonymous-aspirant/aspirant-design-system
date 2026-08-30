@@ -1,5 +1,5 @@
 <script setup>
-import { provide, toRefs } from 'vue'
+import { computed, provide, toRefs } from 'vue'
 
 // AspList — the vertical list primitive (docs/COMPONENTS.md §6), the shape that
 // replaces `<v-list>` on MessageBoardView.
@@ -20,18 +20,33 @@ const props = defineProps({
     default: 'md',
     validator: (v) => ['sm', 'md', 'lg'].includes(v),
   },
+  // The SEMANTIC/ARIA axis, orthogonal to `variant` (the visual axis): a menu is
+  // `variant="interactive"` + `as="menu"`, exactly as AspSegmented's
+  // `as="radiogroup"|"tabs"` sits beside its `size`. Declaring the mode — rather
+  // than exposing a loose `role` prop — is what stops a consumer mis-wiring it
+  // (setting role=menu on the <ul> and forgetting role=none on the <li>, the
+  // broken-tree-that-looks-migrated §3.23 hazard): the item coordinates its own
+  // roles off this through the context below.
+  as: {
+    type: String,
+    default: 'list',
+    validator: (v) => ['list', 'menu'].includes(v),
+  },
   /** Accessible name for the list. */
   ariaLabel: { type: String, default: null },
 })
 
-const { variant, spacing } = toRefs(props)
-provide('aspListContext', { variant, spacing })
+const { variant, spacing, as } = toRefs(props)
+provide('aspListContext', { variant, spacing, as })
+
+const menuRole = computed(() => (props.as === 'menu' ? 'menu' : undefined))
 </script>
 
 <template>
   <ul
     class="list"
     :class="[`list--${variant}`, `list--spacing-${spacing}`]"
+    :role="menuRole"
     :aria-label="ariaLabel || undefined"
   >
     <slot />

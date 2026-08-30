@@ -11,11 +11,25 @@
 //     a real tabpanel exists.
 // Ink is `inherit`/currentColor-relative (§3.18), so the strip composites on both
 // the light page and the signature dark card.
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
 const props = defineProps({
-  // [{ value, label, disabled?, icon?, controls? }]. `controls` is the id of the
-  // tabpanel a member drives (tabs mode only).
+  // [{ value, label, disabled?, icon?, controls?, attrs? }]. `controls` is the id
+  // of the tabpanel a member drives (tabs mode only).
+  //
+  // `icon` (§3.94) is a CLOSED typed descriptor: a glyph string (rendered as
+  // text, unchanged) OR `{ src, fallback? }` — a DECORATIVE image rendered in
+  // the same icon position with the `fallback` glyph shown until it loads and
+  // again if it errors (§1.4 progressive enhancement). Either way the icon is
+  // `aria-hidden`; `label` stays the member's sole accessible name.
+  //
+  // `attrs` (§3.94, the §3.88 `rowAttrs` twin) is an object of DOM attributes
+  // spread onto the member `<button>` — a test hook (`data-test`), an `id`, a
+  // `title`, `aria-describedby`. It carries NO paint opinion: it is bound FIRST
+  // so every DS-owned attribute (`type`, `role`, `aria-checked`/`-selected`/
+  // `-controls`, `tabindex`, `disabled`, the click/keydown handlers) overrides a
+  // colliding key. `class` merges additively and is a layout/test hook only —
+  // restyling selection paint through it is outside the §3.89 contract.
   options: { type: Array, required: true },
   // The selected option's `value` — typically a string or number key.
   modelValue: { type: [String, Number, Boolean], default: null },
@@ -38,6 +52,26 @@ const itemRole = computed(() => (isTabs.value ? 'tab' : 'radio'))
 
 const isSelected = (opt) => opt.value === props.modelValue
 const isDisabled = (opt) => props.disabled || !!opt.disabled
+
+// --- icon descriptor (§3.94) ------------------------------------------------
+// Per-member image state, keyed by the member's value AND src so a swapped
+// descriptor starts over. One shared ref would let one member's error blank
+// every other member's image.
+const isImageIcon = (opt) =>
+  !!opt.icon && typeof opt.icon === 'object' && typeof opt.icon.src === 'string'
+const iconKey = (opt) => `${String(opt.value)}\u0000${opt.icon.src}`
+const imgState = reactive({}) // key -> 'loaded' | 'error'
+const imgLoaded = (opt) => imgState[iconKey(opt)] === 'loaded'
+const imgFailed = (opt) => imgState[iconKey(opt)] === 'error'
+const onImgLoad = (opt) => {
+  imgState[iconKey(opt)] = 'loaded'
+}
+const onImgError = (opt) => {
+  imgState[iconKey(opt)] = 'error'
+}
+// The glyph shows until the image has loaded, and again if it errors.
+const showFallback = (opt) => !imgLoaded(opt)
+const fallbackGlyph = (opt) => (isImageIcon(opt) ? opt.icon.fallback || '' : opt.icon)
 
 // One tab-stop for the whole group (roving tabindex): the selected member owns
 // it, or the first enabled member when nothing is selected yet.
@@ -74,8 +108,7 @@ const step = (from, dir) => {
 }
 const toEdge = (edge) => {
   const n = props.options.length
-  const order =
-    edge === 'home' ? [...Array(n).keys()] : [...Array(n).keys()].reverse()
+  const order = edge === 'home' ? [...Array(n).keys()] : [...Array(n).keys()].reverse()
   for (const i of order) {
     if (!isDisabled(props.options[i])) {
       select(props.options[i])
@@ -126,6 +159,7 @@ const onKeydown = (e, index) => {
     <button
       v-for="(opt, i) in options"
       :key="opt.value"
+      v-bind="opt.attrs || {}"
       :ref="(el) => setRef(el, i)"
       type="button"
       class="segmented__item"
@@ -139,7 +173,24 @@ const onKeydown = (e, index) => {
       @click="select(opt)"
       @keydown="onKeydown($event, i)"
     >
-      <span v-if="opt.icon" class="segmented__icon" aria-hidden="true">{{ opt.icon }}</span>
+      <span v-if="opt.icon" class="segmented__icon" aria-hidden="true">
+        <template v-if="isImageIcon(opt)">
+          <img
+            v-if="!imgFailed(opt)"
+            v-show="imgLoaded(opt)"
+            class="segmented__icon-img"
+            :src="opt.icon.src"
+            alt=""
+            draggable="false"
+            @load="onImgLoad(opt)"
+            @error="onImgError(opt)"
+          >
+          <span v-if="showFallback(opt)" class="segmented__icon-glyph">{{
+            fallbackGlyph(opt)
+          }}</span>
+        </template>
+        <template v-else>{{ opt.icon }}</template>
+      </span>
       <span class="segmented__label">{{ opt.label }}</span>
     </button>
   </div>
@@ -178,7 +229,24 @@ const onKeydown = (e, index) => {
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+/* Image-icon descriptor (§3.94): sized in em so it tracks the member's font
+   size across size="md"/"sm"; decorative, so the strip paints nothing on it
+   and it renders the same in both themes. A disabled member's <img> inherits
+   the item's opacity. */
+.segmented__icon {
+  display: inline-flex;
+  align-items: center;
+}
+.segmented__icon-img {
+  width: 1.1em;
+  height: 1.1em;
+  object-fit: contain;
+  vertical-align: middle;
 }
 
 .segmented--sm .segmented__item {
@@ -208,7 +276,9 @@ const onKeydown = (e, index) => {
 }
 /* Keep the selected underline visible while focused. */
 .segmented__item--selected:focus-visible {
-  box-shadow: var(--shadow-focus), inset 0 -2px 0 0 var(--brand-primary);
+  box-shadow:
+    var(--shadow-focus),
+    inset 0 -2px 0 0 var(--brand-primary);
 }
 
 .segmented__item:disabled {

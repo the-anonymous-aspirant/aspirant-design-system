@@ -18,11 +18,44 @@ const tabOptions = [
   { value: 'grid', label: 'Grid', controls: 'panel-grid' },
 ]
 
+// §3.94 (#4562): per-option `attrs` pass-through. `saved` also carries a
+// COLLIDING set — the DS-owned attrs must win and the consumer's be ignored.
+const attrsOptions = [
+  { value: 'all', label: 'All', attrs: { 'data-test': 'jobs-tab-all', id: 'jobs-tab-all' } },
+  {
+    value: 'saved',
+    label: 'Saved',
+    attrs: {
+      'data-test': 'jobs-tab-saved',
+      role: 'button',
+      tabindex: 5,
+      disabled: true,
+      'aria-checked': 'true',
+      type: 'submit',
+      class: 'consumer-hook',
+    },
+  },
+]
+// §3.94 (#4562): typed icon descriptor. One glyph string, one image that
+// loads (an inline SVG data URI, visible), one image that errors (404) and
+// must keep its glyph.
+const ICON_PNG =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="%23d97706"/><path d="M4 8h8M8 4v8" stroke="white" stroke-width="2"/></svg>'
+;('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=')
+const iconOptions = [
+  { value: 'text', label: 'Glyph', icon: '📅' },
+  { value: 'img', label: 'Sequencing', icon: { src: ICON_PNG, fallback: '📅' } },
+  { value: 'broken', label: 'Precision', icon: { src: '/__missing_icon__.png', fallback: '🎯' } },
+  { value: 'off', label: 'Disabled', icon: { src: ICON_PNG, fallback: '🎯' }, disabled: true },
+]
+
 createApp({
   setup() {
     const filter = ref('active')
     const tab = ref('list')
-    window.__seg = { filter, tab }
+    const attrsSel = ref('all')
+    const iconSel = ref('img')
+    window.__seg = { filter, tab, attrsSel, iconSel }
 
     const filterStrip = () =>
       h(AspSegmented, {
@@ -50,7 +83,38 @@ createApp({
             id: 'filter-dark',
             style: 'background: var(--surface-card); color: var(--text-on-dark); padding: 12px',
           },
-          [filterStrip()],
+          [filterStrip()]
+        ),
+        h('section', { id: 'attrs' }, [
+          h(AspSegmented, {
+            options: attrsOptions,
+            modelValue: attrsSel.value,
+            ariaLabel: 'Jobs',
+            'onUpdate:modelValue': (v) => (attrsSel.value = v),
+          }),
+        ]),
+        h('section', { id: 'icons' }, [
+          h(AspSegmented, {
+            options: iconOptions,
+            modelValue: iconSel.value,
+            ariaLabel: 'History',
+            'onUpdate:modelValue': (v) => (iconSel.value = v),
+          }),
+        ]),
+        h(
+          'section',
+          {
+            id: 'icons-dark',
+            style: 'background: var(--surface-card); color: var(--text-on-dark); padding: 12px',
+          },
+          [
+            h(AspSegmented, {
+              options: iconOptions,
+              modelValue: iconSel.value,
+              ariaLabel: 'History (dark)',
+              'onUpdate:modelValue': (v) => (iconSel.value = v),
+            }),
+          ]
         ),
       ])
   },

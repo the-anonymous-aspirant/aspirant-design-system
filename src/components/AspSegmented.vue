@@ -225,6 +225,14 @@ const onKeydown = (e, index) => {
   font-weight: var(--font-weight-medium);
   line-height: 1;
   padding: var(--space-2xs) var(--space-sm);
+  /* A segment is a labelled interactive control, so it carries the universal
+     24px WCAG 2.5.8 (AA) target-size floor — §3.99 Tier 1. Padding + line-height:1
+     alone resolve to ~22px, under the line; the min-height only ever grows the
+     box. NOT the 44px Tier-2 touch target: that is reserved for controls small
+     in both dimensions (icon-only) or standalone touch-first affordances, which
+     a labelled segment is not. Applies to the --sm variant too, which overrides
+     only padding/font-size. (task #4472, ruling on #4461.) */
+  min-height: 24px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;

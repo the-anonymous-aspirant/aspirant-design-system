@@ -85,6 +85,17 @@ createApp({
           },
           [filterStrip()]
         ),
+        // size="sm" strip — the dense in-toolbar case, mounted so the target-size
+        // floor (§3.99 Tier 1, 24px) is asserted on the smallest members too.
+        h('section', { id: 'filter-sm' }, [
+          h(AspSegmented, {
+            options: filterOptions,
+            size: 'sm',
+            modelValue: filter.value,
+            ariaLabel: 'Filter (sm)',
+            'onUpdate:modelValue': (v) => (filter.value = v),
+          }),
+        ]),
         h('section', { id: 'attrs' }, [
           h(AspSegmented, {
             options: attrsOptions,

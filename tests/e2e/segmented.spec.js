@@ -177,3 +177,23 @@ test('icon descriptor: the accessible name is the label alone in both forms (§3
   await page.keyboard.press('ArrowRight') // skips the disabled member, wraps
   expect(await selVal(page, 'iconSel')).toBe('text')
 })
+
+// Target size — §3.99 Tier 1 (task #4472, ruling on #4461). A segment is a
+// labelled interactive control, so every member clears the 24px WCAG 2.5.8 AA
+// floor, in md and in the dense sm size. Asserts the RENDERED box, not the CSS
+// rule, so a future padding/line-height edit that drops it back under goes red.
+for (const [size, id] of [['md', 'filter'], ['sm', 'filter-sm']]) {
+  test(`members clear the 24px AA target-size floor (${size}, §3.99)`, async ({ page }) => {
+    const members = items(page, id)
+    const n = await members.count()
+    expect(n, 'the fixture mounted no members').toBeGreaterThan(0)
+    for (let i = 0; i < n; i++) {
+      const box = await members.nth(i).boundingBox()
+      expect(box, `member ${i} has no box`).not.toBeNull()
+      expect(
+        box.height,
+        `${size} member ${i} is ${box.height}px tall, under the 24px floor`
+      ).toBeGreaterThanOrEqual(24)
+    }
+  })
+}

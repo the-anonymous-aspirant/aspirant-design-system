@@ -672,6 +672,13 @@ Props: `modelValue` (v-model), `label`, `hint`, `error`, `required`, `disabled`,
 (`aria-label`, `@keydown`, `@paste`, …) fall through to the inner `<textarea>`, not the
 wrapper — the same contract `AspInput` uses.
 
+Exposes `focus(options)`, `select()`, and `el` (the inner `<textarea>`) to a caller holding a
+template ref — the same imperative contract as `AspInput` (§5). A `ref` on a component yields
+the *instance*, so without the exposure `x.focus()` is `undefined` and an open-and-type
+affordance (an inline composer that focuses on open) degrades silently: the field renders,
+binds, and submits, and the caret never arrives. The two members of the text-entry family must
+not drift, so `tests/e2e/imperative-parity.spec.js` asserts both expose the same names (§3.96).
+
 `AspComposer` now consumes this primitive (§16) — its own `<style scoped>` reaches across the
 component boundary via `:deep(.asp-composer__input)` to apply the composer's dark chrome over
 `AspTextarea`'s default light field; the compiled selector's extra scope-attribute-plus-class

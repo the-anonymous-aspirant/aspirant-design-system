@@ -99,6 +99,20 @@ const onInput = (event) => {
   emit('update:modelValue', event.target.value)
   resize()
 }
+
+// The imperative contract of the text-entry family (§3.96), mirroring
+// AspInput's block exactly. A `ref` on this component yields the component
+// instance, not the inner `<textarea>`, so without the exposure a caller's
+// `x.focus()` is `undefined` and a click-to-focus affordance (an inline
+// composer that focuses on open) degrades silently — build green, render
+// assertion green, the caret never arrives. The §3.96 family-parity test locks
+// these names against AspInput's so the two never drift.
+defineExpose({
+  /** The inner `<textarea>` element, for the rare caller that needs the node itself. */
+  el: textareaEl,
+  focus: (options) => textareaEl.value?.focus(options),
+  select: () => textareaEl.value?.select(),
+})
 </script>
 
 <template>

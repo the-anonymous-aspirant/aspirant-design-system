@@ -102,6 +102,37 @@ const runAsync = async () => {
       </div>
     </Variant>
 
+    <Variant title="Link (unboxed inline)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        <code>variant="link"</code> (§3.97) is an unboxed inline text-link that stays a real
+        <code>&lt;button&gt;</code> — no box in any state, <code>font: inherit</code> so it sizes
+        from the ambient run, and <code>color: inherit</code> so the ink <strong>follows the
+          setter</strong> (§3.18), never a pinned brand. The underline is the affordance. Framed
+        inline in a sentence on a light page and a dark card (both setters), beside a boxed variant.
+      </p>
+      <p style="max-width: 42ch; color: var(--text-muted);">
+        Node actions: <AspButton variant="link">edit</AspButton> or
+        <AspButton variant="link">delete</AspButton> — muted ink, inherited from this run.
+      </p>
+      <p style="max-width: 42ch; margin-top: 8px;">
+        Estimate
+        <AspButton variant="link" style="color: var(--brand-primary);">+ Lägg till fler</AspButton>
+        — brand ink set at the call site, beside a boxed
+        <AspButton variant="ghost">Ghost</AspButton>.
+      </p>
+      <div data-theme="dark" style="margin-top: 16px; padding: 16px; background: var(--surface-page);">
+        <p style="max-width: 42ch; color: var(--text-muted);">
+          Node actions: <AspButton variant="link">edit</AspButton> or
+          <AspButton variant="link">delete</AspButton> — muted ink on the dark card.
+        </p>
+        <p style="max-width: 42ch; margin-top: 8px; color: var(--text-body);">
+          Estimate
+          <AspButton variant="link" style="color: var(--brand-primary);">+ Lägg till fler</AspButton>
+          beside a boxed <AspButton variant="ghost">Ghost</AspButton>.
+        </p>
+      </div>
+    </Variant>
+
     <Variant title="Dark theme">
       <div data-theme="dark" style="padding: 24px; background: var(--surface-page); display: flex; gap: 12px; flex-wrap: wrap;">
         <AspButton variant="primary">Primary</AspButton>

@@ -62,6 +62,31 @@ const props = defineProps({
    */
   removable: { type: Boolean, default: false },
   /**
+   * Makes the remove `×` inert — for the window where a removal is already
+   * in flight and a second click would fire a duplicate mutation (system_3
+   * #5272).
+   *
+   * Declaring it is half the fix and the more important half. A consumer was
+   * already binding `:disabled` here (`CorpusDocumentDetail.vue`'s in-flight
+   * label guard); because the prop did not exist and this component does not
+   * set `inheritAttrs: false`, Vue passed it through to the ROOT — a `<span>`,
+   * where `disabled` is not a thing — and the `×` stayed clickable. The guard
+   * silently did nothing. Declaring the prop takes it out of `$attrs`, so the
+   * binding that was already written starts working with no consumer change.
+   *
+   * Native `disabled` on the button, not `aria-disabled` plus a click
+   * interceptor: that is what AspButton does, and the browser's own semantics
+   * (no click, no tab stop, announced as unavailable) are stronger than
+   * anything re-implemented here. A remove `×` is not a control anyone needs
+   * to keep reachable while it is unavailable — the case for `aria-disabled`
+   * is a control a user must be able to find in order to learn WHY it is off,
+   * and this one's reason is the row it sits in.
+   *
+   * Additive: omitted, or false, renders today's DOM byte-for-byte — a
+   * `:disabled="false"` binding puts no attribute on a button.
+   */
+  disabled: { type: Boolean, default: false },
+  /**
    * Compositing surface the badge is mounted on, for the surface-resolved
    * status/dot mark fills (#4209 §3.82). `page` (default) follows the theme;
    * `card` is dark in BOTH themes, so its marks always take the on-dark set and
@@ -131,6 +156,15 @@ const classes = computed(() => ({
 }))
 
 const onRemove = (event) => {
+  // The native `disabled` below already stops a real click reaching here. This
+  // covers the other door: a programmatic `el.click()` or a synthetic event
+  // still runs the handler on a disabled button in some paths, and a duplicate
+  // `remove` is exactly what the caller set the prop to prevent. AspButton
+  // guards its own handler for the same reason.
+  if (props.disabled) {
+    event.stopPropagation()
+    return
+  }
   event.stopPropagation()
   emit('remove', event)
 }
@@ -165,6 +199,7 @@ const onRemove = (event) => {
       type="button"
       class="badge__remove"
       :aria-label="ariaLabel || 'Remove'"
+      :disabled="disabled || undefined"
       @click="onRemove"
     >
       <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
@@ -297,13 +332,25 @@ const onRemove = (event) => {
   appearance: none;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
-.badge__remove:hover {
+.badge__remove:hover:not(:disabled) {
   background: var(--feedback-error-bg);
   color: var(--feedback-error-text);
 }
 .badge__remove:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+/* Disabled × (#5272). Same treatment as AspButton's `.btn:disabled`, so an
+   unavailable control looks the same wherever it appears. Both halves matter:
+   the dimming says "not now" and the cursor says it again on the way to the
+   click that will not happen. The `:not(:disabled)` on the hover rule above is
+   the other half — without it a disabled × still lit up red on hover, which
+   reads as available. Opacity rather than a muted ink so it works on the
+   data-coloured chip too, whose ink is computed from the fill at render time
+   and has no token to swap. */
+.badge__remove:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* --- Agent-status dot --- */

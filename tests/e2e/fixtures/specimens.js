@@ -122,6 +122,23 @@ export const cardHeadings = () => [
 ]
 
 /**
+ * The setter-resolved feedback TEXT token on its worst sanctioned surface
+ * (#5343, design ruling c30226): --feedback-error-text-on-dark is error text
+ * for dark setters, and the light theme's --surface-card (#424242) is the
+ * tightest of them. Scoped to the card on purpose — like the amber heading,
+ * the token is never sanctioned for the light page, so measuring it there
+ * would assert a defect the library does not ship. This row is the §3.65
+ * teeth: it reads 3.98:1 (fails the sweep) if the probe is ever pointed at
+ * the MARK token --feedback-error-on-dark, and a text probe must never be
+ * satisfied by re-flooring that mark token.
+ */
+export const feedbackTextOnCard = () => [
+  h(DS.AspCard, { 'data-surface': 'card-feedback-error-text' }, () => [
+    h('p', { style: { color: 'var(--feedback-error-text-on-dark)', margin: 0 } }, 'error text on card'),
+  ]),
+]
+
+/**
  * The chat surface, on both the light page and inside a card.
  *
  * Rendering it on TWO backdrops is the whole point rather than duplication: the
@@ -239,6 +256,7 @@ export const shell = (extra = []) =>
       h('div', { class: 'probe-root' }, [
         ...surfaces(),
         ...cardHeadings(),
+        ...feedbackTextOnCard(),
         ...chatSurfaces(),
         ...openPanels(),
         h(modalSpecimen()),

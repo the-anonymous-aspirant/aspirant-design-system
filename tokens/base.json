@@ -164,6 +164,10 @@
         "value": "#ff7a7c",
         "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, dark-surface set (= dark error-text). 3.98:1 vs the tightest dark surface #424242, 5.69 vs #2a2a2a."
       },
+      "error-text-on-dark": {
+        "value": "#ff9a9c",
+        "comment": "#5343 design ruling (c30226) \u2014 setter-resolved error TEXT for dark setters (the always-dark --surface-card included), the 4.5-floor text sibling of the 3:1 mark fill above; never re-floor the mark token to serve a text need. 4.96:1 vs #424242, 7.08 vs #2a2a2a, 8.58 vs #1a1a1a. Family gap is deliberate restraint: mint success/warning/info/neutral -text-on-dark (or -on-light siblings) only when a consumer paints that feedback text on such a setter."
+      },
       "neutral-on-light": {
         "value": "#495057",
         "comment": "#4209 \u00a73.82 \u2014 status MARK FILL, light-surface set (= --feedback-neutral-solid). 6.43:1 vs #e4e4e4. Replaces the old 0.55-opacity dot fill, which measured 1.53\u20131.91:1 on every surface \u2014 a mark that fails 3:1 everywhere is invisible, not de-emphasised (\u00a73.65)."

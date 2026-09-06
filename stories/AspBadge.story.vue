@@ -94,6 +94,31 @@ const removeEditLabel = (name) => {
       </div>
     </Variant>
 
+    <Variant title="Remove × disabled (system_3 #5272)">
+      <p style="color: var(--text-muted); margin-bottom: 8px;">
+        <code>disabled</code> makes the <code>×</code> inert while a removal is in flight, so a
+        second click cannot fire a duplicate mutation. It applies wherever the <code>×</code>
+        renders — <code>chip</code> + <code>removable</code> and <code>filter</code> alike. The
+        chip itself keeps its own ink: only the control is unavailable, not the label it sits on.
+      </p>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <AspBadge variant="chip" removable aria-label="Remove frontend-touching">
+          frontend-touching
+        </AspBadge>
+        <AspBadge variant="chip" removable disabled aria-label="Remove agent-proposed">
+          agent-proposed
+        </AspBadge>
+        <AspBadge variant="filter" aria-label="Remove filter status:open">status:open</AspBadge>
+        <AspBadge variant="filter" disabled aria-label="Remove filter assignee:me">
+          assignee:me
+        </AspBadge>
+      </div>
+      <p style="color: var(--text-muted); margin-top: 8px; font-size: 13px;">
+        Hover each × — the enabled pair light up, the disabled pair do not, which is what makes
+        the state readable before the click rather than after it.
+      </p>
+    </Variant>
+
     <Variant title="Agent-status dots">
       <div style="display: flex; gap: 16px; flex-wrap: wrap;">
         <AspBadge variant="dot" status="positive">Working</AspBadge>

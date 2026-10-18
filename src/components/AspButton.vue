@@ -199,8 +199,15 @@ const onClick = (event) => {
   color: var(--text-body);
 }
 
+/* The label is TEXT on a filled surface, so the fill is the SOLID token, not
+   the --feedback-error mark fill (§3.108: mark fills are tuned to the 3:1
+   graphics floor, text takes 4.5:1). White on --feedback-error #ff3739 is
+   3.59:1; on --feedback-error-solid #c62828 it is 5.62:1, in both themes (the
+   solid is not theme-keyed). Hover may only DARKEN from here -- lightening
+   toward #ff3739 walks back under the floor. button.spec.js pins the resolved
+   pair at rest and on hover. Task #7969. */
 .btn--destructive {
-  background: var(--feedback-error);
+  background: var(--feedback-error-solid);
   color: var(--text-on-dark);
 }
 .btn--destructive:hover:not(:disabled) {

@@ -31,6 +31,9 @@ export const specimens = () => [
   h(DS.AspButton, { variant: 'primary' }, () => 'primary'),
   h(DS.AspButton, { variant: 'secondary' }, () => 'secondary'),
   h(DS.AspButton, { variant: 'ghost' }, () => 'ghost'),
+  // #7969: destructive was missing here, so the AA sweep never measured its
+  // label -- it shipped at 3.59:1 (white on the --feedback-error mark fill).
+  h(DS.AspButton, { variant: 'destructive' }, () => 'destructive'),
   h(DS.AspInput, { label: 'field label', modelValue: 'typed value' }),
   h(DS.AspTextarea, { label: 'textarea label', modelValue: 'typed value' }),
   h(DS.AspSelect, { label: 'select label', modelValue: 'a', options: SELECT_OPTIONS }),

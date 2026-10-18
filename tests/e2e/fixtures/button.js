@@ -4,11 +4,13 @@
 // probe, a deliberately un-named icon button (to exercise the a11y dev-warn), a
 // plain text button (backward-compat baseline), and the link variant in a muted
 // run, a brand-inked call site, and disabled — plus reference spans that resolve
-// the muted/brand tokens for the ink-inherit assertions.
+// the muted/brand tokens for the ink-inherit assertions. It also renders the
+// destructive text button (at rest, disabled, and on an AspCard) with reference
+// spans for its label/fill pair (§3.108, #7969).
 import { createApp, h } from 'vue'
 
 import '../../../build/tokens.css'
-import { AspButton } from '../../../src/index.js'
+import { AspButton, AspCard } from '../../../src/index.js'
 
 const iconBtn = (id, variant, label) =>
   h('section', { id, style: 'margin:8px' }, [
@@ -58,9 +60,26 @@ createApp({
         h('section', { id: 'link-disabled', style: 'margin:8px; color: var(--text-muted)' }, [
           h(AspButton, { variant: 'link', disabled: true }, () => 'edit'),
         ]),
+        // --- variant="destructive" label contrast (§3.108, #7969) ------------
+        // A text button, a disabled one, and one on the always-dark AspCard, so
+        // the pinned pair is read where the console actually renders it.
+        h('section', { id: 'destructive', style: 'margin:8px' }, [
+          h(AspButton, { variant: 'destructive' }, () => 'Kill'),
+        ]),
+        h('section', { id: 'destructive-disabled', style: 'margin:8px' }, [
+          h(AspButton, { variant: 'destructive', disabled: true }, () => 'Kill'),
+        ]),
+        h(AspCard, { id: 'destructive-card', style: 'margin:8px' }, () => [
+          h(AspButton, { variant: 'destructive' }, () => 'Kill'),
+        ]),
         // Token reference spans for the ink-inherit assertions.
         h('span', { id: 'ref-muted', style: 'color: var(--text-muted)' }, 'ref'),
         h('span', { id: 'ref-brand', style: 'color: var(--brand-primary)' }, 'ref'),
+        // Token references for the destructive pair: the SOLID fill it must
+        // paint, the MARK fill it must not, and the label ink.
+        h('span', { id: 'ref-error-solid', style: 'background: var(--feedback-error-solid)' }, 'ref'),
+        h('span', { id: 'ref-error-mark', style: 'background: var(--feedback-error)' }, 'ref'),
+        h('span', { id: 'ref-on-dark', style: 'color: var(--text-on-dark)' }, 'ref'),
       ])
   },
 }).mount('#app')

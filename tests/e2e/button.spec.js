@@ -153,3 +153,108 @@ test('disabled link keeps not-allowed + reduced opacity (AC5)', async ({ page })
   expect(s.cursor).toBe('not-allowed')
   expect(parseFloat(s.opacity)).toBeLessThan(1)
 })
+
+// AspButton variant="destructive" label contrast (§3.108, #7969): the label is
+// TEXT on a filled surface, so the fill is --feedback-error-solid (white 5.62:1),
+// never the --feedback-error mark fill (white 3.59:1, under the 4.5 text floor).
+// Pinned as an equality against the resolved tokens AND as a measured ratio, in
+// both themes, at rest, on hover, and on the always-dark card -- so neither a
+// swap back to the mark token nor a token value drifting under 4.5 goes green.
+
+const rgb = (s) => {
+  const m = s.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/)
+  if (!m) throw new Error(`unparsed colour: ${s}`)
+  return { c: [+m[1], +m[2], +m[3]], a: m[4] === undefined ? 1 : +m[4] }
+}
+const lum = ([r, g, b]) => {
+  const f = (v) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+}
+const ratio = (a, b) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+// `filter: brightness(k)` scales EVERY painted pixel, the label included.
+const brightness = (filter) => {
+  if (!filter || filter === 'none') return 1
+  const m = filter.match(/^brightness\(([\d.]+)\)$/)
+  if (!m) throw new Error(`unexpected destructive hover filter: ${filter}`)
+  return +m[1]
+}
+const scale = (c, k) => c.map((v) => Math.min(255, v * k))
+
+const paint = (loc) =>
+  loc.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return { bg: s.backgroundColor, fg: s.color, filter: s.filter }
+  })
+const refBg = (page, id) =>
+  page.locator(`#${id}`).evaluate((el) => getComputedStyle(el).backgroundColor)
+
+for (const theme of ['light', 'dark']) {
+  test.describe(`destructive label contrast (${theme})`, () => {
+    test.beforeEach(async ({ page }) => {
+      const q = theme === 'dark' ? '?theme=dark' : ''
+      await page.goto(`/tests/e2e/fixtures/button.html${q}`, { waitUntil: 'networkidle' })
+    })
+
+    test('fill is --feedback-error-solid, not the --feedback-error mark fill (§3.108)', async ({
+      page,
+    }) => {
+      const p = await paint(page.locator('#destructive button'))
+      expect(p.bg).toBe(await refBg(page, 'ref-error-solid'))
+      expect(p.bg).not.toBe(await refBg(page, 'ref-error-mark'))
+      const onDark = await page
+        .locator('#ref-on-dark')
+        .evaluate((el) => getComputedStyle(el).color)
+      expect(p.fg).toBe(onDark)
+    })
+
+    test('label measures ≥ 4.5:1 at rest, on the page and on the dark card', async ({ page }) => {
+      for (const sel of ['#destructive button', '#destructive-card button']) {
+        const p = await paint(page.locator(sel))
+        const bg = rgb(p.bg)
+        expect(bg.a, `${sel} fill must be opaque`).toBe(1)
+        const r = ratio(rgb(p.fg).c, bg.c)
+        expect(r, `${sel} ${p.fg} on ${p.bg}`).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+
+    test('hover darkens (never lightens) and the label stays ≥ 4.5:1', async ({ page }) => {
+      const btn = page.locator('#destructive button')
+      await btn.hover()
+      // Past --transition-fast, so the settled hover is read (see contrast.spec).
+      await page.waitForTimeout(250)
+      const p = await paint(btn)
+      const k = brightness(p.filter)
+      expect(k, 'hover must show a delta').toBeLessThan(1)
+      const r = ratio(scale(rgb(p.fg).c, k), scale(rgb(p.bg).c, k))
+      expect(r, `hover ${p.fg} on ${p.bg} × brightness(${k})`).toBeGreaterThanOrEqual(4.5)
+    })
+
+    test('focus-visible keeps the ring and the solid fill', async ({ page }) => {
+      const btn = page.locator('#destructive button')
+      await btn.focus()
+      const s = await btn.evaluate((el) => ({
+        shadow: getComputedStyle(el).boxShadow,
+        bg: getComputedStyle(el).backgroundColor,
+      }))
+      expect(s.shadow).not.toBe('none')
+      expect(s.bg).toBe(await refBg(page, 'ref-error-solid'))
+    })
+
+    test('disabled keeps not-allowed + reduced opacity', async ({ page }) => {
+      const btn = page.locator('#destructive-disabled button')
+      await expect(btn).toBeDisabled()
+      const s = await btn.evaluate((el) => ({
+        cursor: getComputedStyle(el).cursor,
+        opacity: getComputedStyle(el).opacity,
+      }))
+      expect(s.cursor).toBe('not-allowed')
+      expect(parseFloat(s.opacity)).toBeLessThan(1)
+    })
+  })
+}

@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import AspButton from '../src/components/AspButton.vue'
+import AspCard from '../src/components/AspCard.vue'
 
 const clickCount = ref(0)
 const asyncLoading = ref(false)
@@ -130,6 +131,34 @@ const runAsync = async () => {
           <AspButton variant="link" style="color: var(--brand-primary);">+ Lägg till fler</AspButton>
           beside a boxed <AspButton variant="ghost">Ghost</AspButton>.
         </p>
+      </div>
+    </Variant>
+
+    <Variant title="Destructive (label contrast)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        The label is text on a filled surface, so the fill is <code>--feedback-error-solid</code>
+        (white 5.62:1), never the <code>--feedback-error</code> mark fill (white 3.59:1, under the
+        4.5:1 text floor; §3.108). Hover only darkens. Shown on a light page and inside an
+        <code>AspCard</code>, in both themes, with a disabled specimen.
+      </p>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <AspButton variant="destructive">Kill</AspButton>
+        <AspButton variant="destructive" disabled>Kill</AspButton>
+        <AspCard style="display: flex; gap: 12px;">
+          <AspButton variant="destructive">Kill</AspButton>
+          <AspButton variant="secondary">Cancel</AspButton>
+        </AspCard>
+      </div>
+      <div
+        data-theme="dark"
+        style="margin-top: 16px; padding: 16px; background: var(--surface-page); display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"
+      >
+        <AspButton variant="destructive">Kill</AspButton>
+        <AspButton variant="destructive" disabled>Kill</AspButton>
+        <AspCard style="display: flex; gap: 12px;">
+          <AspButton variant="destructive">Kill</AspButton>
+          <AspButton variant="secondary">Cancel</AspButton>
+        </AspCard>
       </div>
     </Variant>
 

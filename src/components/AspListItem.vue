@@ -203,6 +203,8 @@ const onClick = (event) => {
   display: inline-flex;
   flex: none;
   align-items: center;
+  /* A named icon takes the slot's size, like a raw glyph does (§3.113). */
+  --icon-size-sm: 1em;
 }
 
 .list-item__body {

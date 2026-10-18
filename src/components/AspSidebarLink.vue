@@ -125,6 +125,9 @@ const onClick = (event) => {
   justify-content: center;
   width: 1.4em;
   font-size: var(--text-lg);
+  /* A named icon takes the slot's size, like a raw glyph does (§3.113). Scoped
+     here, never global: AspIcon's standalone sm stays 1rem everywhere else. */
+  --icon-size-sm: 1em;
 }
 
 .sidebar-link__label {

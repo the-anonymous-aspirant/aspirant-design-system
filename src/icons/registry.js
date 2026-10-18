@@ -49,6 +49,16 @@ export const iconRegistry = {
   active: { glyph: '●', asset: null },
   badge: { glyph: '◐', asset: null },
   disabled: { glyph: '⌀', asset: null },
+  // The system_3 console's nav set (conventions §4.2; system_3 #8018).
+  // Registered rather than passed to AspSidebarLink as raw strings, which
+  // render verbatim and never take the hand-drawn upgrade (§1.4). None of these
+  // names is an asset_map.json key, so AspIcon's image arm stays off and only
+  // the `${name}.svg` arm can ever upgrade them.
+  agents: { glyph: '◉', asset: null },
+  tasks: { glyph: '☑', asset: null },
+  processes: { glyph: '⟳', asset: null },
+  corpus: { glyph: '§', asset: null },
+  artifacts: { glyph: '▤', asset: null },
 }
 
 /** Unicode fallback glyph for `name`, or `null` if unregistered. */

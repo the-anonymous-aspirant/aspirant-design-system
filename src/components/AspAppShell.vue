@@ -50,7 +50,18 @@ const setCollapsed = (value) => emit('update:sidebarCollapsed', value)
       :show-toggle="!isMobile"
       @update:collapsed="setCollapsed"
     >
+      <!-- sidebar-header / sidebar-footer forward into AspSidebar's own header
+           and footer (system_3 #8009), so a consumer can place a brand block
+           without putting it inside <nav> as a pseudo-link. Each receives
+           { collapsed } so it can render a compact form in the rail. The
+           v-if keeps AspSidebar's $slots empty when the consumer passes none. -->
+      <template v-if="$slots['sidebar-header']" #header="{ collapsed }">
+        <slot name="sidebar-header" :collapsed="collapsed" />
+      </template>
       <slot name="sidebar" />
+      <template v-if="$slots['sidebar-footer']" #footer="{ collapsed }">
+        <slot name="sidebar-footer" :collapsed="collapsed" />
+      </template>
     </AspSidebar>
 
     <div class="app-shell__body">

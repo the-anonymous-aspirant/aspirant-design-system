@@ -7,6 +7,7 @@ import AspCard from '../src/components/AspCard.vue'
 const collapsedA = ref(false)
 const collapsedB = ref(false)
 const collapsedDark = ref(false)
+const collapsedBrand = ref(false)
 </script>
 
 <template>
@@ -14,7 +15,8 @@ const collapsedDark = ref(false)
     <template #docs>
       <p><strong>Purpose:</strong> the standard page scaffold — a left <code>AspSidebar</code> plus optional header, main content, and footer — so every app surface shares one shell instead of re-inventing it.</p>
       <p><strong>Props:</strong> <code>v-model:sidebar-collapsed</code>, <code>hasSidebar</code> (default true), <code>contentPadding</code> (sm | md | lg).</p>
-      <p><strong>Slots:</strong> <code>sidebar</code> (nav contents), <code>header</code>, default (main), <code>footer</code>.</p>
+      <p><strong>Slots:</strong> <code>sidebar</code> (nav contents), <code>sidebar-header</code> (the brand block at the top of the sidebar, centred and bigger per §3.8; it stays in the collapsed rail), <code>sidebar-footer</code> (hidden in the rail), <code>header</code>, default (main), <code>footer</code>. Both sidebar slots receive <code>{ collapsed }</code>, so a brand can swap "System 3" for "S3" in the 60px rail.</p>
+      <p><strong>Collapse toggle:</strong> on desktop, a muted chevron (<code>‹</code>/<code>›</code>) pinned at the sidebar's bottom edge (§3.12): <code>--text-muted</code> at rest, <code>--text-on-dark</code> on hover. It sits inside the rail and stays at the visible bottom on long pages, so it never covers the page header. Mobile keeps its <code>✕</code>.</p>
       <p><strong>Mobile-first:</strong> below <code>--breakpoint-md</code> the sidebar auto-collapses to an off-canvas overlay, a hamburger appears in the header, and content flows full width. Use the Histoire viewport toolbar to shrink below 768px to see it.</p>
       <p><strong>When not to use:</strong> a bare content page with no nav — just render your content; the shell is for the app frame.</p>
     </template>
@@ -36,6 +38,25 @@ const collapsedDark = ref(false)
           sidebar collapse to an overlay and the hamburger appear.
         </AspCard>
         <template #footer>© aspirant — design system shell</template>
+      </AspAppShell>
+    </Variant>
+
+    <Variant title="Brand block (sidebar-header) + collapse at the bottom edge">
+      <AspAppShell v-model:sidebar-collapsed="collapsedBrand">
+        <template #sidebar-header="{ collapsed }">{{ collapsed ? 'S3' : 'System 3' }}</template>
+        <template #sidebar>
+          <AspSidebarLink to="#" label="Overview" icon="⌂" :active="true" />
+          <AspSidebarLink to="#" label="Tasks" icon="☰" />
+          <AspSidebarLink to="#" label="Agents" icon="◉" />
+        </template>
+        <template #sidebar-footer>v1.0</template>
+        <template #header>
+          <strong style="color: var(--text-on-light);">system_3</strong>
+        </template>
+        <AspCard>
+          <template #header>Collapse with the chevron at the bottom of the sidebar</template>
+          The brand swaps to "S3" in the rail; the footer hides; the page title is never covered.
+        </AspCard>
       </AspAppShell>
     </Variant>
 

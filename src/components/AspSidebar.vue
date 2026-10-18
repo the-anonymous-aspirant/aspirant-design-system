@@ -30,6 +30,10 @@ const rootClasses = computed(() => ({
   'sidebar--hidden': isMobile.value && props.hideOnMobile,
 }))
 
+// The desktop rail state the header/footer slots receive. On mobile `collapsed`
+// means "overlay hidden", not "rail", so the slots always get false there.
+const railCollapsed = computed(() => props.collapsed && !isMobile.value)
+
 const overlayVisible = computed(
   () => isMobile.value && !mobileHidden.value && !props.hideOnMobile
 )
@@ -50,13 +54,13 @@ watch(isMobile, (nowMobile, wasMobile) => {
   <div v-if="overlayVisible" class="sidebar-overlay" @click="toggle" />
   <aside :class="rootClasses" :style="rootStyle" aria-label="Primary navigation">
     <div v-if="$slots.header" class="sidebar__header">
-      <slot name="header" />
+      <slot name="header" :collapsed="railCollapsed" />
     </div>
     <nav class="sidebar__links">
       <slot />
     </nav>
     <div v-if="$slots.footer" class="sidebar__footer">
-      <slot name="footer" />
+      <slot name="footer" :collapsed="railCollapsed" />
     </div>
     <button
       v-if="showToggle"
@@ -88,6 +92,20 @@ watch(isMobile, (nowMobile, wasMobile) => {
 .sidebar__header {
   padding: var(--space-md);
   border-bottom: 1px solid var(--surface-card-inner);
+  /* Brand block (§3.8: "bigger + centered at the top of the sidebar"). The
+     content is the consumer's; the slot receives { collapsed } so it can
+     swap to its short form ("S3") in the rail, where the header stays. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-heading-card);
+}
+
+.sidebar--collapsed .sidebar__header {
+  padding: var(--space-sm) var(--space-2xs);
 }
 
 .sidebar__links {
@@ -115,29 +133,54 @@ watch(isMobile, (nowMobile, wasMobile) => {
 }
 
 .sidebar__toggle {
-  position: absolute;
-  top: var(--space-sm);
-  right: calc(-1 * var(--space-md));
   width: var(--space-lg);
   height: var(--space-lg);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--surface-card-inner);
-  background: var(--surface-card);
-  color: var(--text-on-dark);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast);
-}
-.sidebar__toggle:hover {
-  /* No colour override: the base rule's --text-on-dark is correct here. The
-     hover surface is amber-over---surface-card, i.e. still dark chrome. */
-  background: var(--brand-primary-alpha);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 .sidebar__toggle:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+/* Desktop (§3.12): a muted chevron pinned at the sidebar's BOTTOM edge, inside
+   the rail, so it can never sit over the consumer's header title (it used to be
+   absolute at the top, outset 16px past the edge, and did -- system_3 #7972).
+   The sidebar is min-height 100vh in a stretched row, so on a long page its
+   end is below the fold; sticky keeps the chevron at the visible bottom. The
+   card background lets it read cleanly over anything that scrolls beneath. */
+.sidebar:not(.sidebar--mobile) .sidebar__toggle {
+  position: sticky;
+  bottom: 0;
+  align-self: center;
+  margin: var(--space-xs) 0 var(--space-sm);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+}
+.sidebar:not(.sidebar--mobile) .sidebar__toggle:hover {
+  color: var(--text-on-dark);
+}
+
+/* Mobile: the ✕ keeps its original placement and look, unchanged. */
+.sidebar--mobile .sidebar__toggle {
+  position: absolute;
+  top: var(--space-sm);
+  right: calc(-1 * var(--space-md));
+  border-radius: var(--radius-full);
+  border: 1px solid var(--surface-card-inner);
+  background: var(--surface-card);
+  color: var(--text-on-dark);
+}
+.sidebar--mobile .sidebar__toggle:hover {
+  /* No colour override: the base rule's --text-on-dark is correct here. The
+     hover surface is amber-over---surface-card, i.e. still dark chrome. */
+  background: var(--brand-primary-alpha);
 }
 
 /* Collapsed desktop: hide label text of child links via CSS attribute selector
@@ -145,7 +188,6 @@ watch(isMobile, (nowMobile, wasMobile) => {
    link renderers can opt-in with the .sidebar-link__label class. */
 .sidebar--collapsed :deep(.sidebar-link__label),
 .sidebar--collapsed :deep(.sidebar-link__badge),
-.sidebar--collapsed .sidebar__header,
 .sidebar--collapsed .sidebar__footer {
   display: none;
 }

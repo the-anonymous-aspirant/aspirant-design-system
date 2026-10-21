@@ -401,6 +401,9 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   z-index: 20;
   margin-top: var(--space-2xs);
   max-height: min(15rem, var(--select-panel-space, 15rem));
+  /* A surface-setter sets its own alignment too: it renders in the consumer's
+     DOM, and a centred ancestor (aspirant-client's #app) centred the options. */
+  text-align: left;
   overflow-y: auto;
   margin: 0;
   padding: var(--space-2xs) 0;

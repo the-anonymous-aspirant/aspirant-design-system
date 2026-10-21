@@ -64,8 +64,10 @@ const openPanel = async () => {
     0
   )
   await nextTick()
-  flipIfClipped()
+  placePanel()
   scrollActiveIntoView()
+  window.addEventListener('scroll', onViewportChange, true)
+  window.addEventListener('resize', onViewportChange)
 }
 
 const closePanel = ({ focusTrigger = true } = {}) => {
@@ -73,25 +75,101 @@ const closePanel = ({ focusTrigger = true } = {}) => {
   open.value = false
   activeIndex.value = -1
   flipped.value = false
+  stopFollowing()
   emit('close')
   if (focusTrigger) root.value?.querySelector('.select__trigger')?.focus()
 }
 
 const toggle = () => (open.value ? closePanel() : openPanel())
 
-// --- edge flip --------------------------------------------------------------
+// --- placement --------------------------------------------------------------
 
-// Panel opens downward by default and flips up when it would be clipped. Read
-// once per open rather than on scroll: the panel closes on outside interaction
-// anyway, so a live-repositioning loop would cost more than it buys.
+// The panel is `position: fixed` at coordinates taken from the trigger, so no
+// ancestor's overflow can clip it. As an absolute box it was cut off by any
+// scroll container it sat in, whichever way it opened: an AspSelect in an
+// AspDataTable cell near the window bottom flipped up and hid its options
+// behind the table's own edge (system_3 #8402). It stays in this component's
+// DOM rather than being teleported, so the outside-click test, focus and a
+// consumer's scoped `:deep(.select__panel)` rules are unchanged.
+//
+// Opens downward unless the panel does not fit below and there is more room
+// above; its height is capped to the room on the chosen side, and it is kept
+// inside the window horizontally. Placed at open and again on any scroll or
+// resize while open.
 const flipped = ref(false)
-const flipIfClipped = () => {
+const EDGE = 8
+
+// A transform, filter, perspective or containment on an ancestor makes that
+// ancestor the containing block of a fixed descendant, so viewport
+// coordinates must be taken relative to it.
+const fixedContainingBlock = (el) => {
+  for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+    const cs = getComputedStyle(node)
+    if (
+      cs.transform !== 'none' ||
+      cs.perspective !== 'none' ||
+      cs.filter !== 'none' ||
+      (cs.backdropFilter && cs.backdropFilter !== 'none') ||
+      /paint|layout|strict|content/.test(cs.contain) ||
+      /transform|perspective|filter/.test(cs.willChange)
+    ) {
+      return node
+    }
+  }
+  return null
+}
+
+const placePanel = () => {
   const el = panel.value
-  if (!el) return
-  const rect = el.getBoundingClientRect()
-  const trigger = root.value.getBoundingClientRect()
-  const spaceBelow = window.innerHeight - trigger.bottom
-  flipped.value = rect.height > spaceBelow && trigger.top > spaceBelow
+  const trigger = root.value?.querySelector('.select__trigger')
+  if (!el || !trigger) return
+  const t = trigger.getBoundingClientRect()
+  if (t.bottom < 0 || t.top > window.innerHeight) {
+    closePanel({ focusTrigger: false })
+    return
+  }
+  // The panel's margin-top is the gap to the trigger, in both orientations.
+  const gap = parseFloat(getComputedStyle(el).marginTop) || 0
+  const spaceBelow = window.innerHeight - t.bottom - gap - EDGE
+  const spaceAbove = t.top - gap - EDGE
+
+  // Its height under the component's own 15rem cap, read from scrollHeight so
+  // nothing is mutated: briefly lifting the cap on every scroll would reset
+  // the panel's own scroll position.
+  el.style.minWidth = `${t.width}px`
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const natural = Math.min(el.scrollHeight, 15 * rem)
+  flipped.value = natural > spaceBelow && spaceAbove > spaceBelow
+  const space = Math.max(flipped.value ? spaceAbove : spaceBelow, 0)
+  el.style.setProperty('--select-panel-space', `${Math.floor(space)}px`)
+  const height = Math.min(natural, space)
+
+  // A containing block positions from its padding box, inside its border.
+  const cb = fixedContainingBlock(el)
+  const cbRect = cb && cb.getBoundingClientRect()
+  const origin = cb ? { left: cbRect.left + cb.clientLeft, top: cbRect.top + cb.clientTop } : { left: 0, top: 0 }
+  const width = el.getBoundingClientRect().width
+  const left = Math.min(t.left, window.innerWidth - width - EDGE)
+  el.style.left = `${Math.max(left, EDGE) - origin.left}px`
+  // Upward, the box must end one gap above the trigger; its margin moves it
+  // down by one gap, so its top is set two gaps higher.
+  el.style.top = `${(flipped.value ? t.top - height - gap * 2 : t.bottom) - origin.top}px`
+}
+
+let frame = 0
+const onViewportChange = () => {
+  if (frame) return
+  frame = requestAnimationFrame(() => {
+    frame = 0
+    if (open.value) placePanel()
+  })
+}
+
+const stopFollowing = () => {
+  window.removeEventListener('scroll', onViewportChange, true)
+  window.removeEventListener('resize', onViewportChange)
+  if (frame) cancelAnimationFrame(frame)
+  frame = 0
 }
 
 const scrollActiveIntoView = () => {
@@ -161,7 +239,10 @@ const onDocPointerDown = (event) => {
 }
 
 onMounted(() => document.addEventListener('pointerdown', onDocPointerDown, true))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocPointerDown, true))
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onDocPointerDown, true)
+  stopFollowing()
+})
 
 // A disabled select must not stay open.
 watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
@@ -312,13 +393,14 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   line-height: 1;
 }
 
+/* Fixed, with top/left/min-width set from the trigger at open (placePanel):
+   no ancestor's overflow can clip it (#8402). The margin is the gap to the
+   trigger; --select-panel-space caps the height to the room on its side. */
 .select__panel {
-  position: absolute;
-  top: calc(100% + var(--space-2xs));
-  left: 0;
+  position: fixed;
   z-index: 20;
-  min-width: 100%;
-  max-height: 15rem;
+  margin-top: var(--space-2xs);
+  max-height: min(15rem, var(--select-panel-space, 15rem));
   overflow-y: auto;
   margin: 0;
   padding: var(--space-2xs) 0;
@@ -329,10 +411,6 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   box-shadow: var(--shadow-lg);
 }
 
-.select__panel--flipped {
-  top: auto;
-  bottom: calc(100% + var(--space-2xs));
-}
 
 .select__option {
   padding: var(--space-2xs) var(--space-sm);

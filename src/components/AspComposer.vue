@@ -90,6 +90,18 @@ const props = defineProps({
   accept: { type: String, default: null },
   /** Whether the picker takes more than one file per open. */
   multiple: { type: Boolean, default: true },
+  /**
+   * The setter the field resolves its fill and ink against (§3.119, §3.18;
+   * system_3 #9134). 'auto' reads it from the DOM: inside an AspCard (any
+   * variant but the transparent `ghost`) the field takes the card treatment,
+   * anywhere else the page-field one AspInput/AspTextarea use. 'page' and 'card'
+   * force it, for a hand-rolled surface the selector cannot see.
+   */
+  surface: {
+    type: String,
+    default: 'auto',
+    validator: (v) => ['auto', 'page', 'card'].includes(v),
+  },
 })
 
 const emit = defineEmits([
@@ -258,7 +270,10 @@ const onComposerKeydown = (event) => {
 <template>
   <form
     class="asp-composer"
-    :class="{ 'asp-composer--drag': dragActive }"
+    :class="{
+      'asp-composer--drag': dragActive,
+      [`asp-composer--surface-${surface}`]: surface !== 'auto',
+    }"
     @submit.prevent="submit"
     @dragenter="onDragEnter"
     @dragover="onDragOver"
@@ -446,28 +461,38 @@ const onComposerKeydown = (event) => {
      to this on its own; the explicit min-height keeps the exact value pinned. */
   --asp-chat-composer-min-height: 4.5rem;
   min-height: var(--asp-chat-composer-min-height);
-  background: var(--surface-card-inner);
-  color: var(--text-on-dark);
-  border-color: transparent;
   font-family: var(--font-family-base);
   /* 16px, not --text-sm: below 16px iOS Safari auto-zooms the viewport on
      focus, a real mobile-typing irritation this sizing exists to remove. */
   font-size: var(--text-base);
 }
 
-.asp-composer :deep(.asp-composer__input)::placeholder {
-  /* Muted placeholder on the dark composer surface: the on-dark ink at half
-     opacity, matching AspInput's muted-placeholder treatment. */
+/* The field resolves its fill and ink against its setter (§3.119, §3.18;
+   system_3 #9134). On the PAGE it keeps AspTextarea's own page-field treatment
+   (the one AspInput uses): --surface-elevated fill, --text-body ink, a
+   --text-muted placeholder, a 1px --border-control edge and the ink-border +
+   ring focus. The old unconditional card treatment below painted the light
+   page's field #9f9f9f with white ink at 2.64:1 (#9104 B2-1).
+
+   On a CARD (an AspCard root, except the transparent ghost variant, or
+   surface="card") it takes the card treatment: the darken-what-is-under-me
+   inner fill and on-dark ink. Its edge derives from the card's own ink: the
+   inner fill is ~1.3:1 against the card in both themes, and --border-control
+   is 2.2:1 against the light theme's #424242 card, so no flat token carries
+   the 3:1 boundary there. The placeholder is left to AspTextarea's
+   --text-muted, which mixes from that on-dark ink. */
+:where(.card:not(.card--variant-ghost)) .asp-composer:not(.asp-composer--surface-page) :deep(.asp-composer__input),
+.asp-composer--surface-card :deep(.asp-composer__input) {
+  background: var(--surface-card-inner);
   color: var(--text-on-dark);
-  opacity: 0.5;
+  border-color: color-mix(in srgb, var(--text-on-dark) 55%, transparent);
 }
 
-.asp-composer :deep(.asp-composer__input:focus) {
-  /* A visible focus indicator is required even though the resting border is
-     transparent -- same two-tone ring AspInput uses (ink border + focus ring).
-     AspTextarea's own :focus rule already sets these to the same values; this
-     override only matters if specificity/load-order ever ties differently. */
-  border-color: var(--text-body);
+/* Focus on a card: the ink border AspTextarea uses is --text-body, which is the
+   light theme's card colour, so the card's own ink carries it instead. */
+:where(.card:not(.card--variant-ghost)) .asp-composer:not(.asp-composer--surface-page) :deep(.asp-composer__input:focus),
+.asp-composer--surface-card :deep(.asp-composer__input:focus) {
+  border-color: var(--text-on-dark);
   box-shadow: var(--shadow-focus);
 }
 

@@ -128,6 +128,23 @@ const onAttach = (files) => {
 
     <!-- The textarea sets its own dark fill (--surface-card-inner / --text-on-dark), so the
          composer is legible standalone; the card here just gives it a realistic surround. -->
+    <Variant title="Setter: on the page vs in a card, both themes (§3.119)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        The field resolves its fill and ink against its setter. On the page it is the page field
+        AspInput and AspTextarea use; inside an AspCard it takes the card treatment, with an edge
+        derived from the card ink. A ghost card is transparent, so it reads as the page.
+        <code>surface="page" | "card"</code> forces either for a hand-rolled surface.
+      </p>
+      <div style="background: var(--surface-page); padding: 16px; display: grid; gap: 16px;">
+        <AspComposer v-model="typed" placeholder="On the page…" send-label="Post" />
+        <AspCard><AspComposer v-model="typed" placeholder="In a card…" send-label="Post" /></AspCard>
+      </div>
+      <div data-theme="dark" style="background: var(--surface-page); padding: 16px; display: grid; gap: 16px; margin-top: 16px;">
+        <AspComposer v-model="typed" placeholder="On the page…" send-label="Post" />
+        <AspCard><AspComposer v-model="typed" placeholder="In a card…" send-label="Post" /></AspCard>
+      </div>
+    </Variant>
+
     <Variant title="Idle (empty draft — send disabled)">
       <AspCard>
         <AspComposer v-model="idle" placeholder="Leave a comment…" send-label="Post" />

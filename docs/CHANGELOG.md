@@ -6,6 +6,15 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspComposer: the field resolves its fill and ink against its setter**
+  (`system_3_design_conventions.md` §3.119 decision 3; task #9134).
+  - On the page, the field is now the page field `AspInput` and `AspTextarea`
+    use. It used to paint the dark-card treatment there: #9f9f9f with white
+    text at 2.64:1.
+  - Inside an `AspCard` (except the transparent ghost variant), the field keeps
+    the card fill and ink, and gains an edge mixed from the card ink.
+  - The new `surface: 'auto' | 'page' | 'card'` forces either treatment.
+
 - **AspDataTable: phone card list, column roles and an identity floor**
   (`system_3_design_conventions.md` §3.119, which extends §3.114 D6; task #9133).
   - Below a 640px container, a table of more than three columns renders one card

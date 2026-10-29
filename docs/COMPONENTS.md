@@ -352,7 +352,14 @@ matrix that opts out with `narrow="scroll"` horizontal-scrolls instead.
 Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width?, role? }]`),
 `rows`, `density` (`default` | `compact`), `interactive` (hover +
 keyboard-operable rows), `sortBy` / `sortDir` (v-model-able), `manualSort`,
-`rowKey` (string | fn), `caption`, `narrow` (`cards` | `scroll`).
+`rowKey` (string | fn), `caption`, `narrow` (`cards` | `scroll`), `fit` (`fill` | `content`).
+
+**Alignment and fit** (§3.119, system_3 #9136). `align: 'right' | 'center'` applies to the
+header cell and every data cell. The modifiers are qualified by the table, at (0,2,0), so they
+outrank the base `text-align: left` (0,1,1). Unqualified, they lost on every console route that
+declared one (#9104 B4-2). `fit="content"` sizes the table to its columns' content
+(`width: auto; max-width: 100%`), for a breakdown of a few columns where the figure belongs
+beside its subject (§3.55, §3.72). The default `fill` spans the container, as before.
 
 **Phone card list** (§3.114 D6 as extended by §3.119, #9133). When the table's
 own container is narrower than 640px and more than three columns are visible,

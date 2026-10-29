@@ -552,6 +552,15 @@ height. All three happen during the render, so styling alone cannot reach them.
 Props: `content`, `type` (`auto` | `markdown` | `code` | `text`), `language`, `maxHeight`
 (number/CSS length, `null` opts out), `measure`.
 
+**Link ink yields to the setter** (§3.119 decision 4, system_3 #9137). A rendered markdown
+link's colour is a zero-specificity fallback: `:where(.asp-content__prose :deep(a))`, which Vue
+compiles to `:where(.asp-content__prose[data-v-…] a)`, weighing (0,0,0). So a consumer's setter
+rule decides, such as the console's `link-ink.css` (`a {}` on the page, `.card a` →
+`--brand-accent-300` in a card). Inside one card, a markdown link and a plain link then render
+the same ink. At (0,2,1) the old rule beat `.card a` (0,1,1) (#9104 A2-1). With no consumer
+rule, the DS's own `color-mix(--brand-accent-800 30%, currentColor)` still applies. The
+underline stays on the specific selector, so a link reads as a link whatever its ink.
+
 `type="auto"` is **biased away from markdown**. Mis-reading source as markdown is the logged
 defect — eaten indentation, `*` read as emphasis; mis-reading markdown as source is merely
 plain-looking. The costs are not symmetric, so markdown has to be affirmatively evidenced.

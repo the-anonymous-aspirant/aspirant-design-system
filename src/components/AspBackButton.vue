@@ -108,6 +108,11 @@ const goBack = () => {
  */
 .back-btn {
   display: inline-flex;
+  /* A primitive's own box renders the same on every route (§3.119 decision 5,
+     system_3 #9139): under a column flex parent the default `stretch` made it
+     span the content row (1168px at 1440), and a click on its empty right side
+     navigated away (#9104 B3-4). A consumer may place it, not reshape it. */
+  align-self: flex-start;
   align-items: center;
   gap: var(--space-xs);
   /* 44px touch target — WCAG 2.5.5 (Enhanced) / Apple HIG + Material touch

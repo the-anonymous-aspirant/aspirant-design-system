@@ -121,16 +121,20 @@ const onClick = (event) => {
   appearance: none;
 }
 
-/* Size — sm/md/lg are PADDING-DRIVEN by design and carry NO min-height. A
-   labelled button is wide and only ever short in height; ~34px clears the 24px
-   WCAG 2.5.8 (AA) target-size floor comfortably (§3.99 Tier 1). The 44px Tier-2
-   touch target is deliberately NOT applied here — it is reserved for controls
-   small in BOTH dimensions (size="icon" above) or standalone touch-first
-   affordances, and inflating the ~108 labelled call sites to 44px would serve
-   no one. The absence of a min-height is intentional. Ruling: §3.99 / #4461. */
+/* Size — sm/md/lg are PADDING-DRIVEN by design. md and lg clear the 24px WCAG
+   2.5.8 (AA) target-size floor on padding alone (§3.99 Tier 1), but sm does
+   not: measured with getBoundingClientRect it renders 23.59px tall (327
+   buttons on 12 console routes, #9104 B3-3), and an icon-only sm (AspFreshness'
+   trigger) 23.59 x 23.59. So sm alone carries a 24px minimum in both
+   dimensions (§3.119 decision 5, system_3 #9139); its padding and font size
+   are unchanged. The 44px Tier-2 touch target is deliberately NOT applied
+   here — it is reserved for controls small in BOTH dimensions (size="icon"
+   above) or standalone touch-first affordances. Ruling: §3.99 / #4461. */
 .btn--size-sm {
   padding: var(--space-2xs) var(--space-sm);
   font-size: var(--text-sm);
+  min-height: 24px;
+  min-width: 24px;
 }
 .btn--size-md {
   padding: var(--space-xs) var(--space-md);

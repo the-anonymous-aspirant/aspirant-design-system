@@ -947,6 +947,10 @@ const tableClasses = computed(() => ({
   display: inline-flex;
   align-items: center;
   gap: var(--space-2xs);
+  /* A 24px hit area (§3.99 Tier 1, §3.119; system_3 #9139): with no padding
+     the button was 17px tall. The header row grows only by what this needs. */
+  min-height: 24px;
+  min-width: 24px;
   padding: 0;
   margin: 0;
   border: none;

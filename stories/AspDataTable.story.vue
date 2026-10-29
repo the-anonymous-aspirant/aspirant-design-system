@@ -55,6 +55,17 @@ const manyRows = Array.from({ length: 500 }, (_, i) => ({
 
 const lastClicked = ref('(none)')
 
+// §3.119 / #9136 — a 2-column breakdown, full width vs sized to its content.
+const breakdownCols = [
+  { key: 'status', label: 'Status' },
+  { key: 'count', label: 'Count', align: 'right' },
+]
+const breakdownRows = [
+  { status: 'open', count: 42 },
+  { status: 'in_progress', count: 8 },
+  { status: 'parked', count: 1290 },
+]
+
 // §3.119 / #9133 — phone card list. Columns declare a role: one identity (top
 // left), one figure (top right); the rest stack as label-value pairs.
 const roleCols = [
@@ -226,6 +237,18 @@ const statusStyle = (v) => ({
       </p>
       <div style="width: 768px; border: 1px dashed var(--border-subtle);">
         <AspDataTable :columns="floorCols" :rows="floorRows" density="compact" />
+      </div>
+    </Variant>
+
+    <Variant title="Breakdown table: fit=&quot;content&quot; vs the default fill (§3.119)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A breakdown of a few columns sizes to its content with <code>fit="content"</code>, so the
+        figure sits beside its label. The default <code>fill</code> spans the container. Right-aligned
+        columns render right-aligned, header and cells, so the counts line up by digit.
+      </p>
+      <AspDataTable :columns="breakdownCols" :rows="breakdownRows" fit="content" caption="fit=&quot;content&quot;" />
+      <div style="margin-top: 16px;">
+        <AspDataTable :columns="breakdownCols" :rows="breakdownRows" caption="fit=&quot;fill&quot; (default)" />
       </div>
     </Variant>
 

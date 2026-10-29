@@ -120,6 +120,30 @@ const slackRows = Array.from({ length: 4 }, (_, i) => ({
   updated: '2026-10-29 18:09',
 }))
 
+// --- #9136 alignment and fit ------------------------------------------------
+// One column per alignment, so the spec can read text-align off each th/td;
+// and a 2-column breakdown (label, figure) under fit 'content' and 'fill' in a
+// 1084px container (the console's card body width at 1440, #9104 B4-9).
+const alignCols = [
+  { key: 'name', label: 'Name' },
+  { key: 'count', label: 'Count', align: 'right' },
+  { key: 'state', label: 'State', align: 'center' },
+]
+const alignRows = [
+  { name: 'open', count: 12, state: 'ok' },
+  { name: 'in_progress', count: 3104, state: 'ok' },
+  { name: 'done', count: 7, state: 'late' },
+]
+const breakdownCols = [
+  { key: 'status', label: 'Status' },
+  { key: 'count', label: 'Count', align: 'right' },
+]
+const breakdownRows = [
+  { status: 'open', count: 42 },
+  { status: 'in_progress', count: 8 },
+  { status: 'parked', count: 1290 },
+]
+
 const clicked = ref('')
 // `?only=<section id>` renders one section, so a spec can check the document's
 // own horizontal scroll at a phone viewport without the wide sections.
@@ -203,6 +227,16 @@ createApp({
             rowAttrs: (row, i) => ({ 'data-abs': i }),
             rowState: (row, i) => (i === 250 ? 'active' : null),
           }),
+        ]),
+        // --- #9136 ---
+        h('section', { id: 'align', style: 'margin-top:24px; width:640px' }, [
+          h(AspDataTable, { columns: alignCols, rows: alignRows }),
+        ]),
+        h('section', { id: 'fit-content', style: 'margin-top:24px; width:1084px' }, [
+          h(AspDataTable, { columns: breakdownCols, rows: breakdownRows, fit: 'content' }),
+        ]),
+        h('section', { id: 'fit-fill', style: 'margin-top:24px; width:1084px' }, [
+          h(AspDataTable, { columns: breakdownCols, rows: breakdownRows }),
         ]),
         // --- #9133 ---
         cardTable('cards-390', 390, {

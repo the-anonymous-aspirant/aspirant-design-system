@@ -5,5 +5,11 @@
   if (new URLSearchParams(location.search).get('theme') === 'dark')
     document.documentElement.setAttribute('data-theme', 'dark')
 </script>
+<style>
+  /* The console's /tasks slack trick (frontend-vue Tasks.vue): the truncate
+     column takes the row's slack and ellipsizes. Without a floor it collapses
+     (#9104 B1-1); the #9133 floor must hold against it. */
+  .slack td.data-table__td--truncate { width: 100%; max-width: 0; }
+</style>
 <div id="app"></div>
 <script type="module" src="./data-table.js"></script>

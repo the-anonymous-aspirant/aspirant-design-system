@@ -475,11 +475,25 @@ const scrollable = computed(() => props.maxHeight !== null)
 }
 
 .asp-content__prose :deep(a) {
-  /* Blue = links, per corpus §1.3 — but mixed into currentColor, not raw
-     --text-hint (#82b1ff measures 1.71:1 on the light page). The underline
-     carries the link on its own, so meaning survives the mix (WCAG 1.4.1). */
-  color: color-mix(in srgb, var(--brand-accent-800) 30%, currentColor);
+  /* The underline carries the link on its own, so meaning survives whatever
+     ink the setter gives it (WCAG 1.4.1). */
   text-decoration: underline;
+}
+
+/* The link COLOUR is a zero-specificity fallback (§3.119 decision 4, system_3
+   #9137): a link takes its setter's ink whatever renders it, so a consumer's
+   setter rule (the console's link-ink.css `.card a`, (0,1,1)) must win over
+   the DS. At (0,2,1) this rule used to outrank it, and inside one card the
+   markdown links rendered the page formula beside plain links in the card
+   ink (#9104 A2-1). Vue compiles this form to
+   `:where(.asp-content__prose[data-v-…] a)`, which weighs (0,0,0); the form
+   `:where(.asp-content__prose) :deep(a)` would still weigh (0,0,1) and tie a
+   consumer's bare `a {}`. With no consumer rule it still applies, so the DS
+   alone renders as before.
+   Blue = links, per corpus §1.3 — but mixed into currentColor, not raw
+   --text-hint (#82b1ff measures 1.71:1 on the light page). */
+:where(.asp-content__prose :deep(a)) {
+  color: color-mix(in srgb, var(--brand-accent-800) 30%, currentColor);
 }
 
 .asp-content__prose :deep(blockquote) {

@@ -6,6 +6,13 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspContent: a markdown link's colour yields to the setter rule**
+  (`system_3_design_conventions.md` §3.119 decision 4; task #9137). The link
+  colour moved under `:where()`, which compiles to zero specificity, so a
+  consumer's rule decides: in the console, a markdown link inside a card now
+  takes the card's link ink like any other link there. With no consumer rule,
+  the DS formula still applies.
+
 - **One shell breakpoint; a hidden sidebar sheds its shadow**
   (`system_3_design_conventions.md` §3.119 decision 2; task #9135).
   - `useMobile()` now defaults to `(max-width: 767.98px)`. The bound is exported

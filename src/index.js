@@ -49,7 +49,12 @@ export { default as AspSplitPane } from './components/AspSplitPane.vue'
 export { default as AspSkeleton } from './components/AspSkeleton.vue'
 export { default as AspPathTitle } from './components/AspPathTitle.vue'
 
-export { useMobile } from './composables/useMobile.js'
+export {
+  useMobile,
+  SHELL_BREAKPOINT_PX,
+  SHELL_MOBILE_QUERY,
+  SHELL_DESKTOP_QUERY,
+} from './composables/useMobile.js'
 export { useFocusTrap } from './composables/useFocusTrap.js'
 export { useIconBase, isIconBaseConfigured } from './composables/useIconBase.js'
 export { iconRegistry, registryFallback, registryAsset } from './icons/registry.js'

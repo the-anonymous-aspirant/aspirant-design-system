@@ -266,6 +266,8 @@ this component's story, so the scale has one home rather than two that can disag
 
 Standard page scaffold: left `AspSidebar` + optional header + main + optional footer, so every app surface shares one shell. Mobile-first — below `--breakpoint-md` the sidebar auto-collapses to an off-canvas overlay (via `AspSidebar`'s own `useMobile`), a hamburger appears in the header, and content flows full width.
 
+**One breakpoint** (§3.119 decision 2, system_3 #9135). Mobile is below 768px and desktop is 768px and up, from one source: `SHELL_BREAKPOINT_PX`, `SHELL_MOBILE_QUERY` (`(max-width: 767.98px)`, the `useMobile()` default) and `SHELL_DESKTOP_QUERY` (`(min-width: 768px)`, what every DS `@media` rule uses). All three are exported from the package root. `useMobile` used to default to `(max-width: 768px)`, so at exactly 768px the sidebar was off-canvas and the hamburger hidden, with no navigation at all (#9104 B1-2). A hidden off-canvas sidebar also sets `box-shadow: none`. Translated off-screen, it still cast `--shadow-lg` about 20px into the page on every phone route (#9104 B1-12). The open sidebar keeps the shadow.
+
 Props: `sidebarCollapsed` (`v-model:sidebar-collapsed`), `hasSidebar` (bool, default true), `contentPadding` (sm | md | lg).
 Slots: `sidebar` (nav contents → `AspSidebar` default slot), `header`, default (main), `footer`.
 

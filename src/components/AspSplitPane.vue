@@ -235,7 +235,8 @@ watch(
   min-height: 0;
 }
 
-/* Row layout from the md breakpoint up (min-width only, §1.6). */
+/* Row layout from the md breakpoint up (min-width only, §1.6). 768px is
+   SHELL_BREAKPOINT_PX (useMobile.js), the shell's one bound (§3.119). */
 @media (min-width: 768px) {
   .split-pane {
     flex-direction: row;

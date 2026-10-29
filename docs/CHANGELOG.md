@@ -6,6 +6,14 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: alignment modifiers win; a content-sized breakdown table**
+  (`system_3_design_conventions.md` §3.119 R4; task #9136).
+  - `align: 'right' | 'center'` now applies to the header and every cell. The
+    base `text-align: left` used to outrank the modifiers, so declared alignment
+    did nothing.
+  - The new `fit: 'fill' | 'content'` (default `fill`): `content` sizes a
+    breakdown table to its columns, so a figure sits beside its label.
+
 - **AspContent: a markdown link's colour yields to the setter rule**
   (`system_3_design_conventions.md` §3.119 decision 4; task #9137). The link
   colour moved under `:where()`, which compiles to zero specificity, so a

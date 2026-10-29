@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AspComposer surface fixture (#9134)</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface-page); color: var(--text-body); }
+  section { margin-bottom: 24px; max-width: 520px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./composer-surface.js"></script>

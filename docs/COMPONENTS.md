@@ -488,9 +488,19 @@ Props (`AspChatBubble`): `kind`, `sender`, `timestamp`, `streaming`.
 §3.42/§3.47/§3.49). Its multi-line field is `AspTextarea` (§22, system_3 #3677) —
 Enter-to-send stays here, on the composer, since that semantic does not belong to the
 primitive. Props: `modelValue`, `placeholder`, `sendLabel`, `disabled`, `error`,
-`attachments`, `attachLabel`, `accept`, `multiple`. Emits: `update:modelValue`, `send` (the
+`attachments`, `attachLabel`, `accept`, `multiple`, `surface`. Emits: `update:modelValue`, `send` (the
 text, always the text alone), `attach`, `remove`, `update:attachments`. Slot:
 `leading-controls`, rendered left of Send.
+
+*The field resolves its fill and ink against its setter* (§3.119, §3.18; system_3 #9134).
+`surface="auto"` (the default) reads it from the DOM. Inside an `AspCard` of any variant but
+the transparent `ghost`, the field takes the card treatment: the `--surface-card-inner` fill,
+`--text-on-dark` ink, and an edge mixed from that ink at 55%. Anywhere else it keeps
+`AspTextarea`'s page field: the `--surface-elevated` fill, `--text-body` ink, a `--border-control`
+edge and the same focus ring. `surface="page"` or `"card"` forces either, for a hand-rolled
+surface the selector cannot see. The old unconditional card treatment painted the light
+page's field #9f9f9f with white ink at 2.64:1 (#9104 B2-1). `composer-surface.spec.js`
+asserts text and placeholder at 4.5:1 and the edge at 3:1, on every setter in both themes.
 
 *The parent owns the draft and the attachments.* The composer renders both and emits; it
 mutates neither, holds no `File`, uploads nothing, and formats no byte count. That is what

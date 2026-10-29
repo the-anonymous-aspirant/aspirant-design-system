@@ -6,6 +6,13 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **One shell breakpoint; a hidden sidebar sheds its shadow**
+  (`system_3_design_conventions.md` §3.119 decision 2; task #9135).
+  - `useMobile()` now defaults to `(max-width: 767.98px)`. The bound is exported
+    once as `SHELL_BREAKPOINT_PX`, `SHELL_MOBILE_QUERY` and `SHELL_DESKTOP_QUERY`.
+    At exactly 768px the shell used to show neither the rail nor the menu.
+  - A hidden off-canvas sidebar no longer casts its shadow into the page.
+
 - **AspComposer: the field resolves its fill and ink against its setter**
   (`system_3_design_conventions.md` §3.119 decision 3; task #9134).
   - On the page, the field is now the page field `AspInput` and `AspTextarea`

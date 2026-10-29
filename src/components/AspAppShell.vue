@@ -174,7 +174,9 @@ const setCollapsed = (value) => emit('update:sidebarCollapsed', value)
 }
 
 /* Desktop: the sidebar carries its own toggle, so the header hamburger is
-   mobile-only. */
+   mobile-only. 768px is SHELL_BREAKPOINT_PX (useMobile.js), the shell's one
+   bound: useMobile() is SHELL_MOBILE_QUERY, (max-width: 767.98px), so exactly
+   one of the hamburger and the rail exists at every width (§3.119). */
 @media (min-width: 768px) {
   .app-shell__menu {
     display: none;

@@ -135,3 +135,82 @@ test('mobile shell: no sidebar toggle, the header hamburger opens the nav (uncha
   await expect(page.locator('aside .sidebar__toggle')).toHaveCount(0)
   await expect(page.locator('.app-shell__menu')).toBeVisible()
 })
+
+// --- One shell breakpoint; a hidden sidebar sheds its shadow (§3.119, #9135) --
+// useMobile() said (max-width: 768px) and AspAppShell said (min-width: 768px),
+// so at exactly 768px the sidebar was off-canvas AND the menu button hidden:
+// no navigation (#9104 B1-2). Exactly one of the two must be visible and
+// operable at every width around the bound.
+
+const inView = (b, vw) => b && b.width > 0 && b.x >= 0 && b.x < vw
+
+for (const width of [767, 768, 769]) {
+  test(`at ${width}px exactly one of the menu button and the rail is usable`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await open(page)
+    const menu = page.locator('.app-shell__menu')
+    const aside = page.locator('aside').first()
+    const menuShown = await menu.isVisible()
+    const railShown = inView(await aside.boundingBox(), width)
+    expect(menuShown !== railShown, `menu ${menuShown}, rail ${railShown}`).toBe(true)
+    // The bound itself: below 768 is mobile, 768 and up is desktop.
+    expect(menuShown).toBe(width < 768)
+
+    if (menuShown) {
+      // Operable: the menu button brings the sidebar on screen.
+      await menu.click()
+      await expect.poll(async () => inView(await aside.boundingBox(), width)).toBe(true)
+    } else {
+      // Operable: a rail link is on screen and takes a click.
+      const link = aside.getByRole('link', { name: 'Tasks' })
+      await expect(link).toBeVisible()
+      await link.click()
+      await expect(page).toHaveURL(/#Tasks$/)
+    }
+  })
+}
+
+// One painted row of the page at y, as [r, g, b] per x (decoded in the page).
+const row = async (page, y) => {
+  const shot = await page.screenshot({ clip: { x: 0, y, width: 390, height: 1 } })
+  return page.evaluate(async (bytes) => {
+    const bmp = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }))
+    const cv = new OffscreenCanvas(bmp.width, bmp.height)
+    const ctx = cv.getContext('2d')
+    ctx.drawImage(bmp, 0, 0)
+    const d = ctx.getImageData(0, 0, bmp.width, 1).data
+    const out = []
+    for (let x = 0; x < bmp.width; x++) out.push([d[x * 4], d[x * 4 + 1], d[x * 4 + 2]])
+    return out
+  }, [...shot])
+}
+const differs = (a, b) => a.some((v, i) => Math.abs(v - b[i]) > 1)
+
+test('at 390px in light a hidden sidebar casts no shadow; an open one does', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await open(page)
+  // The fixture page keeps the UA's 8px body margin (white); a phone shell
+  // starts at x = 0, so take it away here, where the left edge is measured.
+  await page.addStyleTag({ content: 'body { margin: 0; background: var(--surface-page); }' })
+  // The shell must be mounted with the sidebar closed, or an empty page would
+  // pass the strip check without measuring anything.
+  await expect(page.locator('.app-shell__menu')).toBeVisible()
+  await expect(page.locator('aside.sidebar--mobile-hidden')).toHaveCount(1)
+  // y = 400 is empty page below the header and the main text; x = 350 is far
+  // from any shadow, so it is the page colour the strip must equal (#9104
+  // B1-12 measured a ramp at x = 0-22, red 211 -> 228 against 228).
+  const hidden = await row(page, 400)
+  const ground = hidden[350]
+  const shaded = hidden.slice(0, 23).map((p, x) => [x, p]).filter(([, p]) => differs(p, ground))
+  expect(shaded, `ground ${ground}; shaded x: ${JSON.stringify(shaded)}`).toEqual([])
+
+  // Control: open the sidebar; its shadow darkens the page just right of it,
+  // compared with the far page under the same overlay.
+  await page.locator('.app-shell__menu').click()
+  const aside = page.locator('aside').first()
+  await expect.poll(async () => (await aside.boundingBox())?.x).toBe(0)
+  await page.waitForTimeout(400) // the slide and the shadow transition
+  const right = Math.ceil((await aside.boundingBox()).width)
+  const shown = await row(page, 400)
+  expect(differs(shown[right + 2], shown[350]), `x=${right + 2} ${shown[right + 2]} vs ${shown[350]}`).toBe(true)
+})

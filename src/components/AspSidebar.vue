@@ -198,13 +198,19 @@ watch(isMobile, (nowMobile, wasMobile) => {
   top: 0;
   left: 0;
   transform: translateX(0);
-  transition: transform var(--transition-moderate);
+  transition:
+    transform var(--transition-moderate),
+    box-shadow var(--transition-moderate);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-index-modal, 1000);
 }
 
+/* Hidden off-canvas, the sidebar sheds its shadow (§3.119 decision 2, system_3
+   #9135): translated by -100% it still cast --shadow-lg ~20px into the page,
+   a grey ramp at x = 0-22 on every phone route (#9104 B1-12). */
 .sidebar--mobile.sidebar--mobile-hidden {
   transform: translateX(-100%);
+  box-shadow: none;
 }
 
 .sidebar--hidden {

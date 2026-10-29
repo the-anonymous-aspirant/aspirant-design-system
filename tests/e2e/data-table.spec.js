@@ -414,3 +414,51 @@ test('a 500-row table in card mode stays windowed and scrolls through every card
   )
   expect(new Set(heights).size).toBeGreaterThan(1)
 })
+
+// --- Alignment modifiers win; a content-sized breakdown (§3.119, #9136) -------
+
+test('align right and center compute on the th and every td', async ({ page }) => {
+  const aligns = await page.evaluate(() => {
+    const t = document.querySelector('#align table')
+    const col = (i) =>
+      [...t.querySelectorAll(`tr > :nth-child(${i})`)].map((c) => getComputedStyle(c).textAlign)
+    return { name: col(1), count: col(2), state: col(3) }
+  })
+  // Header plus three rows each.
+  expect(aligns.count).toEqual(['right', 'right', 'right', 'right'])
+  expect(aligns.state).toEqual(['center', 'center', 'center', 'center'])
+  expect(aligns.name).toEqual(['left', 'left', 'left', 'left'])
+})
+
+test('fit="content": a 2-column table in 1084px is as wide as its content, figure beside label', async ({
+  page,
+}) => {
+  const m = await page.evaluate(() => {
+    const t = document.querySelector('#fit-content table')
+    const w = t.getBoundingClientRect().width
+    // Its max-content width, from a clone laid out with nothing to fill.
+    const clone = t.cloneNode(true)
+    clone.style.width = 'max-content'
+    clone.style.position = 'absolute'
+    clone.style.visibility = 'hidden'
+    t.parentElement.appendChild(clone)
+    const content = clone.getBoundingClientRect().width
+    clone.remove()
+    const label = t.querySelector('tbody tr td:nth-child(1)').getBoundingClientRect()
+    const figure = t.querySelector('tbody tr td:nth-child(2)').getBoundingClientRect()
+    return { w, content, gap: figure.left - label.right, container: t.parentElement.clientWidth }
+  })
+  expect(m.container).toBe(1084)
+  expect(Math.abs(m.w - m.content)).toBeLessThanOrEqual(1)
+  expect(m.w).toBeLessThan(m.container)
+  // Adjacent cells: the figure starts where its label's cell ends.
+  expect(Math.abs(m.gap)).toBeLessThanOrEqual(1)
+})
+
+test('fit="fill" (the default) still spans its container', async ({ page }) => {
+  const w = await page.locator('#fit-fill table').evaluate((t) => ({
+    t: t.getBoundingClientRect().width,
+    c: t.parentElement.clientWidth,
+  }))
+  expect(Math.abs(w.t - w.c)).toBeLessThanOrEqual(1)
+})

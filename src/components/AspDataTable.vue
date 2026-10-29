@@ -45,6 +45,14 @@ const props = defineProps({
   // Row key: a column key (string) or a fn(row, index) → key. Defaults to index.
   rowKey: { type: [String, Function], default: '' },
   caption: { type: String, default: '' },
+  // 'fill' (default): the table spans its container. 'content': it sizes to
+  // its columns' content, never wider than the container — for a breakdown
+  // table of a few columns (§3.119, #9136).
+  fit: {
+    type: String,
+    default: 'fill',
+    validator: (v) => ['fill', 'content'].includes(v),
+  },
   // Below a 640px container: 'cards' (the ruled default) or 'scroll' (a
   // homogeneous matrix keeps the sideways scroll and the #4529 edge fade).
   narrow: {
@@ -600,6 +608,7 @@ const tableClasses = computed(() => ({
   [`data-table--${props.density}`]: true,
   'data-table--interactive': props.interactive,
   'data-table--virtual': virtualize.value,
+  'data-table--fit-content': props.fit === 'content',
   'data-table--cards': cardMode.value,
   'data-table--cards-figure': cardMode.value && roles.value.figure != null,
 }))
@@ -894,11 +903,24 @@ const tableClasses = computed(() => ({
   border-bottom-width: 2px;
 }
 
-/* Alignment */
-.data-table__th--right,
-.data-table__td--right { text-align: right; }
-.data-table__th--center,
-.data-table__td--center { text-align: center; }
+/* Alignment (§3.119, system_3 #9136). Qualified by the table so the modifiers
+   (0,2,0) outrank the base `.data-table th, .data-table td { text-align: left }`
+   (0,1,1); unqualified they weighed (0,1,0) and every `align: 'right'` column
+   rendered left-aligned, header and cells, so figures did not line up by digit
+   (#9104 B4-2). Card mode sets its own cell alignment at (0,2,1). */
+.data-table .data-table__th--right,
+.data-table .data-table__td--right { text-align: right; }
+.data-table .data-table__th--center,
+.data-table .data-table__td--center { text-align: center; }
+
+/* fit="content" (#9136): a breakdown table of a few columns sizes to its
+   content, so a figure sits beside its subject (§3.55, §3.72) instead of
+   500-880px away across a full-width card (#9104 B4-9). max-width keeps it
+   inside its container. */
+.data-table.data-table--fit-content {
+  width: auto;
+  max-width: 100%;
+}
 
 /* Sortable header button */
 .data-table__sort {

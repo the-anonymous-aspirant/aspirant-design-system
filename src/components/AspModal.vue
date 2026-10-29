@@ -301,7 +301,8 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--surface-card-inner);
 }
 
-/* Sizes apply from the md breakpoint up — below it every size is the sheet. */
+/* Sizes apply from the md breakpoint up — below it every size is the sheet.
+   768px is SHELL_BREAKPOINT_PX (useMobile.js), the shell's one bound (§3.119). */
 @media (min-width: 768px) {
   .modal__scrim {
     align-items: center;

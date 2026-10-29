@@ -640,7 +640,8 @@ const scrollable = computed(() => props.maxHeight !== null)
 }
 
 /* --- mobile-first --------------------------------------------------------- */
-/* Base is the narrow case. Roomier padding only once there is room for it. */
+/* Base is the narrow case. Roomier padding only once there is room for it.
+   768px is SHELL_BREAKPOINT_PX (useMobile.js), the shell's one bound (§3.119). */
 @media (min-width: 768px) {
   .asp-content :deep(pre) {
     padding: var(--space-md) var(--space-lg);

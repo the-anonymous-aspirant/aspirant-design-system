@@ -188,6 +188,72 @@ const measureContainer = () => {
   if (viewportEl.value) containerWidth.value = viewportEl.value.getBoundingClientRect().width
 }
 
+// --- Secondary columns yield (≥640px, §3.119) --------------------------------
+// With a declared identity at its 24ch floor, a table whose secondary columns
+// will not fit would scroll sideways. Only then do the WIDEST secondary columns
+// give up exactly the overflow: one cap C is found such that trimming every
+// secondary column wider than C to C removes the overflow (water-filling), and
+// only those columns truncate, with an ellipsis and a `title`. Narrower columns
+// keep wrapping as before; the identity keeps its floor; the figure and any
+// consumer-set `width` column are never capped. A table that fits is untouched.
+const yieldCaps = ref(null)
+// Several triggers (resize, rows, mode, fonts) can overlap; each call measures
+// the UNCAPPED layout, and only the latest call writes, so caps never compound.
+let yieldRun = 0
+const measureYield = async () => {
+  const run = ++yieldRun
+  yieldCaps.value = null
+  // A `narrow="scroll"` matrix keeps its sideways scroll; it never yields.
+  if (cardMode.value || props.narrow === 'scroll' || !roles.value.identityDeclared || !scrollEl.value)
+    return
+  // Let the uncapped render land, so a container that grew can drop the caps.
+  await nextTick()
+  if (run !== yieldRun) return
+  const el = scrollEl.value
+  const overflow = el ? el.scrollWidth - el.clientWidth : 0
+  if (overflow <= 1) return
+  const cells =
+    el.querySelector('thead tr')?.children ?? el.querySelector('tbody tr.data-table__row')?.children
+  if (!cells) return
+  const cols = []
+  props.columns.forEach((col, i) => {
+    if (col.width || col.key === roles.value.identity || col.key === roles.value.figure) return
+    cols.push({ key: col.key, w: cells[i].offsetWidth, cell: cells[i] })
+  })
+  if (!cols.length) return
+  const target = cols.reduce((sum, c) => sum + c.w, 0) - overflow
+  const asc = cols.map((c) => c.w).sort((a, b) => a - b)
+  let cap = 0
+  let below = 0
+  for (let i = 0; i < asc.length; i++) {
+    const c = (target - below) / (asc.length - i)
+    if (c <= asc[i]) {
+      cap = c
+      break
+    }
+    below += asc[i]
+  }
+  const caps = {}
+  // A table cell's min-/max-width bound its whole box, padding included
+  // (measured in Chromium), so the cap is applied as is.
+  for (const c of cols) if (c.w > cap) caps[c.key] = Math.max(32, Math.floor(cap))
+  yieldCaps.value = caps
+}
+const yields = (col) => yieldCaps.value?.[col.key] != null
+// min-width too: a clipped cell's min-content no longer holds it, so a
+// consumer's slack column (`width: 100%`) would squeeze it below the cap.
+const yieldStyle = (col) => {
+  if (!yields(col)) return null
+  const px = `${yieldCaps.value[col.key]}px`
+  return { minWidth: px, maxWidth: px }
+}
+
+const cellStyle = (col) => {
+  if (cardMode.value) return null
+  if (col.width) return { maxWidth: col.width }
+  return yieldStyle(col)
+}
+
 const isNumeric = (v) =>
   (typeof v === 'number' && Number.isFinite(v)) ||
   (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)))
@@ -201,6 +267,7 @@ const cellClasses = (col, row) => {
         // The ≥640px floor binds a DECLARED identity only (dataTableRoles.js).
         'data-table__td--identity': roles.value.identityDeclared && col.key === roles.value.identity,
         'data-table__td--figure': col.key === roles.value.figure,
+        'data-table__td--yield': yields(col),
       },
     ]
   }
@@ -304,13 +371,21 @@ onMounted(() => {
   measureContainer()
   measureViewport()
   measureOverflow()
+  measureYield()
   resolveSurfaceColor()
+  // Widths measured before the web font loads are the fallback face's; the
+  // overflow cue and the yield caps are measurements, so take them again.
+  document.fonts?.ready.then(() => {
+    measureOverflow()
+    measureYield()
+  })
   const el = scrollEl.value
   if (el && typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
       measureContainer()
       measureViewport()
       measureOverflow()
+      measureYield()
     })
     resizeObserver.observe(el)
     if (viewportEl.value) resizeObserver.observe(viewportEl.value)
@@ -331,8 +406,12 @@ onMounted(() => {
 // overflow state) without a scroll or resize — recompute after the DOM settles.
 watch(
   () => displayRows.value.length,
-  () => nextTick(measureOverflow),
+  () => nextTick(() => {
+    measureOverflow()
+    measureYield()
+  }),
 )
+watch([cardMode, () => props.columns], () => nextTick(measureYield))
 
 onBeforeUnmount(() => {
   if (resizeObserver) resizeObserver.disconnect()
@@ -586,9 +665,11 @@ const tableClasses = computed(() => ({
                 {
                   'data-table__th--sortable': isSortable(col),
                   'data-table__th--identity': roles.identityDeclared && col.key === roles.identity,
+                  'data-table__th--yield': yields(col),
                 },
               ]"
-              :style="col.width ? { width: col.width } : null"
+              :style="col.width ? { width: col.width } : yieldStyle(col)"
+              :title="yields(col) ? col.label : undefined"
               :aria-sort="ariaSortFor(col)"
               scope="col"
             >
@@ -599,11 +680,19 @@ const tableClasses = computed(() => ({
                 :aria-label="`Sort by ${col.label}${curSortBy === col.key ? `, currently ${curSortDir === 'asc' ? 'ascending' : 'descending'}` : ''}`"
                 @click="onSort(col)"
               >
-                <slot :name="`header-${col.key}`" :column="col">{{ col.label }}</slot>
+                <!-- A yielding column's label truncates too; only then is it wrapped,
+                     so a table that fits keeps its header DOM. -->
+                <span v-if="yields(col)" class="data-table__th-label">
+                  <slot :name="`header-${col.key}`" :column="col">{{ col.label }}</slot>
+                </span>
+                <slot v-else :name="`header-${col.key}`" :column="col">{{ col.label }}</slot>
                 <span class="data-table__indicator" aria-hidden="true">{{
                   curSortBy === col.key ? (curSortDir === 'asc' ? '▲' : '▼') : ''
                 }}</span>
               </button>
+              <span v-else-if="yields(col)" class="data-table__th-label">
+                <slot :name="`header-${col.key}`" :column="col">{{ col.label }}</slot>
+              </span>
               <template v-else>
                 <slot :name="`header-${col.key}`" :column="col">{{ col.label }}</slot>
               </template>
@@ -635,8 +724,8 @@ const tableClasses = computed(() => ({
                 v-for="col in columns"
                 :key="col.key"
                 :class="cellClasses(col, row)"
-                :style="col.width && !cardMode ? { maxWidth: col.width } : null"
-                :title="col.truncate && !cardMode ? String(row[col.key] ?? '') : undefined"
+                :style="cellStyle(col)"
+                :title="(col.truncate || yields(col)) && !cardMode ? String(row[col.key] ?? '') : undefined"
                 :role="cardMode ? 'cell' : undefined"
               >
                 <!-- A secondary cell in a card is a label-value pair; the label
@@ -897,6 +986,25 @@ const tableClasses = computed(() => ({
 .data-table td.data-table__td--figure {
   white-space: nowrap;
 }
+.data-table td.data-table__td--yield,
+.data-table th.data-table__th--yield {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-table__th--yield .data-table__sort {
+  max-width: 100%;
+  min-width: 0;
+}
+.data-table__th-label {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
 
 /* --- Card mode (§3.114 D6 / §3.119, #9133) ----------------------------------
    Below a 640px container, a table of more than three columns renders each row
@@ -985,11 +1093,15 @@ const tableClasses = computed(() => ({
   display: block;
 }
 
+/* The sort bar sits outside the <table>, so it sets the table's face itself,
+   and takes the cards' inline gutter so its label lines up with card text. */
 .data-table__card-sort {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  padding: 0 var(--space-md);
   margin-bottom: var(--space-xs);
+  font-family: var(--font-family-base);
   font-size: var(--text-sm);
 }
 .data-table__card-sort-label {

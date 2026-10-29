@@ -381,6 +381,16 @@ viewport, so a table in a narrow card switches too.
 also outranks the 16ch `truncate` cap and a consumer's `max-width: 0` slack
 trick; the figure is `nowrap`. An undeclared first column has no floor, so a
 table that has not declared roles keeps its current layout.
+
+**Secondary columns yield.** If the floor would push a declared-identity table
+sideways, the widest secondary columns give up exactly the overflow. One cap is
+found so that trimming every secondary column wider than it removes the overflow.
+Only those columns truncate, with an ellipsis and a `title`, and so do their
+header labels. Narrower columns keep wrapping. The identity, the figure and any
+column with its own `width` are never capped. A table that fits, and a
+`narrow="scroll"` matrix, never yield. Measured on the served `/tasks` shape at
+768px: the Task cell holds at 197px where it collapsed to 82px, the four widest
+secondary columns trim to 95px, and the table fits at 768/768.
 Slots: `cell-<key>` (scoped: `{ row, value, index }`), `header-<key>`, `empty`.
 Emits: `sort` (`{ key, dir }`), `update:sortBy`, `update:sortDir`, `row-click`
 (`row, index`).

@@ -96,26 +96,28 @@ const bigCards = Array.from({ length: 500 }, (_, i) => ({
   count: i,
 }))
 
-// A /tasks-shaped table: an identity plus five secondary columns whose content
-// has a wide min-content (long unbroken tokens), under the console's slack
-// trick. `floorCols` declares the identity; `slackCols` is the same table
-// undeclared, the control that shows the collapse the floor prevents.
+// A /tasks-shaped table, columns and values as the console's /tasks renders
+// them, under the console's slack trick. `floorCols` declares the identity;
+// `slackCols` is the same table undeclared, the control that shows the
+// collapse the floor prevents (#9104 B1-1: 64px on the served console).
 const slackBase = [
   { key: 'assignee', label: 'Assignee' },
   { key: 'status', label: 'Status' },
   { key: 'priority', label: 'Priority' },
   { key: 'complexity', label: 'Complexity' },
+  { key: 'labels', label: 'Labels', width: '11rem' },
   { key: 'updated', label: 'Updated', align: 'right' },
 ]
 const floorCols = [{ key: 'task', label: 'Task', truncate: true, role: 'identity' }, ...slackBase]
 const slackCols = [{ key: 'task', label: 'Task', truncate: true }, ...slackBase]
 const slackRows = Array.from({ length: 4 }, (_, i) => ({
   task: `#913${i} Design spec: AspDataTable phone card list, column roles and identity floor`,
-  assignee: 'aspirant_engineer_seat_long',
-  status: 'in_progress_awaiting_verify',
-  priority: 'operator_requested_unification',
-  complexity: 'medium_9_to_180_minutes',
-  updated: '2026-10-29T18:09:30Z',
+  assignee: 'aspirant_engineer',
+  status: 'in_progress',
+  priority: 'operator ask',
+  complexity: 'medium',
+  labels: 'design-spec frontend-touching',
+  updated: '2026-10-29 18:09',
 }))
 
 const clicked = ref('')

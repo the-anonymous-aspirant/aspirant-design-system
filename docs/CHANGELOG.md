@@ -14,5 +14,6 @@ newest first. Each entry names the design ruling it implements.
   - A homogeneous matrix opts out with the new `narrow="scroll"`, which keeps
     today's sideways scroll and edge fade.
   - Columns take an optional `role: 'identity' | 'figure' | 'secondary'`.
-  - At 640px and wider, a declared identity keeps a 24ch floor. A table that
-    declares no roles is unchanged at those widths.
+  - At 640px and wider, a declared identity keeps a 24ch floor. If that would
+    push the table sideways, the widest secondary columns truncate by exactly
+    the overflow. A table that declares no roles is unchanged at those widths.

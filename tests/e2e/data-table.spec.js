@@ -345,8 +345,27 @@ for (const width of [768, 1024]) {
       })
     expect(floor.width).toBeGreaterThanOrEqual(Math.floor(floor.ch24))
     await expect(page.locator(`#floor-${width} table`)).not.toHaveClass(/data-table--cards/)
+    // The secondary columns yielded instead of pushing the table sideways.
+    const box = await page
+      .locator(`#floor-${width} .data-table__scroll`)
+      .evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth }))
+    expect(box.sw).toBeLessThanOrEqual(box.cw + 1)
   })
 }
+
+test('at 768px the secondary columns yield with an ellipsis and a title', async ({ page }) => {
+  const yielded = page.locator('#floor-768 tbody tr').first().locator('td.data-table__td--yield')
+  expect(await yielded.count()).toBeGreaterThan(0)
+  const cell = yielded.first()
+  expect(await cell.evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis')
+  expect(await cell.getAttribute('title')).not.toBeNull()
+  // The identity is never a yielding column.
+  await expect(page.locator('#floor-768 td.data-table__td--identity.data-table__td--yield')).toHaveCount(0)
+})
+
+test('at 1024px the table fits, so nothing yields', async ({ page }) => {
+  await expect(page.locator('#floor-1024 td.data-table__td--yield')).toHaveCount(0)
+})
 
 test('control: the same table with no declared identity collapses under the slack trick', async ({
   page,

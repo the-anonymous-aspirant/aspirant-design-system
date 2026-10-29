@@ -1,6 +1,7 @@
 <script setup>
-import { computed, getCurrentInstance } from 'vue'
+import { computed, getCurrentInstance, h, inject } from 'vue'
 import AspIcon from './AspIcon.vue'
+import AspTooltip from './AspTooltip.vue'
 import { registryFallback } from '../icons/registry.js'
 
 const props = defineProps({
@@ -13,6 +14,23 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['click'])
+
+// In a collapsed rail the label is display: none, so the icon alone is the
+// link. Its label then shows in an AspTooltip to the right, on hover and on
+// keyboard focus, and becomes the link's aria-label so its accessible name is
+// unchanged (§3.119 R6, system_3 #9138). Consumers used to pass a native
+// `title` for this (#9104 A2-2). Outside an AspSidebar nothing changes.
+const sidebar = inject('aspSidebar', null)
+// The wrapper is a functional root, which passes on only class, style and
+// listeners; consumer attrs belong on the link, where they always landed.
+defineOptions({ inheritAttrs: false })
+const railCollapsed = computed(() => Boolean(sidebar?.railCollapsed.value))
+// Only a collapsed rail gets the wrapper, so an expanded link's DOM is as it
+// was; the anchor is a block so the link still fills the rail's row.
+const RailTip = (_, { slots }) =>
+  railCollapsed.value
+    ? h(AspTooltip, { position: 'right', content: props.label, style: 'display: block' }, slots)
+    : slots.default()
 
 // A registered icon name renders as an AspIcon (hand-drawn PNG when the asset
 // server is reachable, glyph otherwise). A raw glyph string (e.g. "⌂") is
@@ -51,36 +69,42 @@ const onClick = (event) => {
 </script>
 
 <template>
-  <router-link
-    v-if="hasRouter"
-    :to="to"
-    :class="['sidebar-link', { 'sidebar-link--active': isActive, 'sidebar-link--disabled': disabled }]"
-    :aria-disabled="disabled || undefined"
-    :tabindex="disabled ? -1 : 0"
-    @click="onClick"
-  >
-    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">
-      <AspIcon v-if="isNamedIcon" :name="icon" size="sm" />
-      <template v-else>{{ icon }}</template>
-    </span>
-    <span class="sidebar-link__label">{{ label }}</span>
-    <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
-  </router-link>
-  <a
-    v-else
-    :href="disabled ? undefined : to"
-    :class="['sidebar-link', { 'sidebar-link--active': isActive, 'sidebar-link--disabled': disabled }]"
-    :aria-disabled="disabled || undefined"
-    :tabindex="disabled ? -1 : 0"
-    @click="onClick"
-  >
-    <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">
-      <AspIcon v-if="isNamedIcon" :name="icon" size="sm" />
-      <template v-else>{{ icon }}</template>
-    </span>
-    <span class="sidebar-link__label">{{ label }}</span>
-    <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
-  </a>
+  <RailTip>
+    <router-link
+      v-if="hasRouter"
+      :to="to"
+      :class="['sidebar-link', { 'sidebar-link--active': isActive, 'sidebar-link--disabled': disabled }]"
+      :aria-disabled="disabled || undefined"
+      :tabindex="disabled ? -1 : 0"
+      v-bind="$attrs"
+      :aria-label="railCollapsed ? label : $attrs['aria-label']"
+      @click="onClick"
+    >
+      <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">
+        <AspIcon v-if="isNamedIcon" :name="icon" size="sm" />
+        <template v-else>{{ icon }}</template>
+      </span>
+      <span class="sidebar-link__label">{{ label }}</span>
+      <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
+    </router-link>
+    <a
+      v-else
+      :href="disabled ? undefined : to"
+      :class="['sidebar-link', { 'sidebar-link--active': isActive, 'sidebar-link--disabled': disabled }]"
+      :aria-disabled="disabled || undefined"
+      :tabindex="disabled ? -1 : 0"
+      v-bind="$attrs"
+      :aria-label="railCollapsed ? label : $attrs['aria-label']"
+      @click="onClick"
+    >
+      <span v-if="icon" class="sidebar-link__icon" aria-hidden="true">
+        <AspIcon v-if="isNamedIcon" :name="icon" size="sm" />
+        <template v-else>{{ icon }}</template>
+      </span>
+      <span class="sidebar-link__label">{{ label }}</span>
+      <span v-if="badge !== null && badge !== ''" class="sidebar-link__badge">{{ badge }}</span>
+    </a>
+  </RailTip>
 </template>
 
 <style scoped>

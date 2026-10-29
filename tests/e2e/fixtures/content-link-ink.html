@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AspContent link ink fixture (#9137)</title>
+<script>
+  const q = new URLSearchParams(location.search)
+  if (q.get('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
+  // ?consumer=1 adds the console's link-ink.css rules verbatim (frontend-vue
+  // src/styles/link-ink.css, loaded after the DS there): the setter rule the
+  // DS link colour must yield to.
+  if (q.get('consumer') === '1') {
+    const s = document.createElement('style')
+    s.id = 'consumer-link-ink'
+    s.textContent =
+      'a { color: color-mix(in srgb, var(--brand-accent-800) 30%, currentColor); }\n' +
+      '.card a { color: var(--brand-accent-300); }'
+    document.head.appendChild(s)
+  }
+</script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface-page); color: var(--text-body); }
+  section { margin-bottom: 24px; max-width: 520px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./content-link-ink.js"></script>

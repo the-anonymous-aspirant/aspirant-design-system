@@ -343,13 +343,44 @@ sorting; `system_3_ux_conventions.md` §8 per-row actionable cells). Unlike the
 server-side HTMX macro it sorts **client-side by default** (numeric-aware, nulls
 last), emitting `sort` and supporting a controlled `sortBy`/`sortDir` +
 `manualSort` so a server-paginating consumer can take over. Sortable headers use
-▲/▼ + `aria-sort`; cells truncate with an ellipsis + `title`; the wrapper
-horizontal-scrolls on mobile.
+▲/▼ + `aria-sort`; cells truncate with an ellipsis + `title`. Below a 640px
+container a table of more than three columns becomes a card list (below); a
+matrix that opts out with `narrow="scroll"` horizontal-scrolls instead.
 
-Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width? }]`),
+Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width?, role? }]`),
 `rows`, `density` (`default` | `compact`), `interactive` (hover +
 keyboard-operable rows), `sortBy` / `sortDir` (v-model-able), `manualSort`,
-`rowKey` (string | fn), `caption`.
+`rowKey` (string | fn), `caption`, `narrow` (`cards` | `scroll`).
+
+**Phone card list** (§3.114 D6 as extended by §3.119, #9133). When the table's
+own container is narrower than 640px and more than three columns are visible,
+each row renders as a card. It is measured on the table's wrapper, not the
+viewport, so a table in a narrow card switches too.
+- **Roles.** A column may declare `role: 'identity' | 'figure' | 'secondary'`
+  (default `secondary`), at most one identity and one figure. A second one warns
+  in dev, and the first keeps the role. With no declared identity, the first
+  column that is not the figure is the identity.
+- **The card.** The identity goes top-left at medium weight; it wraps and is never
+  truncated. The figure goes top-right, `nowrap`, mono when numeric. The secondary
+  cells stack as label-value pairs: the column label at `--text-xs` in
+  `--text-muted`, the value at `--text-sm`. The card has padding `--space-sm`
+  `--space-md` and a `--space-xs` gap, with the rows' hairline between cards. The
+  ink stays inherited (§3.18).
+- **Same row contract.** The card is the same `<tr>`, so `rowAttrs`, `rowState`,
+  `row-click` and Enter/Space apply unchanged. Explicit `table`/`rowgroup`/
+  `row`/`cell` roles keep the semantics that a changed `display` drops. The
+  header row is hidden, so sorting moves into one "Sort by" `AspSelect` plus a
+  direction toggle, on the same path as a header click.
+- **Virtualized cards.** Above `virtualizeThreshold`, card mode measures each
+  rendered card's height (cards are not pinned to `rowHeight`) and windows over
+  the measured offsets, so the DOM stays bounded.
+- **`narrow="scroll"`** keeps the horizontal scroll and the #4529 edge fade at
+  every width, for a homogeneous matrix.
+
+**Identity floor** (≥640px). A declared identity keeps `min-width: 24ch`, which
+also outranks the 16ch `truncate` cap and a consumer's `max-width: 0` slack
+trick; the figure is `nowrap`. An undeclared first column has no floor, so a
+table that has not declared roles keeps its current layout.
 Slots: `cell-<key>` (scoped: `{ row, value, index }`), `header-<key>`, `empty`.
 Emits: `sort` (`{ key, dir }`), `update:sortBy`, `update:sortDir`, `row-click`
 (`row, index`).

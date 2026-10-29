@@ -1,6 +1,10 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import AspButton from './AspButton.vue'
+import AspSelect from './AspSelect.vue'
+import { cardRoleOf, resolveRoles } from './dataTableRoles.js'
+
 // AspDataTable — DS-themed sortable table. Ports the system_3 _partials/table.html
 // + _sort_header.html macros (system_3_frontend_spec.md criterion 27 column
 // sorting; system_3_ux_conventions.md §8 per-row actionable cells). The system_3
@@ -8,8 +12,16 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 // (the Vue-idiomatic path) while emitting `sort` and supporting a controlled
 // sortBy/sortDir + `manualSort` so a server-paginating consumer can take over.
 //
-// columns: [{ key, label, sortable?=true, align?='left', truncate?=false, width? }]
+// columns: [{ key, label, sortable?=true, align?='left', truncate?=false, width?,
+//            role?='secondary' }]
 // rows:    array of plain objects keyed by column.key.
+//
+// Phone card list (§3.114 D6 as extended by §3.119, task #9133): when the
+// table's OWN container is narrower than 640px and more than three columns are
+// visible, each row renders as a card — identity top-left, figure top-right, the
+// secondary cells stacked as label-value pairs. `role` names which column is
+// which (dataTableRoles.js). `narrow="scroll"` keeps today's horizontal scroll at
+// every width, for a homogeneous matrix (#4432, narrowed by §3.119).
 
 const props = defineProps({
   columns: { type: Array, required: true },
@@ -33,6 +45,13 @@ const props = defineProps({
   // Row key: a column key (string) or a fn(row, index) → key. Defaults to index.
   rowKey: { type: [String, Function], default: '' },
   caption: { type: String, default: '' },
+  // Below a 640px container: 'cards' (the ruled default) or 'scroll' (a
+  // homogeneous matrix keeps the sideways scroll and the #4529 edge fade).
+  narrow: {
+    type: String,
+    default: 'cards',
+    validator: (v) => ['cards', 'scroll'].includes(v),
+  },
 
   // --- Per-row hooks (§3.88, task #4318) -------------------------------------
   // rowAttrs(row, index) → object of attributes spread onto the data <tr> (test
@@ -77,18 +96,22 @@ watch(() => props.sortDir, (v) => { curSortDir.value = v })
 
 const isSortable = (col) => col.sortable !== false
 
+const applySort = (key, dir) => {
+  curSortBy.value = key
+  curSortDir.value = dir
+  emit('update:sortBy', key)
+  emit('update:sortDir', dir)
+  emit('sort', { key, dir })
+  resetScroll()
+}
+
 const onSort = (col) => {
   if (!isSortable(col)) return
   let dir = 'asc'
   if (curSortBy.value === col.key) {
     dir = curSortDir.value === 'asc' ? 'desc' : 'asc'
   }
-  curSortBy.value = col.key
-  curSortDir.value = dir
-  emit('update:sortBy', col.key)
-  emit('update:sortDir', dir)
-  emit('sort', { key: col.key, dir })
-  resetScroll()
+  applySort(col.key, dir)
 }
 
 // Numeric-aware comparator; nulls / undefined sort last regardless of direction.
@@ -109,6 +132,99 @@ const displayRows = computed(() => {
   // Copy before sort — never mutate the incoming prop array.
   return [...props.rows].sort((r1, r2) => compare(r1[key], r2[key]) * factor)
 })
+
+// --- Column roles and card mode (§3.119, #9133) ------------------------------
+const roles = computed(() => resolveRoles(props.columns))
+watch(
+  () => roles.value.warnings,
+  (warnings) => {
+    if (!import.meta.env?.DEV) return
+    // eslint-disable-next-line no-console
+    for (const w of warnings) console.warn(`[AspDataTable] ${w}`)
+  },
+  { immediate: true },
+)
+const cardRole = (col) => cardRoleOf(col, roles.value)
+
+// The switch is measured on the table's own wrapper, not the viewport, so a
+// table inside a narrow card switches too. It is a ResizeObserver rather than a
+// CSS container query: `container-type: inline-size` adds inline-size
+// containment, which collapses the table to 0 width under a shrink-to-fit
+// parent. A ResizeObserver callback runs after layout and before paint, so the
+// first frame is already in the right mode.
+const CARD_BREAKPOINT = 640
+const viewportEl = ref(null)
+const containerWidth = ref(0)
+// A shrink-to-fit parent can make the two modes disagree about the width (the
+// table is wide enough for table mode only while it is in card mode). Past a
+// few flips inside one frame, stay in table mode rather than loop.
+let flips = 0
+let flipFrame = 0
+const cardLocked = ref(false)
+const cardMode = computed(
+  () =>
+    !cardLocked.value &&
+    props.narrow === 'cards' &&
+    props.columns.length > 3 &&
+    containerWidth.value > 0 &&
+    containerWidth.value < CARD_BREAKPOINT,
+)
+watch(cardMode, () => {
+  flips += 1
+  if (!flipFrame && typeof requestAnimationFrame !== 'undefined') {
+    flipFrame = requestAnimationFrame(() => {
+      flips = 0
+      flipFrame = 0
+    })
+  }
+  if (flips > 4) {
+    cardLocked.value = true
+    if (import.meta.env?.DEV)
+      // eslint-disable-next-line no-console
+      console.warn('[AspDataTable] card mode oscillated under a shrink-to-fit parent; staying in table mode.')
+  }
+})
+const measureContainer = () => {
+  if (viewportEl.value) containerWidth.value = viewportEl.value.getBoundingClientRect().width
+}
+
+const isNumeric = (v) =>
+  (typeof v === 'number' && Number.isFinite(v)) ||
+  (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)))
+
+const cellClasses = (col, row) => {
+  if (!cardMode.value) {
+    return [
+      `data-table__td--${col.align || 'left'}`,
+      {
+        'data-table__td--truncate': col.truncate,
+        // The ≥640px floor binds a DECLARED identity only (dataTableRoles.js).
+        'data-table__td--identity': roles.value.identityDeclared && col.key === roles.value.identity,
+        'data-table__td--figure': col.key === roles.value.figure,
+      },
+    ]
+  }
+  const role = cardRole(col)
+  return [
+    'data-table__card-cell',
+    `data-table__card-cell--${role}`,
+    { 'data-table__card-cell--mono': role === 'figure' && isNumeric(row[col.key]) },
+  ]
+}
+
+// Card-mode sort: the header row is hidden, so the sortable columns move into
+// one compact select plus a direction toggle. Both go through applySort, the
+// path a header click takes.
+const sortLabelId = `asp-dt-sort-${Math.random().toString(36).slice(2, 9)}`
+const sortOptions = computed(() =>
+  props.columns.filter(isSortable).map((c) => ({ value: c.key, label: c.label })),
+)
+const onCardSortKey = (key) => {
+  if (key) applySort(key, 'asc')
+}
+const onCardSortDir = () => {
+  if (curSortBy.value) applySort(curSortBy.value, curSortDir.value === 'asc' ? 'desc' : 'asc')
+}
 
 // --- Virtualization state ----------------------------------------------------
 // The window is computed over `displayRows` (the SORTED set), so sort/filter and
@@ -185,13 +301,19 @@ const measureViewport = () => {
 let resizeObserver = null
 let themeObserver = null
 onMounted(() => {
+  measureContainer()
   measureViewport()
   measureOverflow()
   resolveSurfaceColor()
   const el = scrollEl.value
   if (el && typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => measureOverflow())
+    resizeObserver = new ResizeObserver(() => {
+      measureContainer()
+      measureViewport()
+      measureOverflow()
+    })
     resizeObserver.observe(el)
+    if (viewportEl.value) resizeObserver.observe(viewportEl.value)
   }
   // Re-resolve the fade colour when the app flips `data-theme` on the root:
   // --surface-* tokens flip with the theme, so a colour resolved once would
@@ -215,17 +337,78 @@ watch(
 onBeforeUnmount(() => {
   if (resizeObserver) resizeObserver.disconnect()
   if (themeObserver) themeObserver.disconnect()
+  if (flipFrame && typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(flipFrame)
 })
 
-const startIndex = computed(() =>
-  virtualize.value
-    ? Math.max(0, Math.floor(scrollTop.value / props.rowHeight) - props.overscan)
-    : 0,
-)
+// --- Card-mode virtualization (#9133) ------------------------------------------
+// Table mode pins every row to `rowHeight`, so its spacer math is exact. A card's
+// height varies (the identity wraps; it is never truncated), so card mode
+// measures each rendered card into a per-index cache and estimates the rest from
+// the column count. Prefix sums over the cache give the window and the spacers;
+// the DOM stays bounded to the viewport as in table mode.
+const cardHeights = ref([])
+const cardEstimate = computed(() => {
+  // padding + identity line + one label-value line per secondary cell + gap.
+  const secondary = Math.max(0, props.columns.length - 1 - (roles.value.figure ? 1 : 0))
+  return 16 + 22 + secondary * 22 + 4
+})
+const virtualCards = computed(() => virtualize.value && cardMode.value)
+// The cache is per index into the SORTED rows, so any reorder, row-set change,
+// mode change or width change invalidates it.
+watch([displayRows, cardMode, containerWidth], () => {
+  cardHeights.value = []
+})
+const cardOffsets = computed(() => {
+  const n = displayRows.value.length
+  const offsets = new Array(n + 1)
+  offsets[0] = 0
+  const h = cardHeights.value
+  const est = cardEstimate.value
+  for (let i = 0; i < n; i++) offsets[i + 1] = offsets[i] + (h[i] ?? est)
+  return offsets
+})
+// The largest index whose card starts at or above `y`.
+const cardIndexAt = (y) => {
+  const offsets = cardOffsets.value
+  let lo = 0
+  let hi = offsets.length - 2
+  if (hi < 0) return 0
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (offsets[mid] <= y) lo = mid
+    else hi = mid - 1
+  }
+  return lo
+}
+const measureCards = () => {
+  if (!virtualCards.value || !scrollEl.value) return
+  const next = cardHeights.value.slice()
+  let changed = false
+  for (const el of scrollEl.value.querySelectorAll('tbody tr.data-table__row')) {
+    const i = Number(el.dataset.rowIndex)
+    const mb = parseFloat(getComputedStyle(el).marginBottom) || 0
+    const h = el.getBoundingClientRect().height + mb
+    if (Math.abs((next[i] ?? -1) - h) > 0.5) {
+      next[i] = h
+      changed = true
+    }
+  }
+  if (changed) cardHeights.value = next
+}
+
+const startIndex = computed(() => {
+  if (!virtualize.value) return 0
+  if (virtualCards.value) return Math.max(0, cardIndexAt(scrollTop.value) - props.overscan)
+  return Math.max(0, Math.floor(scrollTop.value / props.rowHeight) - props.overscan)
+})
 const endIndex = computed(() => {
   if (!virtualize.value) return displayRows.value.length
   // Fall back to a full-ish window before the viewport is measured, so the first
   // paint is not empty; the measure on mount then tightens it.
+  if (virtualCards.value) {
+    const last = cardIndexAt(scrollTop.value + (viewportH.value || 800))
+    return Math.min(displayRows.value.length, last + 1 + props.overscan)
+  }
   const perView = Math.ceil((viewportH.value || 800) / props.rowHeight)
   return Math.min(displayRows.value.length, startIndex.value + perView + props.overscan * 2)
 })
@@ -235,15 +418,30 @@ const windowedRows = computed(() =>
     ? displayRows.value.slice(startIndex.value, endIndex.value)
     : displayRows.value,
 )
-const topPad = computed(() => (virtualize.value ? startIndex.value * props.rowHeight : 0))
-const bottomPad = computed(() =>
-  virtualize.value ? (displayRows.value.length - endIndex.value) * props.rowHeight : 0,
-)
+const topPad = computed(() => {
+  if (!virtualize.value) return 0
+  if (virtualCards.value) return cardOffsets.value[startIndex.value]
+  return startIndex.value * props.rowHeight
+})
+const bottomPad = computed(() => {
+  if (!virtualize.value) return 0
+  if (virtualCards.value) {
+    const offsets = cardOffsets.value
+    return offsets[offsets.length - 1] - offsets[endIndex.value]
+  }
+  return (displayRows.value.length - endIndex.value) * props.rowHeight
+})
+// Measure the cards the window just rendered; a changed height re-derives the
+// offsets, which settles once every rendered card is measured.
+watch([windowedRows, virtualCards], () => nextTick(measureCards), { flush: 'post' })
+
+// Card mode has no header row, so the data rows start at aria-rowindex 1.
+const headerRows = computed(() => (cardMode.value ? 0 : 1))
 
 // aria-rowcount is the CANONICAL total (§3.25): the header row + every data row,
 // regardless of how many are currently materialised — never the windowed slice.
 const ariaRowCount = computed(() =>
-  virtualize.value ? displayRows.value.length + 1 : undefined,
+  virtualize.value ? displayRows.value.length + headerRows.value : undefined,
 )
 // Reset the viewport to the top when the row set is reordered, so a sort does
 // not leave the operator staring at the middle of the newly-ordered list.
@@ -323,6 +521,8 @@ const tableClasses = computed(() => ({
   [`data-table--${props.density}`]: true,
   'data-table--interactive': props.interactive,
   'data-table--virtual': virtualize.value,
+  'data-table--cards': cardMode.value,
+  'data-table--cards-figure': cardMode.value && roles.value.figure != null,
 }))
 </script>
 
@@ -331,13 +531,37 @@ const tableClasses = computed(() => ({
        edge-fade cues (#4529); it must not scroll, so the ::before/::after stay
        pinned to the visible edges rather than travelling with the content. -->
   <div
+    ref="viewportEl"
     class="data-table__viewport"
     :class="{
       'data-table__viewport--overflow-start': overflowStart,
       'data-table__viewport--overflow-end': overflowEnd,
+      'data-table__viewport--cards': cardMode,
     }"
     :style="surfaceColor ? { '--asp-dt-surface': surfaceColor } : null"
   >
+    <!-- Card mode hides the header row, so its sort moves here (#9133). -->
+    <div v-if="cardMode && sortOptions.length" class="data-table__card-sort">
+      <span :id="sortLabelId" class="data-table__card-sort-label">Sort by</span>
+      <AspSelect
+        :model-value="curSortBy || null"
+        :options="sortOptions"
+        placeholder="Default order"
+        :aria-labelledby="sortLabelId"
+        class="data-table__card-sort-select"
+        @update:model-value="onCardSortKey"
+      />
+      <AspButton
+        variant="ghost"
+        size="sm"
+        class="data-table__card-sort-dir"
+        :disabled="!curSortBy"
+        :aria-label="curSortDir === 'asc' ? 'Sorted ascending; reverse' : 'Sorted descending; reverse'"
+        @click="onCardSortDir"
+      >
+        {{ curSortDir === 'asc' ? '▲' : '▼' }}
+      </AspButton>
+    </div>
     <div
       ref="scrollEl"
       class="data-table__scroll"
@@ -349,14 +573,21 @@ const tableClasses = computed(() => ({
         :class="tableClasses"
         :style="virtualize ? { '--asp-dt-row-h': `${rowHeight}px` } : null"
         :aria-rowcount="ariaRowCount"
+        :role="cardMode ? 'table' : undefined"
       >
         <caption v-if="caption" class="data-table__caption">{{ caption }}</caption>
-        <thead>
+        <thead v-if="!cardMode">
           <tr>
             <th
               v-for="col in columns"
               :key="col.key"
-              :class="[`data-table__th--${col.align || 'left'}`, { 'data-table__th--sortable': isSortable(col) }]"
+              :class="[
+                `data-table__th--${col.align || 'left'}`,
+                {
+                  'data-table__th--sortable': isSortable(col),
+                  'data-table__th--identity': roles.identityDeclared && col.key === roles.identity,
+                },
+              ]"
               :style="col.width ? { width: col.width } : null"
               :aria-sort="ariaSortFor(col)"
               scope="col"
@@ -379,7 +610,7 @@ const tableClasses = computed(() => ({
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody :role="cardMode ? 'rowgroup' : undefined">
           <template v-if="displayRows.length">
             <!-- Top spacer holds the height of the rows scrolled off above, so the
                  scrollbar reflects the full set while only the window is in DOM.
@@ -394,7 +625,8 @@ const tableClasses = computed(() => ({
               class="data-table__row"
               :class="[{ 'data-table__row--interactive': interactive }, rowStateClass(row, startIndex + i)]"
               :tabindex="interactive ? 0 : undefined"
-              :aria-rowindex="virtualize ? startIndex + i + 2 : undefined"
+              :role="cardMode ? 'row' : undefined"
+              :aria-rowindex="virtualize ? startIndex + i + 1 + headerRows : undefined"
               :data-row-index="startIndex + i"
               @click="onRowClick(row, startIndex + i, $event)"
               @keydown="onRowKeydown(row, startIndex + i, $event)"
@@ -402,14 +634,28 @@ const tableClasses = computed(() => ({
               <td
                 v-for="col in columns"
                 :key="col.key"
-                :class="[
-                  `data-table__td--${col.align || 'left'}`,
-                  { 'data-table__td--truncate': col.truncate },
-                ]"
-                :style="col.width ? { maxWidth: col.width } : null"
-                :title="col.truncate ? String(row[col.key] ?? '') : undefined"
+                :class="cellClasses(col, row)"
+                :style="col.width && !cardMode ? { maxWidth: col.width } : null"
+                :title="col.truncate && !cardMode ? String(row[col.key] ?? '') : undefined"
+                :role="cardMode ? 'cell' : undefined"
               >
+                <!-- A secondary cell in a card is a label-value pair; the label
+                     is the column label, since the header row is hidden. -->
+                <template v-if="cardMode && cardRole(col) === 'secondary'">
+                  <span class="data-table__card-label">{{ col.label }}</span>
+                  <span class="data-table__card-value">
+                    <slot
+                      :name="`cell-${col.key}`"
+                      :row="row"
+                      :value="row[col.key]"
+                      :index="startIndex + i"
+                    >
+                      {{ row[col.key] }}
+                    </slot>
+                  </span>
+                </template>
                 <slot
+                  v-else
                   :name="`cell-${col.key}`"
                   :row="row"
                   :value="row[col.key]"
@@ -504,7 +750,7 @@ const tableClasses = computed(() => ({
 /* Pin data-row cells to the spacer unit so the spacer math is exact — a row that
    grew past rowHeight would drift the scrollbar. Spacer and empty rows are
    exempt (they carry their own heights). */
-.data-table--virtual tbody tr.data-table__row td {
+.data-table--virtual:not(.data-table--cards) tbody tr.data-table__row td {
   height: var(--asp-dt-row-h);
   max-height: var(--asp-dt-row-h);
   overflow: hidden;
@@ -639,4 +885,114 @@ const tableClasses = computed(() => ({
   padding: var(--space-2xl) var(--space-md);
 }
 .data-table__empty { color: var(--text-muted); }
+
+/* Identity floor and figure at 640px and wider (§3.119, #9133). `min-width`
+   outranks `max-width`, so the floor holds against the 16ch truncate cap and a
+   consumer's `max-width: 0` slack trick; the other columns yield first. Bound
+   to a DECLARED identity only (dataTableRoles.js). */
+.data-table td.data-table__td--identity,
+.data-table th.data-table__th--identity {
+  min-width: 24ch;
+}
+.data-table td.data-table__td--figure {
+  white-space: nowrap;
+}
+
+/* --- Card mode (§3.114 D6 / §3.119, #9133) ----------------------------------
+   Below a 640px container, a table of more than three columns renders each row
+   as a card. Same DOM as table mode (the <tr> is the card), so rowAttrs,
+   rowState, the click/keyboard handlers and tabindex apply unchanged; the
+   explicit ARIA roles in the template keep the table semantics that a changed
+   `display` would otherwise drop. Ink stays inherited (§3.18). */
+.data-table--cards,
+.data-table--cards tbody,
+.data-table--cards .data-table__caption {
+  display: block;
+}
+.data-table--cards .data-table__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: var(--space-sm);
+  row-gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.data-table--cards-figure .data-table__row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.data-table--cards .data-table__row td {
+  display: block;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border: none;
+  text-align: left;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.data-table--cards td.data-table__card-cell--identity {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  font-weight: var(--font-weight-medium);
+}
+.data-table--cards-figure td.data-table__card-cell--identity {
+  grid-column: 1;
+}
+.data-table--cards td.data-table__card-cell--figure {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.data-table--cards td.data-table__card-cell--mono {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+.data-table--cards td.data-table__card-cell--secondary {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
+}
+.data-table__card-label {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.data-table__card-value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Row emphasis moves from the first cell to the card itself. */
+.data-table--cards .data-table__row--active {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--brand-primary);
+}
+.data-table--cards .data-table__row--active td,
+.data-table--cards .data-table__row--active td:first-child {
+  background: transparent;
+  box-shadow: none;
+}
+.data-table--cards .data-table__spacer,
+.data-table--cards .data-table__spacer td,
+.data-table--cards .data-table__empty-row,
+.data-table--cards .data-table__empty-row td {
+  display: block;
+}
+
+.data-table__card-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-sm);
+}
+.data-table__card-sort-label {
+  color: var(--text-muted);
+}
 </style>

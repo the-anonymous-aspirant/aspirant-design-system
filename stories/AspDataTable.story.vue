@@ -55,6 +55,35 @@ const manyRows = Array.from({ length: 500 }, (_, i) => ({
 
 const lastClicked = ref('(none)')
 
+// §3.119 / #9133 — phone card list. Columns declare a role: one identity (top
+// left), one figure (top right); the rest stack as label-value pairs.
+const roleCols = [
+  { key: 'name', label: 'Name', role: 'identity' },
+  { key: 'owner', label: 'Owner' },
+  { key: 'status', label: 'Status' },
+  { key: 'updated', label: 'Updated' },
+  { key: 'count', label: 'Count', role: 'figure', align: 'right' },
+]
+const roleRows = rows.map((r, i) => ({ ...r, count: 1200 * (i + 1) + 37 }))
+// A /tasks-shaped table for the ≥640px identity floor: one identity, five
+// secondary columns with long unbroken values.
+const floorCols = [
+  { key: 'task', label: 'Task', role: 'identity', truncate: true },
+  { key: 'assignee', label: 'Assignee' },
+  { key: 'status', label: 'Status' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'complexity', label: 'Complexity' },
+  { key: 'updated', label: 'Updated', align: 'right' },
+]
+const floorRows = Array.from({ length: 3 }, (_, i) => ({
+  task: `#913${i} Design spec: AspDataTable phone card list, column roles and identity floor`,
+  assignee: 'aspirant_engineer',
+  status: 'in_progress',
+  priority: 'operator_requested',
+  complexity: 'medium_9_to_180_minutes',
+  updated: '2026-10-29',
+}))
+
 // #4318 / §3.88 — per-row hooks demos.
 const rowAttrsDemo = (row) => ({ 'data-test-row-id': row.id, 'data-test-source': row.owner })
 const rowStateDemo = (row, i) => (i === 1 ? 'active' : i === 3 ? 'muted' : null)
@@ -140,15 +169,63 @@ const statusStyle = (v) => ({
         edge too, then fades out at each true end. A table that fits its container shows no cue.
       </p>
       <div style="max-width: 22rem; border: 1px dashed var(--border-subtle); padding: 8px;">
-        <AspDataTable :columns="wideCols" :rows="wideRows" row-key="c0" />
+        <AspDataTable :columns="wideCols" :rows="wideRows" row-key="c0" narrow="scroll" />
       </div>
       <p style="margin: 8px 0; color: var(--text-muted);">Same table on a dark card surface:</p>
       <div data-theme="dark" style="max-width: 22rem; background: var(--surface-card); color: var(--text-on-dark); padding: 8px;">
-        <AspDataTable :columns="wideCols" :rows="wideRows" row-key="c0" />
+        <AspDataTable :columns="wideCols" :rows="wideRows" row-key="c0" narrow="scroll" />
       </div>
       <p style="margin: 12px 0 8px; color: var(--text-muted);">A narrow table that fits — no cue:</p>
       <div style="max-width: 22rem; border: 1px dashed var(--border-subtle); padding: 8px;">
         <AspDataTable :columns="longCols" :rows="longRows" row-key="key" />
+      </div>
+    </Variant>
+
+    <Variant title="Card list below a 640px container (§3.119)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        When the table's <strong>own container</strong> is narrower than 640px and it has more than
+        three columns, each row renders as a card: the <code>identity</code> column top-left (it
+        wraps, never truncates), the <code>figure</code> top-right (mono when numeric, never
+        truncates), the rest stacked as label-value pairs. The header row is hidden, so sorting moves
+        into one "Sort by" select. Row hooks, <code>rowState</code> and keyboard activation apply to
+        the card as they do to the row.
+      </p>
+      <div style="width: 390px; border: 1px dashed var(--border-subtle);">
+        <AspDataTable :columns="roleCols" :rows="roleRows" row-key="id" interactive :row-state="rowStateDemo" @row-click="(row) => (lastClicked = row.name)" />
+      </div>
+      <p style="margin: 8px 0; color: var(--text-muted);">Last clicked card: {{ lastClicked }}</p>
+      <div data-theme="dark" style="width: 390px; background: var(--surface-page); padding: 8px 0;">
+        <AspDataTable :columns="roleCols" :rows="roleRows" row-key="id" />
+      </div>
+    </Variant>
+
+    <Variant title="Card / table boundary (639px vs 640px container)">
+      <div style="width: 639px; border: 1px dashed var(--border-subtle); margin-bottom: 16px;">
+        <AspDataTable :columns="roleCols" :rows="roleRows" row-key="id" caption="639px container: cards" />
+      </div>
+      <div style="width: 640px; border: 1px dashed var(--border-subtle);">
+        <AspDataTable :columns="roleCols" :rows="roleRows" row-key="id" caption="640px container: table" />
+      </div>
+    </Variant>
+
+    <Variant title="narrow=&quot;scroll&quot; (homogeneous matrix)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A matrix where every column is the same kind of figure opts out with
+        <code>narrow="scroll"</code>: it keeps the sideways scroll and the #4529 edge fade at every
+        width (#4432, narrowed by §3.119).
+      </p>
+      <div style="width: 390px; border: 1px dashed var(--border-subtle);">
+        <AspDataTable :columns="roleCols" :rows="roleRows" row-key="id" narrow="scroll" />
+      </div>
+    </Variant>
+
+    <Variant title="Identity floor at 640px and wider">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A declared <code>role: 'identity'</code> keeps <code>min-width: 24ch</code>; the secondary
+        columns yield first. Without a declared identity the first column has no floor.
+      </p>
+      <div style="width: 768px; border: 1px dashed var(--border-subtle);">
+        <AspDataTable :columns="floorCols" :rows="floorRows" density="compact" />
       </div>
     </Variant>
 

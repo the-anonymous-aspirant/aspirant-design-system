@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, h } from 'vue'
 
 import { resolveDataFill } from '../utils/data_fill.js'
+import AspTooltip from './AspTooltip.vue'
 
 // AspBadge — the inline status/label family: semantic status badge, label /
 // capability chip, removable filter-chip, and agent-status dot. One component,
@@ -140,6 +141,27 @@ const legend = computed(() =>
   props.tip ?? (usesStatusColor.value ? STATUS_LEGEND[props.status] : null),
 )
 
+// The legend renders through AspTooltip on pointer hover, not a native `title`
+// (§3.119 R6, system_3 #9138): pages mixed styled tooltips with the native box
+// on 785 badges (#9104 B3-6). Assistive tech gets it from a persistent `hidden`
+// description the badge points at with aria-describedby, because the tooltip
+// chip exists only while shown. The badge does not become a tab stop: a table
+// of 100 badges must not add 100 of them. With no legend there is no wrapper
+// and no description, so such a badge renders exactly as before.
+// The wrapper is the root now, and a functional root passes on only class,
+// style and listeners, so a consumer's id / data-* / aria-* would be dropped.
+// They go on the badge itself, where they always landed.
+defineOptions({ inheritAttrs: false })
+
+const descId = `asp-badge-desc-${Math.random().toString(36).slice(2, 9)}`
+const LegendTip = (_, { slots }) =>
+  legend.value
+    ? h(AspTooltip, { content: legend.value }, () => [
+        slots.default(),
+        h('span', { id: descId, hidden: true }, legend.value),
+      ])
+    : slots.default()
+
 const classes = computed(() => ({
   badge: true,
   [`badge--${props.variant}`]: true,
@@ -172,47 +194,51 @@ const onRemove = (event) => {
 
 <template>
   <!-- Dot: a small semantic-colored circle, optional trailing label slot. -->
-  <span
-    v-if="isDot"
-    :class="classes"
-    :title="legend || undefined"
-  >
+  <LegendTip v-if="isDot">
     <span
-      class="badge__dot"
-      :style="dataStyle"
-      :aria-label="ariaLabel || legend || undefined"
-      role="img"
-    />
-    <span v-if="$slots.default" class="badge__dot-label"><slot /></span>
-  </span>
+      :class="classes"
+      v-bind="$attrs"
+      :aria-describedby="legend ? descId : $attrs['aria-describedby']"
+    >
+      <span
+        class="badge__dot"
+        :style="dataStyle"
+        :aria-label="ariaLabel || legend || undefined"
+        role="img"
+      />
+      <span v-if="$slots.default" class="badge__dot-label"><slot /></span>
+    </span>
+  </LegendTip>
 
   <!-- Status / chip / filter share the pill shell. -->
-  <span
-    v-else
-    :class="classes"
-    :style="dataStyle"
-    :title="legend || undefined"
-  >
-    <span class="badge__label"><slot /></span>
-    <button
-      v-if="showRemove"
-      type="button"
-      class="badge__remove"
-      :aria-label="ariaLabel || 'Remove'"
-      :disabled="disabled || undefined"
-      @click="onRemove"
+  <LegendTip v-else>
+    <span
+      :class="classes"
+      :style="dataStyle"
+      v-bind="$attrs"
+      :aria-describedby="legend ? descId : $attrs['aria-describedby']"
     >
-      <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
-        <path
-          d="M4 4l8 8M12 4l-8 8"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-      </svg>
-    </button>
-  </span>
+      <span class="badge__label"><slot /></span>
+      <button
+        v-if="showRemove"
+        type="button"
+        class="badge__remove"
+        :aria-label="ariaLabel || 'Remove'"
+        :disabled="disabled || undefined"
+        @click="onRemove"
+      >
+        <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
+          <path
+            d="M4 4l8 8M12 4l-8 8"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </span>
+  </LegendTip>
 </template>
 
 <style scoped>

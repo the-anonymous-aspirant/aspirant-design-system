@@ -1,5 +1,5 @@
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, provide, watch } from 'vue'
 import { useMobile } from '../composables/useMobile.js'
 
 const props = defineProps({
@@ -33,6 +33,9 @@ const rootClasses = computed(() => ({
 // The desktop rail state the header/footer slots receive. On mobile `collapsed`
 // means "overlay hidden", not "rail", so the slots always get false there.
 const railCollapsed = computed(() => props.collapsed && !isMobile.value)
+// AspSidebarLink reads the rail state to show its label tooltip and keep its
+// accessible name while the label is hidden (§3.119 R6, system_3 #9138).
+provide('aspSidebar', { railCollapsed })
 
 const overlayVisible = computed(
   () => isMobile.value && !mobileHidden.value && !props.hideOnMobile

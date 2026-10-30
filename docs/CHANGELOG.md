@@ -6,6 +6,19 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable window-scrolled virtual mode for phone lists**
+  (`system_3_design_conventions.md` §3.120 Q11; task #9182).
+  - New prop `scrollRoot: 'self' | 'window'` (default `'self'`, unchanged).
+    With `'window'`, a table above `virtualizeThreshold` still renders only a
+    windowed slice, but the window follows the PAGE scroll. The scroll wrapper
+    takes no `maxHeight` cap, so on a phone the page is the only scroller (no
+    inner box under a filter block). Below the threshold nothing changes.
+  - The wrapper keeps `overflow-x: auto` for the sideways scroll and edge fade
+    (#4529); with no cap it has no vertical scroll extent.
+  - **Consumer note.** Pass `scroll-root="window"` on a list that sits in the
+    page flow on a phone. Leave the default where the table lives in a fixed
+    region (a split pane, a modal) that should scroll on its own.
+
 - **AspSidebar restores its last desktop state after a narrow spell**
   (`system_3_design_conventions.md` §3.120 Q12; task #9181).
   - Crossing into mobile still collapses the sidebar, so the overlay starts

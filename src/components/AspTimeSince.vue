@@ -2,6 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { formatTimeSince, tickInterval, toMillis } from '../utils/time_since.js'
+import AspTooltip from './AspTooltip.vue'
+
+// The root is AspTooltip now; consumer attrs belong on the <time> (or the
+// empty-state span), where they always landed.
+defineOptions({ inheritAttrs: false })
 
 // AspTimeSince — one component for every "how long" read on the frontend
 // (system_3 #2272). Renders a <time> element, so the machine-readable instant
@@ -80,18 +85,19 @@ watch(() => [props.live, props.datetime, props.seconds, props.variant], schedule
 </script>
 
 <template>
-  <time
-    v-if="reading"
-    class="time-since"
-    :datetime="reading.iso || undefined"
-    :title="reading.iso || undefined"
-  >
-    {{ reading.text }}
-  </time>
+  <!-- The absolute instant shows in the styled AspTooltip, not a native
+       `title` (§3.119 R6, system_3 #9138): native and styled hovers mixed on
+       one page (#9104 B3-6). <time> is not focusable, so this is hover only.
+       The ISO spelling is today's, held for the operator (#9104 Q5). -->
+  <AspTooltip v-if="reading" :content="reading.iso || ''" :disabled="!reading.iso">
+    <time v-bind="$attrs" class="time-since" :datetime="reading.iso || undefined">
+      {{ reading.text }}
+    </time>
+  </AspTooltip>
   <!-- An unparseable or absent instant renders an em dash rather than an empty
        cell, so a table column keeps its shape and the gap reads as "no value"
        rather than as a layout bug. -->
-  <span v-else class="time-since time-since--empty" aria-label="no timestamp">—</span>
+  <span v-else v-bind="$attrs" class="time-since time-since--empty" aria-label="no timestamp">—</span>
 </template>
 
 <style scoped>

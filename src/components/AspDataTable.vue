@@ -13,7 +13,7 @@ import { cardRoleOf, resolveRoles } from './dataTableRoles.js'
 // sortBy/sortDir + `manualSort` so a server-paginating consumer can take over.
 //
 // columns: [{ key, label, sortable?=true, align?='left', truncate?=false, width?,
-//            role?='secondary' }]
+//            role?='secondary', title?: (row) => string | null }]
 // rows:    array of plain objects keyed by column.key.
 //
 // Phone card list (§3.114 D6 as extended by §3.119, task #9133): when the
@@ -260,6 +260,26 @@ const cellStyle = (col) => {
   if (cardMode.value) return null
   if (col.width) return { maxWidth: col.width }
   return yieldStyle(col)
+}
+
+// The native `title` on a truncated or yielding cell is a plain truncation
+// reveal (§3.119 R6, #9138). A column's `title(row)` hook decides it; without
+// one a scalar reveals String(v), anything else its compact JSON, and an empty
+// value no title at all. `String()` on an object revealed "[object Object]" on
+// every /logs Inputs cell (#9104 B3-5).
+const titleFor = (col, row) => {
+  if (typeof col.title === 'function') {
+    const t = col.title(row)
+    return t == null || t === '' ? undefined : String(t)
+  }
+  const v = row[col.key]
+  if (v == null || v === '') return undefined
+  if (typeof v !== 'object') return String(v)
+  try {
+    return JSON.stringify(v)
+  } catch {
+    return undefined
+  }
 }
 
 const isNumeric = (v) =>
@@ -734,7 +754,7 @@ const tableClasses = computed(() => ({
                 :key="col.key"
                 :class="cellClasses(col, row)"
                 :style="cellStyle(col)"
-                :title="(col.truncate || yields(col)) && !cardMode ? String(row[col.key] ?? '') : undefined"
+                :title="(col.truncate || yields(col)) && !cardMode ? titleFor(col, row) : undefined"
                 :role="cardMode ? 'cell' : undefined"
               >
                 <!-- A secondary cell in a card is a label-value pair; the label

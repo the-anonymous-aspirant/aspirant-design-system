@@ -65,6 +65,12 @@ Fixed left sidebar with mobile collapse. Handles the hamburger toggle + overlay 
 Props (Sidebar): `collapsed`, `width`, `hideOnMobile`. Slots: header, links, footer.
 Props (SidebarLink): `to`, `icon`, `label`, `badge`.
 
+**Collapsed rail** (§3.119 R6, system_3 #9138). `AspSidebar` provides its rail state. In a
+collapsed rail, where the label is hidden, each `AspSidebarLink` shows its label in an
+`AspTooltip` to the right, on hover and keyboard focus, and carries it as `aria-label`, so the
+accessible name is unchanged. A consumer no longer passes `title`. An expanded link renders as
+before.
+
 Reference: `aspirant-client/src/components/sidebar/Sidebar.vue`, `SidebarLink.vue`.
 
 ### 5. `AspInput` — built
@@ -293,8 +299,12 @@ Slots: `icon` (override default), `heading`, default (message body), `action`
 The inline status/label family in one component, four variants. Ports the
 system_3 `_partials/badge.html` status `<mark>`, `.label-badge`, and
 `.status-dot` shapes (see `system_3_ux_conventions.md` §4). Color is
-supplementary to a visible text label; `status`/`dot` emit a legend `title` so
-the color→meaning mapping is decodable on hover.
+supplementary to a visible text label; `status`/`dot` (or any badge with `tip`) carry
+a legend so the color→meaning mapping is decodable on hover. Since §3.119 R6 (system_3
+#9138), the legend renders through `AspTooltip` on pointer hover, never a native `title`.
+Assistive tech reads it through `aria-describedby`, from a persistent hidden description. The
+badge is not a tab stop, so a table of 100 badges adds none. A badge with no legend renders
+exactly as before. Consumer attrs (`id`, `data-*`, `aria-*`) land on the badge itself.
 
 Props: `variant` (`status` | `chip` | `filter` | `dot`, default `status`),
 `status` (`positive` | `caution` | `negative` | `neutral`, default `neutral` —
@@ -349,7 +359,7 @@ last), emitting `sort` and supporting a controlled `sortBy`/`sortDir` +
 container a table of more than three columns becomes a card list (below); a
 matrix that opts out with `narrow="scroll"` horizontal-scrolls instead.
 
-Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width?, role? }]`),
+Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width?, role?, title? }]`),
 `rows`, `density` (`default` | `compact`), `interactive` (hover +
 keyboard-operable rows), `sortBy` / `sortDir` (v-model-able), `manualSort`,
 `rowKey` (string | fn), `caption`, `narrow` (`cards` | `scroll`), `fit` (`fill` | `content`).
@@ -360,6 +370,11 @@ outrank the base `text-align: left` (0,1,1). Unqualified, they lost on every con
 declared one (#9104 B4-2). `fit="content"` sizes the table to its columns' content
 (`width: auto; max-width: 100%`), for a breakdown of a few columns where the figure belongs
 beside its subject (§3.55, §3.72). The default `fill` spans the container, as before.
+
+**Truncation reveal** (§3.119 R6, system_3 #9138). A truncated or yielding cell's native
+`title` is a plain reveal of its value. `title(row)` decides it when given. Otherwise a scalar
+reveals `String(v)`, an object or array its compact JSON (never `[object Object]`, #9104
+B3-5), and an empty value no title.
 
 **Phone card list** (§3.114 D6 as extended by §3.119, #9133). When the table's
 own container is narrower than 640px and more than three columns are visible,
@@ -407,7 +422,9 @@ Emits: `sort` (`{ key, dir }`), `update:sortBy`, `update:sortDir`, `row-click`
 ### 15. `AspTimeSince` — ✅ shipped
 
 One component for every "how long" read on the frontend (system_3 #2272): freshness
-(`elapsed`), time-in-lane (`duration`), cron next-fire (`countdown`).
+(`elapsed`), time-in-lane (`duration`), cron next-fire (`countdown`). The absolute instant
+(today's ISO spelling, held for the operator as #9104 Q5) shows in an `AspTooltip` on hover,
+not a native `title` (§3.119 R6, system_3 #9138). Consumer attrs land on the `<time>`.
 
 **Format rule (exact):** single largest unit, floored — `<60s → Xs`, `<60m → Xm`,
 `<24h → Xh`, else `Xd`. **Never compound.** `1h 22m` reads as prose; `1h` reads as a

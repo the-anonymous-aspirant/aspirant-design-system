@@ -124,8 +124,16 @@ test.describe('the component renders it', () => {
     const el = page.locator('#elapsed time')
     expect(await el.evaluate((e) => e.tagName)).toBe('TIME')
     await expect(el).toHaveAttribute('datetime', '2026-07-19T11:58:00.000Z')
-    await expect(el).toHaveAttribute('title', '2026-07-19T11:58:00.000Z')
     await expect(el).toHaveText('2m ago')
+  })
+
+  test('the absolute instant shows in AspTooltip on hover, not a native title (#9138)', async ({
+    page,
+  }) => {
+    const el = page.locator('#elapsed time')
+    expect(await el.getAttribute('title')).toBeNull()
+    await el.hover()
+    await expect(page.getByRole('tooltip')).toHaveText('2026-07-19T11:58:00.000Z')
   })
 
   test('each variant renders its own grammar', async ({ page }) => {

@@ -6,6 +6,16 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **No `[object Object]` reveal; meaningful hovers through AspTooltip**
+  (`system_3_design_conventions.md` §3.119 R6; task #9138).
+  - `AspDataTable`: a truncated cell's `title` comes from a column's
+    `title(row)`, or else is a scalar's text or an object's compact JSON.
+  - `AspBadge`'s legend and `AspTimeSince`'s absolute instant show in
+    `AspTooltip` instead of a native `title`. The badge is described through
+    `aria-describedby`, with no new tab stop.
+  - A link in a collapsed `AspSidebar` rail shows its label in a tooltip on
+    hover and focus, and keeps it as its accessible name.
+
 - **AspDataTable: alignment modifiers win; a content-sized breakdown table**
   (`system_3_design_conventions.md` §3.119 R4; task #9136).
   - `align: 'right' | 'center'` now applies to the header and every cell. The

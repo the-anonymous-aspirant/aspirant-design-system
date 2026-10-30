@@ -346,20 +346,27 @@ const onRemove = (event) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  margin: 0;
-  width: 1.1em;
-  height: 1.1em;
+  /* A 24 x 24 hit area around a 1.1em glyph (§3.99 Tier 1, §3.119; system_3
+     #9139): it measured 14.66 x 14.66. The box is 24px, padded back to the
+     glyph, and the negative margin gives the padding back to the layout, so
+     the pill's size is unchanged. background-clip keeps the hover circle at
+     the glyph's size; the focus ring outlines the hit area. */
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: calc((24px - 1.1em) / 2);
+  margin: calc((1.1em - 24px) / 2);
+  background-clip: content-box;
   border: none;
   border-radius: var(--radius-full);
-  background: transparent;
+  background-color: transparent;
   color: var(--text-muted);
   cursor: pointer;
   appearance: none;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 .badge__remove:hover:not(:disabled) {
-  background: var(--feedback-error-bg);
+  background-color: var(--feedback-error-bg);
   color: var(--feedback-error-text);
 }
 .badge__remove:focus-visible {

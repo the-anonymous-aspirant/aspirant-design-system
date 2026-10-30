@@ -6,6 +6,13 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **24px minimum targets on DS controls; AspBackButton keeps its own box**
+  (`system_3_design_conventions.md` §3.99 Tier 1, §3.119 decision 5; task #9139).
+  - `AspButton size="sm"` (and so `AspFreshness`'s trigger), the `AspDataTable`
+    sort button and the `AspBadge` remove × now clear 24 × 24px. The badge pill
+    keeps its size.
+  - `AspBackButton` no longer stretches across a column flex parent.
+
 - **No `[object Object]` reveal; meaningful hovers through AspTooltip**
   (`system_3_design_conventions.md` §3.119 R6; task #9138).
   - `AspDataTable`: a truncated cell's `title` comes from a column's

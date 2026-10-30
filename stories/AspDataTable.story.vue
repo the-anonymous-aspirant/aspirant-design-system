@@ -171,6 +171,22 @@ const statusStyle = (v) => ({
       </AspDataTable>
     </Variant>
 
+    <Variant title="Window-scrolled virtual (phone list, §3.120 Q11)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        <code>scroll-root="window"</code> keeps the virtualisation but reads its window from the
+        PAGE scroll, with no <code>maxHeight</code> cap: a phone list under a filter block has one
+        scroller, the page, instead of a second box inside it. The default <code>self</code> is the
+        capped viewport above.
+      </p>
+      <AspDataTable :columns="columns" :rows="manyRows" row-key="id" scroll-root="window">
+        <template #cell-status="{ value }">
+          <span
+            :style="`display:inline-block;padding:0.1rem 0.5rem;border-radius:var(--radius-pill);font-size:var(--text-xs);${statusStyle(value)}`"
+          >{{ statusText[value] }}</span>
+        </template>
+      </AspDataTable>
+    </Variant>
+
     <Variant title="Horizontal-overflow edge cue">
       <p style="margin-bottom: 8px; color: var(--text-muted);">
         When a table is wider than its container, <code>.data-table__scroll</code> scrolls

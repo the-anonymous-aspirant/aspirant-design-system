@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AspDataTable window-scrolled virtual fixture (#9182)</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; padding: 16px; background: var(--surface-page); color: var(--text-body); font-family: var(--font-family-base); }
+  /* The console's stacked filter block on a phone (#9104: 7 controls). */
+  .filters { display: grid; gap: 8px; margin-bottom: 16px; }
+  .filters div { height: 34px; border: 1px solid var(--border-subtle, #999); border-radius: 6px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./data-table-window.js"></script>

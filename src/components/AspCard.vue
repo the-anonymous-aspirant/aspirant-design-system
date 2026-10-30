@@ -127,7 +127,8 @@ const onKeydown = (event) => {
 
 .card__header {
   color: var(--text-heading-card);
-  font-size: var(--text-lg);
+  /* A heading inside a card sits at --text-md (§3.120 Q1). */
+  font-size: var(--text-md);
   font-weight: var(--font-weight-bold);
   border-bottom: 1px solid var(--surface-card-inner);
 }

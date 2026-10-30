@@ -6,6 +6,20 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspContent markdown headings ramp below the page title; AspCard header at
+  `--text-md`** (`system_3_design_conventions.md` §3.120 Q1; task #9178).
+  - `AspContent` prose headings were browser-default sizes (h1 32px, h2 24px,
+    h3 18.72px, h5 13.28px, h6 10.72px), so a markdown h1 outranked the page
+    title above it. They are now bold: `h1` `--text-lg` (19.2px), `h2`
+    `--text-md` (16.8px), and `h3`–`h6` `--text-base` (16px), so h5 and h6
+    grow. Margins, line-height and inherited ink are unchanged, and so are
+    paragraphs, list items and code.
+  - `AspCard`'s `header` slot drops from `--text-lg` to `--text-md` (16.8px),
+    still bold, still `--text-heading-card`.
+  - **Consumer note.** Every AspCard header and every rendered markdown heading
+    shrinks on the next client build. A view that sized its own title inside a
+    card's `header` slot keeps its own size.
+
 - **24px minimum targets on DS controls; AspBackButton keeps its own box**
   (`system_3_design_conventions.md` §3.99 Tier 1, §3.119 decision 5; task #9139).
   - `AspButton size="sm"` (and so `AspFreshness`'s trigger), the `AspDataTable`

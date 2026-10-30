@@ -22,6 +22,22 @@ newest first. Each entry names the design ruling it implements.
     `aria-describedby`, with no new tab stop.
   - A link in a collapsed `AspSidebar` rail shows its label in a tooltip on
     hover and focus, and keeps it as its accessible name.
+  - **Consumer note.** In these cases the component's root is now an
+    `.asp-tooltip-anchor` wrapper: `AspBadge` with a `legend`, `AspTimeSince`
+    with a readable instant, and `AspSidebarLink` in a collapsed rail. A passed
+    `class` (and every other attribute) still lands on the inner element.
+    Vue puts your scoped `data-v-*` attribute on the root, though, so:
+    - a scoped rule `.my-class { … }` on that class stops matching. Write
+      `:deep(.my-class)` under a route-owned ancestor instead.
+    - layout properties on that class (flex or grid item sizing, truncation)
+      no longer reach the item, because the anchor is the item now. Put them
+      on a route-owned wrapper around the component.
+    - `AspTimeSince` already sets `--text-muted`. A consumer colour rule
+      re-applied through a wrapper mixes the muted ink twice; use
+      `:deep(.time-since) { color: inherit }` there.
+    - a badge already inside your own `AspTooltip` now opens two tooltips.
+      Pass that text as `legend` and drop the outer tooltip.
+    (Found adopting this on the system_3 console, #9145.)
 
 - **AspDataTable: alignment modifiers win; a content-sized breakdown table**
   (`system_3_design_conventions.md` §3.119 R4; task #9136).

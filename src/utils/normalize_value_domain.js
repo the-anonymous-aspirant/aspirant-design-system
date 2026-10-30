@@ -17,9 +17,11 @@
  *     edge and the y=0 gridline stays the honest datum.
  *   - `position` (line/point/area) encodes POSITION, so a focused, padded range
  *     is honest and is exactly the operator's ask (#3344): expand the observed
- *     range outward ~10% on BOTH ends.
+ *     range outward on BOTH ends by 10% of the RANGE, at least one rounding
+ *     unit (§3.120 Q3, `padByRange`).
  *
- * The outward expansion is SIGN-CORRECT so it never clips a negative bound
+ * The magnitude-diverging expansion (`expandRange`) pads by each bound's own
+ * magnitude instead. It is SIGN-CORRECT so it never clips a negative bound
  * (the naive `0.9*min` moves a negative bound TOWARD zero and clips the data):
  *
  *     lower = observed_min < 0 ? roundDown(1.1*min) : roundDown(0.9*min)
@@ -110,6 +112,27 @@ export function expandRange(min, max, { unit = '', allInteger = false } = {}) {
 }
 
 /**
+ * The position (stock line) frame for an observed `[min, max]` with `min < max`
+ * (§3.120 Q3): each bound is pushed out by 10% of the RANGE, never less than
+ * one rounding unit, then rounded outward. Padding by each bound's own
+ * magnitude (`expandRange`) drew a 51–52 series in a [45, 58] frame, a thin band
+ * in a 48px cell. Same clamps as `expandRange`.
+ */
+export function padByRange(min, max, { unit = '', allInteger = false } = {}) {
+  const step = niceStep(min, max, { unit, allInteger })
+  const pad = Math.max(0.1 * (max - min), step)
+  let lower = roundToUnit(min - pad, step, 'down')
+  let upper = roundToUnit(max + pad, step, 'up')
+  if (isPercentUnit(unit)) {
+    lower = Math.max(PERCENT_DOMAIN[0], lower)
+    upper = Math.min(PERCENT_DOMAIN[1], upper)
+  } else if (min >= 0) {
+    lower = Math.max(0, lower)
+  }
+  return { lower, upper }
+}
+
+/**
  * Compute the normalized value-axis domain for a chart.
  *
  * @param {object|number[]} data  Chart.js `{datasets:[{data}]}` or a bare array.
@@ -169,6 +192,6 @@ export function normalizeValueDomain(data, { encoding = 'position', unit = '' } 
     }
     return { min: low, max: high }
   }
-  const { lower, upper } = expandRange(min, max, opts)
+  const { lower, upper } = padByRange(min, max, opts)
   return { min: lower, max: upper }
 }

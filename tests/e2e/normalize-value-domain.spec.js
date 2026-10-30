@@ -63,18 +63,17 @@ test.describe('collectValues — every finite value, across datasets', () => {
 test.describe('position (line) — focused, padded, sign-correct on both ends', () => {
   test('all-positive counts expand outward and bracket the data', () => {
     const y = normalizeValueDomain(d([10, 20, 30]), { encoding: 'position' })
-    // 0.9*10 floored, 1.1*30 ceiled.
-    expect(y).toEqual({ min: 9, max: 33 })
+    // §3.120 Q3: 10% of the RANGE (20) each side, at least one unit.
+    expect(y).toEqual({ min: 8, max: 32 })
     expect(y.min).toBeLessThan(10)
     expect(y.max).toBeGreaterThan(30)
   })
 
   test('a negative bound is NEVER clipped — it expands further from zero', () => {
-    // The naive 0.9*min would move -30 to -27, INSIDE the data. The sign-correct
-    // form pushes it to -33.
+    // Range padding is outward by construction: -30 goes to -32, never inside.
     expect(normalizeValueDomain(d([-30, -10]), { encoding: 'position' })).toEqual({
-      min: -33,
-      max: -9,
+      min: -32,
+      max: -8,
     })
   })
 
@@ -84,11 +83,35 @@ test.describe('position (line) — focused, padded, sign-correct on both ends', 
     expect(y.max).toBeGreaterThanOrEqual(40)
   })
 
-  test('a percent axis clamps the padded upper to 100', () => {
-    // 1.1*95 = 104.5 is nonsensical on a percentage axis.
+  test('a percent axis pads by its range and clamps to [0, 100]', () => {
     expect(normalizeValueDomain(d([80, 95]), { encoding: 'position', unit: '%' })).toEqual({
-      min: 72,
+      min: 78.5,
+      max: 96.5,
+    })
+    expect(normalizeValueDomain(d([0, 100]), { encoding: 'position', unit: '%' })).toEqual({
+      min: 0,
       max: 100,
+    })
+  })
+
+  test('a small-range level gets a frame of its own range, not its magnitude (§3.120 Q3)', () => {
+    // #9104 B4-5: TASKS IN BACKLOG at 51–52 framed [45, 58] drew a 9px band.
+    const backlog = normalizeValueDomain(d([51, 52]), { encoding: 'position' })
+    expect(backlog).toEqual({ min: 50, max: 53 })
+    expect(backlog.max - backlog.min).toBeLessThanOrEqual(4)
+    expect(normalizeValueDomain(d([74.3, 75.8]), { encoding: 'position', unit: '%' })).toEqual({
+      min: 74.1,
+      max: 76,
+    })
+  })
+
+  test('magnitude and diverging domains are unchanged by the position rule', () => {
+    // Values read at f2fbdeb, before §3.120 Q3.
+    expect(normalizeValueDomain(d([10, 20, 30]), { encoding: 'magnitude' })).toEqual({ suggestedMax: 33 })
+    expect(normalizeValueDomain(d([51, 52]), { encoding: 'magnitude' })).toEqual({ suggestedMax: 58 })
+    expect(normalizeValueDomain(d([3, -2]), { encoding: 'magnitude-diverging' })).toEqual({
+      suggestedMin: -3,
+      suggestedMax: 4,
     })
   })
 

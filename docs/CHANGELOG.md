@@ -6,6 +6,18 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **A stock line's focused range is padded by its own range**
+  (`system_3_design_conventions.md` §3.120 Q3; task #9179).
+  - `normalizeValueDomain`'s `position` arm pads each bound by 10% of the
+    observed range, at least one rounding unit, then rounds outward (new
+    `padByRange`). It used to pad by 10% of each bound's magnitude, so a 51–52
+    level was framed [45, 58] and drew a 10px band in a 48px sparkline. It is
+    now framed [50, 53]: 20px. A 74.3–75.8% series goes from 10px to 40px.
+  - Clamps, the flat and all-zero fallbacks, and the `magnitude` and
+    `magnitude-diverging` arms are unchanged.
+  - **Consumer note.** Every stock (position) line, sparkline or axis, frames
+    tighter on the next build. A displayed axis's ticks move with it.
+
 - **The required-field mark resolves against its setter**
   (`system_3_design_conventions.md` §3.121, §3.119; task #9189).
   - `AspInput` and `AspTextarea` take a `surface` prop, `'auto' | 'page' |

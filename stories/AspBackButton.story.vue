@@ -53,6 +53,18 @@ import AspCard from '../src/components/AspCard.vue'
       <AspBackButton />
     </Variant>
 
+    <Variant title="Under a column flex parent keeps its own box (§3.119)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A detail page's content column is a <code>flex-direction: column</code> parent. The back
+        button stays as wide as its content (<code>align-self: flex-start</code>), so the empty
+        right side of the row is not a navigate-away target.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 8px; border: 1px dashed var(--border-subtle); padding: 8px;">
+        <AspBackButton />
+        <div style="color: var(--text-muted);">The rest of the column.</div>
+      </div>
+    </Variant>
+
     <Variant title="Inline on a dark card">
       <AspCard>
         <p>The button sets no background, so it inherits this card's ink rather than fighting it.</p>

@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DS control target sizes (#9139)</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface-page); color: var(--text-body); }
+  section { margin-bottom: 24px; }
+  /* A column flex parent, as on the console's detail routes (#9104 B3-4). */
+  #back { display: flex; flex-direction: column; width: 1168px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./target-size.js"></script>

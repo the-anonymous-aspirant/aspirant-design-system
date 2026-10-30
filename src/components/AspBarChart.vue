@@ -153,6 +153,30 @@ const root = ref(null)
 const themeTick = ref(0)
 let themeObserver = null
 
+// §3.120 Q10: the category-label decision (wrap, else horizontal) needs the
+// width the chart actually gets, so the component measures its own root.
+const plotWidth = ref(0)
+let sizeObserver = null
+let measureCtx = null
+const measureLabel = (fontFamily) => (text) => {
+  if (!measureCtx && typeof document !== 'undefined') {
+    measureCtx = document.createElement('canvas').getContext('2d')
+  }
+  if (!measureCtx) return 0
+  // Chart.js's tick font: its 12px default size in the preset's family.
+  measureCtx.font = `12px ${fontFamily}`
+  return measureCtx.measureText(text).width
+}
+
+// A horizontal chart moves the value axis to x, so a consumer's `scales.y`
+// (always written for the value axis) moves with it.
+const swapScales = (options) => {
+  const scales = options?.scales
+  if (!scales) return options
+  const { x, y, ...rest } = scales
+  return { ...options, scales: { ...rest, ...(y ? { x: y } : {}), ...(x ? { y: x } : {}) } }
+}
+
 const chartHeight = computed(() => props.height ?? HEIGHTS[props.variant] ?? HEIGHTS.regular)
 
 // The one dispatch point (§3.49): a caller declares `variant`+`encoding`, this
@@ -474,6 +498,13 @@ const chartOptions = computed(() => {
         // symmetric diverging bounds) inside the preset. `chartData` carries the
         // §3.66a fallback negation so the domain matches what is painted.
         data: chartData.value,
+        plotWidth: plotWidth.value,
+        measureLabel: measureLabel(p.fontFamily),
+        // The threshold and extremes plugins draw against `scales.y` as the
+        // value axis, and a consumer's own `indexAxis` decides for itself; none
+        // of those charts turns horizontal on its own (they wrap only).
+        autoHorizontal:
+          typeof props.threshold !== 'number' && !props.markExtremes && props.options?.indexAxis === undefined,
       })
 
   if (typeof props.threshold === 'number') {
@@ -514,7 +545,7 @@ const chartOptions = computed(() => {
   // options in HERE — rather than passing them through separately — is what
   // keeps the consumer able to override any preset value. Getting this
   // backwards would make the preset a fork in all but name.
-  return mergeDeep(preset, props.options)
+  return mergeDeep(preset, preset.indexAxis === 'y' ? swapScales(props.options) : props.options)
 })
 
 // The plugin is passed per-instance rather than registered globally, so a host
@@ -529,6 +560,13 @@ const chartPlugins = computed(() => [
 
 onMounted(() => {
   themeTick.value += 1
+  if (typeof ResizeObserver !== 'undefined' && root.value) {
+    sizeObserver = new ResizeObserver(([entry]) => {
+      const w = Math.round(entry.contentRect.width)
+      if (w !== plotWidth.value) plotWidth.value = w
+    })
+    sizeObserver.observe(root.value)
+  }
   if (typeof MutationObserver === 'undefined') return
   themeObserver = new MutationObserver(() => {
     themeTick.value += 1
@@ -541,6 +579,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (themeObserver) themeObserver.disconnect()
+  if (sizeObserver) sizeObserver.disconnect()
 })
 
 // Exposed for the contrast spec: the derived values are the thing under test,

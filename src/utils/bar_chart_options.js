@@ -11,7 +11,7 @@
  * opinion.
  */
 
-import { normalizeValueDomain } from './normalize_value_domain.js'
+import { collectValues, normalizeValueDomain } from './normalize_value_domain.js'
 
 /**
  * `AspChart`'s own default height, and therefore what the live Performance
@@ -88,20 +88,18 @@ export const BAR_GAP = 7
  * So density is tuned, not forced. `autoSkip` stays ON — the library guarantees
  * no overlap — and the knobs push toward more labels within that guarantee.
  *
- * The knob that actually moves the number is `maxRotation`, and this took
- * measuring to find. Dropping `autoSkipPadding` from 3 to 1 changed nothing:
- * autoskip quantises to an integer skip ratio, so on 30 categories it lands on
- * "every 3rd" either way. Raising the rotation budget to 90 does move it,
- * because a rotated label's horizontal footprint is its line height rather than
- * its text width. Measured on the Performance page's own "last 30 hours" data
- * at the contested 340px width: **15 labels against the baseline's 10, zero
- * overlaps**, settling at 56°. Chart.js only rotates as far as it must, so a
- * five-category chart still renders flat.
+ * Rotation is NOT one of the knobs (§3.120 Q10, #9180). Raising
+ * `maxRotation` to 90 once bought density (15 labels against 10 at 340px,
+ * settling at 56°), but a rotated label is read with a tilted head, and the
+ * ruling is that a chart label never rotates. A category label that does not
+ * fit its slot wraps to two lines at a word boundary instead, and a chart whose
+ * labels cannot fit two lines turns its bars horizontal so the labels sit on
+ * the y axis at full length (`fitCategoryLabels`, decided in `buildBarOptions`).
+ * `autoSkip` still guarantees no overlap among what is drawn.
  *
- * The test asserts that RENDERED count against a plain AspChart on the same
- * data at the same width, plus zero overlapping pairs. Asserting the flag value
- * instead is what let the smear through: it encoded the implementation choice,
- * not the operator's goal, so it could not tell "denser" from "illegible".
+ * The test asserts the RENDERED scale: zero `labelRotation` and zero
+ * overlapping pairs. Asserting a flag value instead is what once let a smear
+ * through: it encoded the implementation choice, not the operator's goal.
  *
  * `compact` goes the other way on purpose. A 48px-tall cell has no vertical
  * room for a tick ramp and no horizontal room for category labels; y falls back
@@ -112,7 +110,7 @@ export const BAR_GAP = 7
 export const TICKS = {
   regular: {
     y: { maxTicksLimit: 6 },
-    x: { autoSkip: true, autoSkipPadding: 1, maxRotation: 90, minRotation: 0 },
+    x: { autoSkip: true, autoSkipPadding: 1, maxRotation: 0, minRotation: 0 },
   },
   compact: { y: { maxTicksLimit: 2 }, x: { display: false } },
   // The sparkline is a trend glyph: no ticks on either axis. Paired with the
@@ -123,15 +121,13 @@ export const TICKS = {
 // ---------------------------------------------------------------------------
 // §3.19 — time-axis tick grammar.
 //
-// The rotation treatment above is RIGHT for categorical labels and WRONG for
-// time, and that distinction is the whole reason this section exists rather
-// than a knob on TICKS. A categorical label (`unattributed`, `medium`) is a
-// long string with no natural abbreviation, so rotating it is the only way to
-// fit more of them. A time label abbreviates naturally — `06:00` is already
-// the short form — so it earns density from a coarser INTERVAL instead, and
-// §3.19 Decision 2 rules rotation out explicitly: a rotated label buys
-// horizontal room at a legibility cost the operator's complaint does not
-// accept.
+// Neither axis kind rotates (§3.19 Decision 2 for time; §3.120 Q10 extended
+// it to categories), but they earn room differently, and that is why this
+// section exists rather than a knob on TICKS. A categorical label
+// (`unattributed`, `medium`) is a long string with no natural abbreviation, so
+// it wraps or the bars turn horizontal (`fitCategoryLabels`). A time label
+// abbreviates naturally — `06:00` is already the short form — so it earns
+// density from a coarser INTERVAL instead.
 //
 // Three rules, each from §3.19, each a pure function below so the test can
 // assert the DERIVED outcome rather than a flag:
@@ -521,6 +517,81 @@ const timeTicks = (timestamps) => ({
   },
 })
 
+// ---------------------------------------------------------------------------
+// §3.120 Q10 — a category label never rotates: wrap, else horizontal bars.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fit each category label to `slotWidth`: as it is, or split at the one word
+ * boundary that minimises the wider of two lines (Chart.js draws an array label
+ * as stacked lines). `fits` is false when any label has no break, or still has
+ * a line wider than the slot. Whitespace is the only boundary, so `unattributed`
+ * cannot wrap.
+ */
+export function fitCategoryLabels({ labels = [], slotWidth = 0, measureLabel } = {}) {
+  const lines = []
+  let fits = true
+  for (const raw of labels) {
+    const label = String(raw)
+    if (measureLabel(label) <= slotWidth) {
+      lines.push(label)
+      continue
+    }
+    const words = label.split(/\s+/).filter(Boolean)
+    let best = null
+    for (let i = 1; i < words.length; i += 1) {
+      const pair = [words.slice(0, i).join(' '), words.slice(i).join(' ')]
+      const widest = Math.max(measureLabel(pair[0]), measureLabel(pair[1]))
+      if (!best || widest < best.widest) best = { pair, widest }
+    }
+    if (!best || best.widest > slotWidth) fits = false
+    lines.push(best ? best.pair : label)
+  }
+  return { lines, fits }
+}
+
+/** Tick padding plus tick-mark length Chart.js reserves beside a y label. */
+export const Y_TICK_ALLOWANCE = 12
+
+/** The plot height a regular bar chart can give its rows when horizontal. */
+const HORIZONTAL_ROW_BUDGET = HEIGHTS.regular - 30
+
+/**
+ * Decide, once per render, how a regular category chart draws its labels:
+ * `{ horizontal: false, lines }` with each label as it is or wrapped to two
+ * lines, or `{ horizontal: true }` when some label cannot fit two lines. The
+ * slot is the plot width (the chart width less the y-label column) divided by
+ * the category count. Horizontal only when the bars fit the plot height;
+ * otherwise the chart stays vertical and `autoSkip` thins it (never rotates).
+ */
+export function categoryLabelLayout({ labels = [], plotWidth = 0, measureLabel, yLabelWidth = 0 } = {}) {
+  if (!labels.length || !(plotWidth > 0) || typeof measureLabel !== 'function') {
+    return { horizontal: false, lines: null }
+  }
+  const slotWidth = (plotWidth - yLabelWidth - Y_TICK_ALLOWANCE) / labels.length
+  const { lines, fits } = fitCategoryLabels({ labels, slotWidth, measureLabel })
+  const rowsFit = labels.length * (BAR_THICKNESS + BAR_GAP) <= HORIZONTAL_ROW_BUDGET
+  if (!fits && rowsFit) return { horizontal: true, lines: null, slotWidth }
+  return { horizontal: false, lines, slotWidth }
+}
+
+/** A value-axis tick label as wide as the widest the y scale will draw. */
+const valueTickSample = (data, domain) => {
+  const values = collectValues(data)
+  const top = Math.max(0, domain.suggestedMax ?? 0, ...values.map((n) => Math.abs(n)))
+  return new Intl.NumberFormat().format(Math.ceil(top * 1.2))
+}
+
+/**
+ * The scales as written are the vertical chart's: `x` is the category axis and
+ * `y` the value axis. A horizontal chart (`indexAxis: 'y'`) swaps them, so the
+ * category labels sit on the y axis at full length.
+ */
+const orient = (horizontal, scales) => (horizontal ? { x: scales.y, y: scales.x } : scales)
+
+/** A value axis laid along x never rotates; autoSkip thins it instead. */
+const VALUE_TICKS_ALONG_X = { autoSkip: true, autoSkipPadding: 8, maxRotation: 0, minRotation: 0 }
+
 /**
  * Build the Chart.js options for a bar preset.
  *
@@ -598,6 +669,9 @@ export const buildBarOptions = ({
   timestamps = null,
   zeroBaseline = false,
   data = null,
+  plotWidth = 0,
+  measureLabel = null,
+  autoHorizontal = true,
 } = {}) => {
   const v = VARIANTS.includes(variant) ? variant : 'regular'
   const font = { family: fontFamily }
@@ -637,6 +711,29 @@ export const buildBarOptions = ({
   // ticks there would break the rule this mode implements.
   const timeMode = xAxis === 'time' && v === 'regular' && Array.isArray(timestamps)
   const ticks = timeMode ? { ...TICKS[v], x: timeTicks(timestamps) } : TICKS[v]
+
+  // §3.120 Q10: a regular category chart never rotates its labels. Decided
+  // once here, from the measured width the component passes in: wrap to two
+  // lines, else turn the bars horizontal. Without a width (unit tests, SSR) the
+  // labels are drawn as they are, unrotated.
+  const layout =
+    v === 'regular' && !timeMode && Array.isArray(data?.labels)
+      ? categoryLabelLayout({
+          labels: data.labels,
+          plotWidth,
+          measureLabel,
+          yLabelWidth: measureLabel ? measureLabel(valueTickSample(data, valueDomain)) : 0,
+        })
+      : { horizontal: false, lines: null }
+  const horizontal = layout.horizontal && autoHorizontal
+  const categoryTicks = layout.lines
+    ? {
+        ...ticks.x,
+        callback(value, index) {
+          return layout.lines[index] ?? this.getLabelForValue(value)
+        },
+      }
+    : ticks.x
 
   return {
     maintainAspectRatio: false,
@@ -679,6 +776,7 @@ export const buildBarOptions = ({
       ? { elements: { point: { radius: 2.5, hoverRadius: 4 }, line: { borderWidth: 2 } } }
       : {}),
     animation: animate ? undefined : false,
+    ...(horizontal ? { indexAxis: 'y' } : {}),
     // The bar owns the hit box, but the tooltip should follow the cursor along
     // the category even when it is above the bar's top edge — a 48px compact
     // cell has bars only a few pixels tall, and requiring a direct hit would
@@ -707,7 +805,8 @@ export const buildBarOptions = ({
           // axes makes the pair explicit.
           title: (items) => (items.length ? `x: ${items[0].label}` : ''),
           label: (item) => {
-            const y = item.parsed.y
+            // The value axis is x on a horizontal chart (§3.120 Q10).
+            const y = horizontal ? item.parsed.x : item.parsed.y
             const value = `y: ${y}${unit ? ` ${unit}` : ''}`
             // §3.66g (#4127): name the series in the tooltip once >1 dataset is
             // present. The paired flow pair (task_flow/pr_flow) renders as LINES
@@ -734,7 +833,7 @@ export const buildBarOptions = ({
         barPercentage: 1,
       },
     },
-    scales: {
+    scales: orient(horizontal, {
       x: {
         // "Axes are drawn, not implied" (#2227): the axis LINE is on, the grid
         // is off. The previous treatment had it backwards — faint grid lines
@@ -749,7 +848,7 @@ export const buildBarOptions = ({
         display: !noAxis,
         border: { display: !noAxis, color: axisLine, width: 1 },
         grid: { display: false },
-        ticks: { color: axisInk, font, ...ticks.x },
+        ticks: { color: axisInk, font, ...categoryTicks },
       },
       y: {
         beginAtZero: true,
@@ -778,9 +877,11 @@ export const buildBarOptions = ({
               lineWidth: (ctx) => (ctx.tick && ctx.tick.value === 0 ? 1 : 0),
             }
           : { display: false },
-        ticks: { color: axisInk, font, ...ticks.y },
+        // Horizontal puts this value axis along x, where Chart.js would rotate
+        // a wide figure (2,500,000) to fit; it thins the ticks instead (Q10).
+        ticks: { color: axisInk, font, ...ticks.y, ...(horizontal ? VALUE_TICKS_ALONG_X : {}) },
       },
-    },
+    }),
   }
 }
 

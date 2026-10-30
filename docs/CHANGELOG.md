@@ -6,6 +6,23 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **Chart labels never rotate: a category label wraps, else the bars turn
+  horizontal** (`system_3_design_conventions.md` §3.120 Q10; task #9180).
+  - `TICKS.regular.x` is `maxRotation: 0` (it was 90, and labels settled at up
+    to 56°). `autoSkip` stays on.
+  - A regular `AspBarChart` on a category axis measures its own width. A label
+    wider than its slot splits at a word boundary into two lines. If any label
+    cannot fit two lines (`unattributed` has no break), the chart draws
+    horizontal bars (`indexAxis: 'y'`) with full-length labels on the y axis.
+    The two modes never mix, and the decision is made once per render in
+    `buildBarOptions` (new `fitCategoryLabels`, `categoryLabelLayout`).
+  - It never switches when `threshold` or `markExtremes` is set (those plugins
+    draw against a vertical value axis), when the consumer sets `indexAxis`, or
+    when the bars would not fit the plot height. Those charts wrap only.
+  - **Consumer note.** On a horizontal chart, a consumer's `options.scales.y`,
+    written for the value axis, is applied to the value axis, now `x`. A
+    console `y: { min: 0, max: 100 }` keeps bounding the values.
+
 - **A stock line's focused range is padded by its own range**
   (`system_3_design_conventions.md` §3.120 Q3; task #9179).
   - `normalizeValueDomain`'s `position` arm pads each bound by 10% of the

@@ -148,21 +148,17 @@ test.describe('P8: denser axis labels', () => {
   // `0h1h2h3h4h…29h` as one unreadable smear — the assertion encoded the
   // implementation choice instead of the operator's goal, so it could not tell
   // the difference between "denser" and "illegible".
-  test('regular renders MORE x labels than a plain AspChart, and none overlap', async ({
-    page,
-  }) => {
+  test('regular draws its x labels flat, and none overlap', async ({ page }) => {
+    // §3.120 Q10 (#9180) retired the rotation that once bought density here
+    // (15 labels against the plain chart's 10, at 56°): a chart label never
+    // rotates. What stays is the half P8's flag assertion could not see — what
+    // is drawn is readable — plus the rule itself, read off the rendered scale.
     await page.goto('/tests/e2e/fixtures/tick-density.html', { waitUntil: 'networkidle' })
     await page.waitForFunction(() => window.__tickDensityReady === true, null, { timeout: 10_000 })
     const m = await page.evaluate(() => window.__tickDensity)
 
-    // Denser than the treatment P8 objected to.
-    expect(
-      m.preset.count,
-      `preset drew ${m.preset.count} x labels, baseline drew ${m.baseline.count}`
-    ).toBeGreaterThan(m.baseline.count)
-
-    // And still readable: collision avoidance is ON, so no two adjacent labels
-    // may share pixels. This is the half the flag assertion could not see.
+    expect(m.preset.rotation, `preset rotated its labels ${m.preset.rotation}deg`).toBe(0)
+    expect(m.preset.count, 'the preset draws some labels').toBeGreaterThan(0)
     expect(m.preset.overlaps, `${m.preset.overlaps} overlapping x label pairs`).toBe(0)
   })
 
@@ -348,16 +344,15 @@ test.describe('§3.19: format follows the span, in three bands', () => {
 })
 
 test.describe('§3.19: the preset wiring', () => {
-  test('time mode does not rotate, and category mode still does', () => {
-    // Decision 2 rules rotation out for time. The paired assertion is the
-    // guard on criterion 3: the categorical treatment must be untouched, so
-    // both halves are stated together and a diff that "fixed" rotation
-    // globally turns this red.
+  test('neither time nor category mode rotates', () => {
+    // Decision 2 ruled rotation out for time; §3.120 Q10 (#9180) extended it
+    // to categories, which wrap or turn horizontal instead.
     const timeX = buildBarOptions({ xAxis: 'time', timestamps: hourly(25) }).scales.x.ticks
     expect(timeX.maxRotation).toBe(0)
     expect(timeX.autoSkip).toBe(false)
 
-    expect(TICKS.regular.x.maxRotation).toBe(90)
+    expect(TICKS.regular.x.maxRotation).toBe(0)
+    expect(TICKS.regular.x.minRotation).toBe(0)
     expect(buildBarOptions({}).scales.x.ticks).toMatchObject(TICKS.regular.x)
   })
 
@@ -411,12 +406,11 @@ for (const theme of THEMES) {
       ).toEqual([])
     })
 
-    test('the category control still rotates, proving the split is real', async ({ page }) => {
-      // Criterion 3's teeth. If this ever reads 0 the diff has reached
-      // categorical behaviour, and every "time is unrotated" assertion above
-      // would still pass while the component silently changed for everyone.
+    test('the category control is unrotated too (§3.120 Q10)', async ({ page }) => {
+      // This control once proved the time/category split by rotating. Since
+      // #9180 no chart label rotates, so it reads 0 like the time axes.
       const m = await timeAxis(page, theme)
-      expect(m.day24_340_category.rotation).toBeGreaterThan(0)
+      expect(m.day24_340_category.rotation).toBe(0)
     })
 
     test('at two slots the chart renders endpoints only, by budget not by branch', async ({

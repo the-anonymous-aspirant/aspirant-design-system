@@ -214,3 +214,57 @@ test('at 390px in light a hidden sidebar casts no shadow; an open one does', asy
   const shown = await row(page, 400)
   expect(differs(shown[right + 2], shown[350]), `x=${right + 2} ${shown[right + 2]} vs ${shown[350]}`).toBe(true)
 })
+
+// §3.120 Q12 / system_3 #9181 — the rail returns to its last DESKTOP state after
+// a narrow spell. Going mobile collapses the sidebar (the overlay starts
+// closed); coming back restores whatever the rail was before, rather than
+// leaving an expanded rail collapsed. Driven by real viewport resizes, which
+// fire the `matchMedia` change events useMobile listens to.
+const emits = (page) => page.evaluate(() => window.__collapsedEmits || [])
+const railState = (page) => page.locator('[data-test="brand"]').getAttribute('data-collapsed')
+const WIDE = { width: 1440, height: 900 }
+const NARROW = { width: 700, height: 900 }
+
+for (const [start, query] of [
+  ['expanded', ''],
+  ['collapsed', '?collapsed=1'],
+]) {
+  test(`desktop ${start} → narrow → wide comes back ${start} (§3.120 Q12)`, async ({ page }) => {
+    await page.setViewportSize(WIDE)
+    await open(page, query)
+    await expect.poll(() => railState(page)).toBe(String(start === 'collapsed'))
+    expect(await emits(page)).toEqual([])
+
+    await page.setViewportSize(NARROW)
+    await expect(page.locator('aside.sidebar--mobile-hidden')).toHaveCount(1)
+    // Going mobile emits a collapse only when the rail was open (unchanged).
+    expect(await emits(page)).toEqual(start === 'expanded' ? [true] : [])
+
+    await page.setViewportSize(WIDE)
+    await expect(page.locator('aside.sidebar--mobile')).toHaveCount(0)
+    await expect.poll(() => railState(page)).toBe(String(start === 'collapsed'))
+    expect((await emits(page)).at(-1)).toBe(start === 'collapsed')
+  })
+}
+
+test('mounted narrow → wide comes back expanded (§3.120 Q12)', async ({ page }) => {
+  await page.setViewportSize(NARROW)
+  await open(page, '?collapsed=1')
+  await expect(page.locator('aside.sidebar--mobile-hidden')).toHaveCount(1)
+  await page.setViewportSize(WIDE)
+  await expect(page.locator('aside.sidebar--mobile')).toHaveCount(0)
+  await expect.poll(() => railState(page)).toBe('false')
+  expect(await emits(page)).toEqual([false])
+})
+
+test('the mobile overlay still opens from the menu and closes on its scrim (#9181)', async ({ page }) => {
+  await page.setViewportSize(NARROW)
+  await open(page)
+  await expect(page.locator('aside.sidebar--mobile-hidden')).toHaveCount(1)
+  await page.locator('.app-shell__menu').click()
+  await expect(page.locator('.sidebar-overlay')).toBeVisible()
+  await expect(page.locator('aside.sidebar--mobile-hidden')).toHaveCount(0)
+  await page.locator('.sidebar-overlay').click({ position: { x: 600, y: 400 } })
+  await expect(page.locator('.sidebar-overlay')).toHaveCount(0)
+  await expect(page.locator('aside.sidebar--mobile-hidden')).toHaveCount(1)
+})

@@ -6,6 +6,16 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSidebar restores its last desktop state after a narrow spell**
+  (`system_3_design_conventions.md` §3.120 Q12; task #9181).
+  - Crossing into mobile still collapses the sidebar, so the overlay starts
+    closed. Crossing back to desktop now emits `update:collapsed` with the rail
+    state from before the narrow spell: an expanded rail comes back expanded,
+    not collapsed. A sidebar mounted at a mobile width comes back expanded.
+  - The remembered state is per instance and not persisted. The shell
+    breakpoint (`SHELL_BREAKPOINT_PX = 768`) and the mobile overlay are
+    unchanged.
+
 - **Chart labels never rotate: a category label wraps, else the bars turn
   horizontal** (`system_3_design_conventions.md` §3.120 Q10; task #9180).
   - `TICKS.regular.x` is `maxRotation: 0` (it was 90, and labels settled at up

@@ -33,6 +33,8 @@ createApp({
             {
               sidebarCollapsed: collapsed.value,
               'onUpdate:sidebarCollapsed': (v) => {
+                // Every emitted value, in order, for the width-crossing spec (#9181).
+                window.__collapsedEmits = [...(window.__collapsedEmits || []), v]
                 collapsed.value = v
               },
             },

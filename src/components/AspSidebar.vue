@@ -1,6 +1,6 @@
 <script setup>
 import { computed, provide, watch } from 'vue'
-import { useMobile } from '../composables/useMobile.js'
+import { SHELL_MOBILE_QUERY, useMobile } from '../composables/useMobile.js'
 
 const props = defineProps({
   collapsed: { type: Boolean, default: false },
@@ -45,10 +45,25 @@ const toggle = () => {
   emit('update:collapsed', !props.collapsed)
 }
 
-// Auto-collapse on mobile viewport change to keep overlay closed by default.
+// `collapsed` is the desktop rail state AND, on mobile, "overlay hidden". Going
+// mobile collapses it so the overlay starts closed; coming back restores the
+// rail the viewer had (§3.120 Q12, system_3 #9181), not a leftover collapse.
+// Per instance and not persisted; a sidebar mounted at a mobile width comes
+// back expanded.
+let lastDesktopCollapsed = false
+// useMobile starts false and reads the real width on mount, so a sidebar
+// mounted narrow sees one false → true change that is the mount reading, not a
+// narrowing: its `collapsed` then is no desktop state to restore.
+let mountReading =
+  typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(SHELL_MOBILE_QUERY).matches
+
 watch(isMobile, (nowMobile, wasMobile) => {
-  if (nowMobile && !wasMobile && !props.collapsed) {
-    emit('update:collapsed', true)
+  if (nowMobile && !wasMobile) {
+    if (mountReading) mountReading = false
+    else lastDesktopCollapsed = props.collapsed
+    if (!props.collapsed) emit('update:collapsed', true)
+  } else if (!nowMobile && wasMobile) {
+    emit('update:collapsed', lastDesktopCollapsed)
   }
 })
 </script>

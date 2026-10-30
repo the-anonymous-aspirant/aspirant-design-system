@@ -92,6 +92,15 @@ const props = defineProps({
   maxHeight: { type: String, default: '60vh' },
   // Rows rendered beyond the viewport on each side, to cover fast scrolls.
   overscan: { type: Number, default: 8 },
+  // What virtual mode scrolls against (§3.120 Q11, system_3 #9182). 'self' (the
+  // default) is the capped inner viewport above. 'window' keeps the windowing
+  // but reads it from the PAGE scroll and drops the cap and the vertical
+  // overflow, so a phone list under a filter block has one scroller: the page.
+  scrollRoot: {
+    type: String,
+    default: 'self',
+    validator: (v) => ['self', 'window'].includes(v),
+  },
 })
 
 const emit = defineEmits(['sort', 'update:sortBy', 'update:sortDir', 'row-click'])
@@ -330,6 +339,28 @@ const scrollTop = ref(0)
 const viewportH = ref(0)
 
 const virtualize = computed(() => displayRows.value.length > props.virtualizeThreshold)
+const windowScroll = computed(() => virtualize.value && props.scrollRoot === 'window')
+const selfScroll = computed(() => virtualize.value && props.scrollRoot !== 'window')
+
+// Window-scrolled virtual mode: the same scrollTop/viewportH the spacer math
+// reads, measured against the page — how far it has scrolled past the table's
+// top, and the window height. Listeners live only while the mode is on.
+const onWindowScroll = () => {
+  if (!scrollEl.value) return
+  scrollTop.value = Math.max(0, -scrollEl.value.getBoundingClientRect().top)
+  viewportH.value = window.innerHeight
+}
+const bindWindow = (on) => {
+  if (typeof window === 'undefined') return
+  if (on) {
+    window.addEventListener('scroll', onWindowScroll, { passive: true })
+    window.addEventListener('resize', onWindowScroll)
+    onWindowScroll()
+  } else {
+    window.removeEventListener('scroll', onWindowScroll)
+    window.removeEventListener('resize', onWindowScroll)
+  }
+}
 
 // --- Horizontal-overflow discoverability cue (#4529) -------------------------
 // `.data-table__scroll` is an `overflow-x: auto` box, but a native scrollbar is
@@ -382,11 +413,13 @@ const measureOverflow = () => {
 }
 
 const onScroll = () => {
-  if (scrollEl.value) scrollTop.value = scrollEl.value.scrollTop
+  // In window mode the wrapper only scrolls sideways; the page owns scrollTop.
+  if (scrollEl.value && !windowScroll.value) scrollTop.value = scrollEl.value.scrollTop
   measureOverflow()
 }
 const measureViewport = () => {
-  if (scrollEl.value) viewportH.value = scrollEl.value.clientHeight
+  if (windowScroll.value) onWindowScroll()
+  else if (scrollEl.value) viewportH.value = scrollEl.value.clientHeight
 }
 
 // The overflow state on load, and after a resize, does not depend on any scroll
@@ -396,6 +429,7 @@ const measureViewport = () => {
 let resizeObserver = null
 let themeObserver = null
 onMounted(() => {
+  if (windowScroll.value) bindWindow(true)
   measureContainer()
   measureViewport()
   measureOverflow()
@@ -441,7 +475,10 @@ watch(
 )
 watch([cardMode, () => props.columns], () => nextTick(measureYield))
 
+watch(windowScroll, (on) => nextTick(() => bindWindow(on)))
+
 onBeforeUnmount(() => {
+  bindWindow(false)
   if (resizeObserver) resizeObserver.disconnect()
   if (themeObserver) themeObserver.disconnect()
   if (flipFrame && typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(flipFrame)
@@ -553,6 +590,13 @@ const ariaRowCount = computed(() =>
 // Reset the viewport to the top when the row set is reordered, so a sort does
 // not leave the operator staring at the middle of the newly-ordered list.
 const resetScroll = () => {
+  if (windowScroll.value) {
+    // Bring the table's top back into view only if the page is scrolled past it.
+    const top = scrollEl.value?.getBoundingClientRect().top ?? 0
+    if (top < 0) window.scrollBy(0, top)
+    onWindowScroll()
+    return
+  }
   if (scrollEl.value) scrollEl.value.scrollTop = 0
   scrollTop.value = 0
 }
@@ -673,8 +717,8 @@ const tableClasses = computed(() => ({
     <div
       ref="scrollEl"
       class="data-table__scroll"
-      :class="{ 'data-table__scroll--virtual': virtualize }"
-      :style="virtualize ? { maxHeight } : null"
+      :class="{ 'data-table__scroll--virtual': selfScroll, 'data-table__scroll--window': windowScroll }"
+      :style="selfScroll ? { maxHeight } : null"
       @scroll="onScroll"
     >
       <table

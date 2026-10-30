@@ -442,7 +442,19 @@ const scrollable = computed(() => props.maxHeight !== null)
 .asp-content__prose :deep(h5),
 .asp-content__prose :deep(h6) {
   margin-bottom: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-bold);
   line-height: var(--font-line-height-tight);
+}
+/*
+ * One level below a page title (§3.120 Q1): left at browser defaults a
+ * markdown h1 rendered 32px and outranked the route heading above it.
+ */
+.asp-content__prose :deep(h1) {
+  font-size: var(--text-lg);
+}
+.asp-content__prose :deep(h2) {
+  font-size: var(--text-md);
 }
 .asp-content__prose :deep(* + h1),
 .asp-content__prose :deep(* + h2),

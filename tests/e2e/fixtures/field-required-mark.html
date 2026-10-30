@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Required-field mark fixture (#9189)</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface-page); color: var(--text-body); font-family: var(--font-family-base); }
+  section { margin-bottom: 24px; max-width: 520px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./field-required-mark.js"></script>

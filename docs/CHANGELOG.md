@@ -6,6 +6,18 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **The required-field mark resolves against its setter**
+  (`system_3_design_conventions.md` §3.121, §3.119; task #9189).
+  - `AspInput` and `AspTextarea` take a `surface` prop, `'auto' | 'page' |
+    'card'` (default `'auto'`), the same prop as `AspComposer`'s. Inside an
+    AspCard (any variant but `ghost`), or with `surface="card"`, the required
+    `*` takes `--feedback-error-text-on-dark`: 4.96:1 on `#424242`, 7.08 on
+    `#2a2a2a`, where `#8b0f10` measured 1.04:1. On the page it keeps
+    `--feedback-error-text`. Nothing else in the field changes.
+  - **Consumer note.** A field on a hand-rolled dark surface the DS cannot
+    see, such as aspirant-client's `.sidebar` sign-in form, must pass
+    `surface="card"`. `surface="page"` keeps the page ink inside a card.
+
 - **AspContent markdown headings ramp below the page title; AspCard header at
   `--text-md`** (`system_3_design_conventions.md` §3.120 Q1; task #9178).
   - `AspContent` prose headings were browser-default sizes (h1 32px, h2 24px,

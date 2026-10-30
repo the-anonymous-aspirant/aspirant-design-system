@@ -43,6 +43,18 @@ const props = defineProps({
   // description, an artifact body) — enough typing room without a single
   // field being able to grow to fill the whole viewport.
   maxRows: { type: Number, default: 10 },
+  /**
+   * The setter the field resolves its required mark against (§3.121, §3.119;
+   * system_3 #9189). 'auto' reads it from the DOM: inside an AspCard (any
+   * variant but the transparent `ghost`) the mark takes the dark-setter ink,
+   * anywhere else the page one. 'page' and 'card' force it, for a hand-rolled
+   * surface the selector cannot see. Same prop as AspInput's.
+   */
+  surface: {
+    type: String,
+    default: 'auto',
+    validator: (v) => ['auto', 'page', 'card'].includes(v),
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -116,7 +128,10 @@ defineExpose({
 </script>
 
 <template>
-  <div class="field" :class="{ 'field--disabled': disabled }">
+  <div
+    class="field"
+    :class="{ 'field--disabled': disabled, [`field--surface-${surface}`]: surface !== 'auto' }"
+  >
     <label v-if="label" class="field__label" :for="uid">
       {{ label }}
       <span v-if="required" class="field__required" aria-hidden="true">*</span>
@@ -168,6 +183,11 @@ defineExpose({
 
 .field__required {
   color: var(--feedback-error-text);
+}
+/* Dark setter, dark-setter ink (§3.121); same reading as AspInput's mark. */
+:where(.card:not(.card--variant-ghost)) .field:not(.field--surface-page) .field__required,
+.field--surface-card .field__required {
+  color: var(--feedback-error-text-on-dark);
 }
 
 .field__textarea {

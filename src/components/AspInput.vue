@@ -35,6 +35,18 @@ const props = defineProps({
   error: { type: [String, Boolean], default: '' },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
+  /**
+   * The setter the field resolves its required mark against (§3.121, §3.119;
+   * system_3 #9189). 'auto' reads it from the DOM: inside an AspCard (any
+   * variant but the transparent `ghost`) the mark takes the dark-setter ink,
+   * anywhere else the page one. 'page' and 'card' force it, for a hand-rolled
+   * surface the selector cannot see.
+   */
+  surface: {
+    type: String,
+    default: 'auto',
+    validator: (v) => ['auto', 'page', 'card'].includes(v),
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -74,7 +86,10 @@ defineExpose({
 </script>
 
 <template>
-  <div class="field" :class="{ 'field--disabled': disabled }">
+  <div
+    class="field"
+    :class="{ 'field--disabled': disabled, [`field--surface-${surface}`]: surface !== 'auto' }"
+  >
     <label v-if="label" class="field__label" :for="uid">
       {{ label }}
       <span v-if="required" class="field__required" aria-hidden="true">*</span>
@@ -140,6 +155,13 @@ defineExpose({
 
 .field__required {
   color: var(--feedback-error-text);
+}
+/* The mark is part of the field, so a dark setter gives it the dark-setter
+   ink (§3.121): #8b0f10 measured 1.04:1 on #424242. Same setter reading as
+   AspComposer's field (#9134). */
+:where(.card:not(.card--variant-ghost)) .field:not(.field--surface-page) .field__required,
+.field--surface-card .field__required {
+  color: var(--feedback-error-text-on-dark);
 }
 
 .field__control {

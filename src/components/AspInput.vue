@@ -158,8 +158,9 @@ defineExpose({
 }
 /* The mark is part of the field, so a dark setter gives it the dark-setter
    ink (§3.121): #8b0f10 measured 1.04:1 on #424242. Same setter reading as
-   AspComposer's field (#9134). */
-:where(.card:not(.card--variant-ghost)) .field:not(.field--surface-page) .field__required,
+   AspComposer's field (#9134). AspModal's panel paints the same --surface-card
+   without being a .card (#9203). */
+:where(.card:not(.card--variant-ghost), .modal__panel) .field:not(.field--surface-page) .field__required,
 .field--surface-card .field__required {
   color: var(--feedback-error-text-on-dark);
 }

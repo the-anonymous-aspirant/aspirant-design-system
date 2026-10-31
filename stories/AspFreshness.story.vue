@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import AspFreshness from '../src/components/AspFreshness.vue'
 import AspCard from '../src/components/AspCard.vue'
+import AspButton from '../src/components/AspButton.vue'
 
 // Fixed so the story reads the same on every open — a live clock would make the
 // documented values drift away from the prose describing them. The interactive
@@ -129,6 +130,21 @@ function onRefresh() {
       </div>
     </Variant>
 
+    <Variant title="Beside another button (44px targets, #9241)">
+      <div class="pane rows">
+        <p class="note">
+          The trigger's own box is 44 &times; 44 (§3.99 Tier 2: an icon-only control is
+          small in both dimensions), and the glyph keeps its size. Hover each one: the
+          fill shows the area a tap hits, and the two areas meet across the
+          <code>--space-xs</code> gap without overlapping.
+        </p>
+        <div class="beside">
+          <AspFreshness :last-successful-at="at(-480)" :now="NOW" />
+          <AspButton variant="ghost" size="sm">Settings</AspButton>
+        </div>
+      </div>
+    </Variant>
+
     <Variant title="On a dark AspCard">
       <AspCard>
         <AspFreshness :last-successful-at="at(-480)" :now="NOW" />
@@ -160,6 +176,11 @@ function onRefresh() {
   flex-direction: column;
   gap: var(--space-sm);
   align-items: flex-start;
+}
+.beside {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
 }
 .cap {
   display: inline-flex;

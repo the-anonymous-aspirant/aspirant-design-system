@@ -9,14 +9,19 @@
 //   #forced-page  surface="page" inside an AspCard
 //   #states       inside an AspCard: error and disabled inputs (focus is
 //                 driven by the spec on #card)
+//   #modal        inside an open AspModal, whose panel paints --surface-card
+//                 without being a .card (#9203). Only with ?modal=1: the open
+//                 dialog traps focus, which the #card focus case needs.
 import { createApp, h } from 'vue'
 
 import '../../../build/tokens.css'
-import { AspCard, AspInput, AspTextarea } from '../../../src/index.js'
+import { AspCard, AspInput, AspModal, AspTextarea } from '../../../src/index.js'
 
 // Both components set inheritAttrs: false (a passed class lands on the inner
 // control), so each probe is wrapped rather than classed.
 const probe = (cls, node) => h('div', { class: cls }, [node])
+
+const withModal = new URLSearchParams(location.search).get('modal') === '1'
 
 const pair = (extra = {}) => [
   probe('probe-input', h(AspInput, { label: 'Email', required: true, ...extra })),
@@ -45,6 +50,9 @@ createApp({
             probe('probe-disabled', h(AspInput, { label: 'Disabled', required: true, disabled: true })),
           ]),
         ]),
+        withModal
+          ? h(AspModal, { open: true, title: 'Submit feedback' }, () => [h('div', { id: 'modal' }, pair())])
+          : null,
       ])
   },
 }).mount('#app')

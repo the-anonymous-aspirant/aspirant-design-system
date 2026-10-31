@@ -44,11 +44,14 @@ const READ = (selectors) => {
   })
 }
 
-const open = async (page, theme) => {
-  await page.goto(`/tests/e2e/fixtures/field-required-mark.html${theme === 'dark' ? '?theme=dark' : ''}`, {
+const open = async (page, theme, { modal = false } = {}) => {
+  const q = new URLSearchParams()
+  if (theme === 'dark') q.set('theme', 'dark')
+  if (modal) q.set('modal', '1')
+  await page.goto(`/tests/e2e/fixtures/field-required-mark.html${q.size ? `?${q}` : ''}`, {
     waitUntil: 'networkidle',
   })
-  await page.locator('#states .probe-disabled').waitFor()
+  await page.locator(modal ? '#modal .probe-textarea' : '#states .probe-disabled').waitFor()
 }
 
 const ratio = (r) => contrastRatio(compositeOver(r.mark, r.behind), r.behind)
@@ -113,5 +116,27 @@ for (const theme of ['light', 'dark']) {
       expect(c, `${r.sel} (${theme}): ${c.toFixed(2)}:1`).toBeGreaterThanOrEqual(AA)
     }
     expect(disabled.mark).toEqual(errored.mark)
+  })
+
+  // #9203: AspModal's panel paints --surface-card but is not a .card, so the
+  // mark read it as a page setter: 1.04:1 on #424242 in the light theme.
+  test(`a required field in AspModal takes the card ink (${theme})`, async ({ page }) => {
+    await open(page, theme, { modal: true })
+    const [input, textarea, page_, card] = await page.evaluate(READ, [
+      ...marks('modal'),
+      '#page .probe-input .field__required',
+      '#card .probe-input .field__required',
+    ])
+    for (const r of [input, textarea]) {
+      expect(r.missing, `${r.sel} rendered`).toBeUndefined()
+      expect(r.visible, `${r.sel} visible`).toBe(true)
+      const c = ratio(r)
+      console.log(`MARK ${theme} ${r.sel} on ${r.behind} = ${c.toFixed(2)}:1`)
+      expect(c, `${r.sel} (${theme}): ${c.toFixed(2)}:1 on ${r.behind}`).toBeGreaterThanOrEqual(AA)
+      expect(r.mark, `${r.sel} takes the card ink`).toEqual(card.mark)
+    }
+    // The panel is the backdrop, and it is the card surface.
+    expect(input.behind).toEqual(card.behind)
+    if (theme === 'light') expect(input.mark).not.toEqual(page_.mark)
   })
 }

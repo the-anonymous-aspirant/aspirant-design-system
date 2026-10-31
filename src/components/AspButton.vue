@@ -129,7 +129,9 @@ const onClick = (event) => {
    dimensions (§3.119 decision 5, system_3 #9139); its padding and font size
    are unchanged. The 44px Tier-2 touch target is deliberately NOT applied
    here — it is reserved for controls small in BOTH dimensions (size="icon"
-   above) or standalone touch-first affordances. Ruling: §3.99 / #4461. */
+   above) or standalone touch-first affordances. AspFreshness' trigger is one,
+   and takes the 44px in its own component (system_3 #9241). Ruling: §3.99 /
+   #4461. */
 .btn--size-sm {
   padding: var(--space-2xs) var(--space-sm);
   font-size: var(--text-sm);

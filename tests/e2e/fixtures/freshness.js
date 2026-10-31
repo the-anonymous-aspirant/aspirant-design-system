@@ -5,7 +5,7 @@
 import { createApp, h, reactive } from 'vue'
 
 import '../../../build/tokens.css'
-import { AspFreshness } from '../../../src/index.js'
+import { AspButton, AspFreshness } from '../../../src/index.js'
 
 const NOW = Date.parse('2026-07-19T12:00:00.000Z')
 const at = (s) => new Date(NOW + s * 1000).toISOString()
@@ -70,6 +70,18 @@ createApp({
             showTime: false,
             failed: true,
           })),
+          // size="md" (the other trigger size), and the trigger one --space-xs
+          // from another button, as the console's home header places it beside
+          // the settings door (#9241): neither hit area may reach into the other.
+          h('div', { id: 'md' }, h(AspFreshness, {
+            lastSuccessfulAt: at(-480),
+            now: NOW,
+            size: 'md',
+          })),
+          h('div', { id: 'neighbour', style: 'display:flex;align-items:center;gap:var(--space-xs)' }, [
+            h(AspFreshness, { lastSuccessfulAt: at(-480), now: NOW }),
+            h(AspButton, { variant: 'ghost', size: 'sm', 'data-testid': 'neighbour' }, () => 'Settings'),
+          ]),
         ]
       )
   },

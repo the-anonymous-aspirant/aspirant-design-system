@@ -1,5 +1,5 @@
 <script setup>
-import { computed, useAttrs, watchEffect } from 'vue'
+import { computed, resolveDynamicComponent, useAttrs, watchEffect } from 'vue'
 
 const props = defineProps({
   variant: {
@@ -25,6 +25,11 @@ const props = defineProps({
     default: 'button',
     validator: (v) => ['button', 'submit', 'reset'].includes(v),
   },
+  // A button that navigates is a link (§3.23, system_3 #9246): `href` renders
+  // an <a>, `to` the app's RouterLink (an <a> with client-side navigation).
+  // Same classes and look; `type` and `disabled` are not rendered on a link.
+  href: { type: String, default: null },
+  to: { type: [String, Object], default: null },
 })
 
 const emit = defineEmits(['click'])
@@ -49,6 +54,36 @@ if (import.meta.env?.DEV) {
 
 const isBlocked = computed(() => props.disabled || props.loading)
 
+// The DS takes no vue-router dependency: `to` resolves whatever RouterLink the
+// app registered, and without one a string `to` is a plain href.
+const routerLink = computed(() => {
+  if (props.to == null) return null
+  const c = resolveDynamicComponent('RouterLink')
+  return typeof c === 'string' ? null : c
+})
+const isLink = computed(() => props.href != null || props.to != null)
+
+const tag = computed(() => {
+  if (!isLink.value) return 'button'
+  if (routerLink.value && !isBlocked.value) return routerLink.value
+  return 'a'
+})
+
+const rootAttrs = computed(() => {
+  if (!isLink.value) {
+    return { type: props.type, disabled: isBlocked.value }
+  }
+  // A blocked link has nowhere to go: no href, out of the tab order, and named
+  // disabled to assistive tech. The click handler swallows any click.
+  if (isBlocked.value) {
+    return { role: 'link', 'aria-disabled': 'true', tabindex: '-1' }
+  }
+  const out = routerLink.value ? { to: props.to } : { href: props.href ?? props.to }
+  // A new tab must not hand the opener to the page it opens.
+  if (attrs.target === '_blank' && attrs.rel == null) out.rel = 'noopener noreferrer'
+  return out
+})
+
 const classes = computed(() => ({
   btn: true,
   [`btn--${props.variant}`]: true,
@@ -67,10 +102,10 @@ const onClick = (event) => {
 </script>
 
 <template>
-  <button
-    :type="type"
+  <component
+    :is="tag"
+    v-bind="rootAttrs"
     :class="classes"
-    :disabled="isBlocked"
     :aria-busy="loading || undefined"
     @click="onClick"
   >
@@ -98,7 +133,7 @@ const onClick = (event) => {
     <span v-if="$slots.iconRight && !loading && !isIcon" class="btn__icon btn__icon--right">
       <slot name="iconRight" />
     </span>
-  </button>
+  </component>
 </template>
 
 <style scoped>
@@ -119,6 +154,9 @@ const onClick = (event) => {
   user-select: none;
   white-space: nowrap;
   appearance: none;
+  /* Rendered as a link (href/to), it is still a button to look at: no UA or app
+     link underline. variant="link" sets its own, later in the cascade. */
+  text-decoration: none;
 }
 
 /* Size — sm/md/lg are PADDING-DRIVEN by design. md and lg clear the 24px WCAG
@@ -253,11 +291,16 @@ const onClick = (event) => {
   box-shadow: var(--shadow-focus);
 }
 
-/* Disabled + loading */
+/* Disabled + loading. A blocked link has no :disabled, so it is matched by
+   its aria-disabled, and takes no pointer events so no hover state applies. */
 .btn:disabled,
+.btn[aria-disabled='true'],
 .btn--loading {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.btn[aria-disabled='true'] {
+  pointer-events: none;
 }
 .btn--loading {
   cursor: progress;

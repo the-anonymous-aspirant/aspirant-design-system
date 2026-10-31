@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AspButton link-rendering fixture</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<!-- A hostile app-level link rule, as aspirant-client's style.css has: a
+     link-rendered AspButton must keep its variant ink and no underline. -->
+<style>
+  a { color: rgb(0, 0, 238); text-decoration: underline; font-weight: 500; }
+  .card a { color: rgb(130, 177, 255); }
+</style>
+<div id="app"></div>
+<script type="module" src="./button-link.js"></script>

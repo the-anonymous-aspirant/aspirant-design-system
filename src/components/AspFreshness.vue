@@ -149,9 +149,18 @@ defineEmits(['refresh'])
   white-space: nowrap;
 }
 /* The trigger is icon-only: AspButton always renders an (empty) label span, so
-   drop it and tighten the padding to keep the control square next to the time. */
+   drop it. With no label to widen it, the trigger is small in BOTH dimensions,
+   so it takes the §3.99 Tier-2 touch target (§3.122 P8; system_3 #9241): a
+   44 x 44 box, per WCAG 2.5.5 (Enhanced) and Apple HIG / Material touch
+   guidance, not the 24px 2.5.8 floor. The box itself grows, not an overlay, so
+   the hover fill and focus ring show the area a tap hits and nothing reaches
+   into a neighbour's. Padding is zeroed so the glyph centres in the square; the
+   glyph stays 1em of the trigger's own size (sm/md), not AspButton's
+   size="icon" --text-lg. The spinner and the failed glyph keep their size. */
 .freshness__trigger {
-  padding-inline: var(--space-2xs);
+  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
 }
 .freshness__trigger :deep(.btn__label:empty) {
   display: none;

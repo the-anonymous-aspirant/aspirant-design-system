@@ -6,6 +6,15 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **The required-field mark reads AspModal's panel as a dark setter**
+  (`system_3_design_conventions.md` §3.121; task #9203).
+  - The panel paints `--surface-card` but is not `.card`, so a required
+    AspInput or AspTextarea in a modal kept `--feedback-error-text`: 1.04:1 on
+    the light theme's `#424242` (the console's Submit feedback modal). The
+    mark's setter list now includes `.modal__panel`, so it takes
+    `--feedback-error-text-on-dark` there. `surface="page"` still opts out.
+  - No consumer change: modal forms need no `surface="card"`.
+
 - **AspDataTable window-scrolled virtual mode for phone lists**
   (`system_3_design_conventions.md` §3.120 Q11; task #9182).
   - New prop `scrollRoot: 'self' | 'window'` (default `'self'`, unchanged).

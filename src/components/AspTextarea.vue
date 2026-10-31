@@ -184,8 +184,9 @@ defineExpose({
 .field__required {
   color: var(--feedback-error-text);
 }
-/* Dark setter, dark-setter ink (§3.121); same reading as AspInput's mark. */
-:where(.card:not(.card--variant-ghost)) .field:not(.field--surface-page) .field__required,
+/* Dark setter, dark-setter ink (§3.121); same reading as AspInput's mark,
+   AspModal's panel included (#9203). */
+:where(.card:not(.card--variant-ghost), .modal__panel) .field:not(.field--surface-page) .field__required,
 .field--surface-card .field__required {
   color: var(--feedback-error-text-on-dark);
 }

@@ -162,6 +162,31 @@ const runAsync = async () => {
       </div>
     </Variant>
 
+    <Variant title="As a link (href / to)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A button that navigates is a link (§3.23, #9246). <code>href</code> renders an
+        <code>&lt;a&gt;</code>, and <code>to</code> renders the app's <code>RouterLink</code>, or a
+        plain <code>href</code> where there is no router, as here. Each pair below is the
+        <code>&lt;button&gt;</code> rendering, then the link rendering, and they look the same.
+        <code>target="_blank"</code> gets <code>rel="noopener noreferrer"</code>. A disabled link
+        has no <code>href</code> and is <code>aria-disabled</code>.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(2, max-content); gap: 12px; align-items: center;">
+        <AspButton variant="primary">Back to the home page</AspButton>
+        <AspButton variant="primary" href="#as-a-link">Back to the home page</AspButton>
+        <AspButton variant="secondary">Secondary</AspButton>
+        <AspButton variant="secondary" href="#as-a-link">Secondary</AspButton>
+        <AspButton variant="ghost">Ghost</AspButton>
+        <AspButton variant="ghost" href="#as-a-link">Ghost</AspButton>
+        <AspButton variant="primary" disabled>Disabled</AspButton>
+        <AspButton variant="primary" href="#as-a-link" disabled>Disabled</AspButton>
+      </div>
+      <AspCard style="margin-top: 16px; display: flex; gap: 12px;">
+        <AspButton variant="primary" href="https://example.com/" target="_blank">Buy me a coffee</AspButton>
+        <AspButton variant="ghost" href="#as-a-link">On a card</AspButton>
+      </AspCard>
+    </Variant>
+
     <Variant title="Dark theme">
       <div data-theme="dark" style="padding: 24px; background: var(--surface-page); display: flex; gap: 12px; flex-wrap: wrap;">
         <AspButton variant="primary">Primary</AspButton>

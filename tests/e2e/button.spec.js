@@ -258,3 +258,61 @@ for (const theme of ['light', 'dark']) {
     })
   })
 }
+
+// AspButton variant="primary" hover label contrast (#9237): hover used to swap
+// BOTH the fill (--brand-primary-hover, #e07800) and the ink (--text-on-dark,
+// white), and white-on-#e07800 is 3.06:1 — under the 4.5:1 text floor, in both
+// themes, since neither token flips. The fix keeps the REST ink
+// (--text-on-fixed-light) on hover and darkens the fill one ramp step short of
+// --brand-primary-hover, to --brand-primary-600. Pinned as an equality against
+// the resolved tokens (so a revert to the old fill, or an ink flip back to
+// --text-on-dark, goes red even if the ratio math has a bug) AND as a measured
+// ratio, in both themes — mirroring the destructive-variant pattern above.
+for (const theme of ['light', 'dark']) {
+  test.describe(`primary hover contrast (${theme})`, () => {
+    test.beforeEach(async ({ page }) => {
+      const q = theme === 'dark' ? '?theme=dark' : ''
+      await page.goto(`/tests/e2e/fixtures/button.html${q}`, { waitUntil: 'networkidle' })
+    })
+
+    test('rest ink stays the SAME ink on hover — no flip to --text-on-dark', async ({ page }) => {
+      const btn = page.locator('#text button')
+      const restFg = await btn.evaluate((el) => getComputedStyle(el).color)
+      await btn.hover()
+      await page.waitForTimeout(250)
+      const hoverFg = await btn.evaluate((el) => getComputedStyle(el).color)
+      expect(hoverFg).toBe(restFg)
+      const onDark = await page
+        .locator('#ref-on-dark')
+        .evaluate((el) => getComputedStyle(el).color)
+      expect(hoverFg).not.toBe(onDark)
+    })
+
+    test('hover fill is --brand-primary-600, not --brand-primary-hover', async ({ page }) => {
+      const btn = page.locator('#text button')
+      await btn.hover()
+      await page.waitForTimeout(250)
+      const p = await paint(btn)
+      expect(p.bg).toBe(await refBg(page, 'ref-primary-600'))
+      expect(p.bg).not.toBe(await refBg(page, 'ref-primary-hover-old'))
+    })
+
+    test('hover label measures ≥ 4.5:1', async ({ page }) => {
+      const btn = page.locator('#text button')
+      await btn.hover()
+      await page.waitForTimeout(250)
+      const p = await paint(btn)
+      const bg = rgb(p.bg)
+      expect(bg.a, 'fill must be opaque').toBe(1)
+      const r = ratio(rgb(p.fg).c, bg.c)
+      expect(r, `hover ${p.fg} on ${p.bg}`).toBeGreaterThanOrEqual(4.5)
+    })
+
+    test('rest label also measures ≥ 4.5:1 (unchanged by the fix)', async ({ page }) => {
+      const p = await paint(page.locator('#text button'))
+      const bg = rgb(p.bg)
+      const r = ratio(rgb(p.fg).c, bg.c)
+      expect(r, `rest ${p.fg} on ${p.bg}`).toBeGreaterThanOrEqual(4.5)
+    })
+  })
+}

@@ -364,11 +364,21 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   font: inherit;
-  font-size: var(--text-sm);
+  /* §3.122 P9 / §1.9: phone-first text size — the selected value is
+     --text-base (16px) below 768px per operator ruling c57324 (design
+     primarily for a fairphone), --text-sm from 768px up. (Also avoids iOS
+     auto-zoom on focus — a side effect, not the reason.) */
+  font-size: var(--text-base);
   cursor: pointer;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
+}
+
+@media (min-width: 768px) {
+  .select__trigger {
+    font-size: var(--text-sm);
+  }
 }
 
 .select__trigger:focus-visible {
@@ -417,10 +427,20 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
 
 .select__option {
   padding: var(--space-2xs) var(--space-sm);
-  font-size: var(--text-sm);
+  /* §3.122 P9 / §1.9: phone-first text size — the option list's text is
+     --text-base (16px) below 768px per operator ruling c57324 (design
+     primarily for a fairphone), --text-sm from 768px up. (Also avoids iOS
+     auto-zoom on focus — a side effect, not the reason.) */
+  font-size: var(--text-base);
   cursor: pointer;
   /* Inherits the panel's ink — the panel is the surface-setter. */
   color: inherit;
+}
+
+@media (min-width: 768px) {
+  .select__option {
+    font-size: var(--text-sm);
+  }
 }
 
 /*

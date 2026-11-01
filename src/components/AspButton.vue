@@ -208,9 +208,19 @@ const onClick = (event) => {
      an amber button: measured 1.36:1. Task-#2417. */
   color: var(--text-on-fixed-light);
 }
+/* Hover used to swap BOTH the fill and the ink to --brand-primary-hover
+   (#e07800) / --text-on-dark (white): white on #e07800 is 3.06:1, under the
+   4.5:1 text floor (WCAG 1.4.3 has no hover exemption). --brand-primary-hover
+   stays as-is for its other consumers (GameTimeline.vue, Assets.vue text ink);
+   this rule stops reading it. Keeping the SAME ink as rest (--text-on-fixed-
+   light, #424242 — never flips with theme, same reasoning as line 206 above)
+   and darkening only the fill one ramp step, to --brand-primary-600 (#ffa000,
+   not --brand-primary-hover/-900's #e07800), clears the floor: #424242 on
+   #ffa000 measures 4.92:1, in both themes, since neither token flips.
+   Task-#9237. */
 .btn--primary:hover:not(:disabled) {
-  background: var(--brand-primary-hover);
-  color: var(--text-on-dark);
+  background: var(--brand-primary-600);
+  color: var(--text-on-fixed-light);
 }
 
 .btn--secondary {

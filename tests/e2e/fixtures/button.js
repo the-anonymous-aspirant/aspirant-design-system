@@ -6,7 +6,8 @@
 // run, a brand-inked call site, and disabled — plus reference spans that resolve
 // the muted/brand tokens for the ink-inherit assertions. It also renders the
 // destructive text button (at rest, disabled, and on an AspCard) with reference
-// spans for its label/fill pair (§3.108, #7969).
+// spans for its label/fill pair (§3.108, #7969), and the primary text button
+// (id="text") doubles as the primary-hover contrast fixture (#9237).
 import { createApp, h } from 'vue'
 
 import '../../../build/tokens.css'
@@ -80,6 +81,11 @@ createApp({
         h('span', { id: 'ref-error-solid', style: 'background: var(--feedback-error-solid)' }, 'ref'),
         h('span', { id: 'ref-error-mark', style: 'background: var(--feedback-error)' }, 'ref'),
         h('span', { id: 'ref-on-dark', style: 'color: var(--text-on-dark)' }, 'ref'),
+        // Token references for the primary-hover pair (§3.108-adjacent,
+        // #9237): the fill it must paint on hover, and the fill it must NOT
+        // (the old --brand-primary-hover/-900, white-on-#e07800 at 3.06:1).
+        h('span', { id: 'ref-primary-600', style: 'background: var(--brand-primary-600)' }, 'ref'),
+        h('span', { id: 'ref-primary-hover-old', style: 'background: var(--brand-primary-hover)' }, 'ref'),
       ])
   },
 }).mount('#app')

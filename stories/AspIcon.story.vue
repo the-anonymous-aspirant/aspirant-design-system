@@ -75,6 +75,15 @@ const iconBaseConfigured = isIconBaseConfigured()
       </div>
     </Variant>
 
+    <Variant title="Agent subpage names (#9412)">
+      <p>The system_3 agent page's four subpage links, registered glyph-only (§3.113) so they take the hand-drawn upgrade; <code>⚖</code> and <code>↗</code> carry U+FE0E so no platform renders them as colour emoji. Shown at <code>sm</code> and <code>md</code>, light and dark.</p>
+      <div v-for="theme in ['light', 'dark']" :key="theme" :data-theme="theme" style="display: flex; gap: 24px; align-items: baseline; padding: 12px; background: var(--surface-page); color: var(--text-on-light);">
+        <span v-for="name in ['responsibilities', 'improvement', 'owns', 'activity']" :key="name" style="display: inline-flex; align-items: center; gap: 8px;">
+          <AspIcon :name="name" size="sm" /><AspIcon :name="name" size="md" /><small style="color: var(--text-muted);">{{ name }} ({{ theme }})</small>
+        </span>
+      </div>
+    </Variant>
+
     <Variant title="Accessibility label">
       <p>Omitting <code>label</code> emits <code>aria-hidden="true"</code> so screen readers skip the icon. Providing <code>label</code> promotes it to a real <code>role="img"</code>.</p>
       <div style="display: flex; gap: 20px; padding: 12px; background: var(--surface-page); color: var(--text-on-light);">

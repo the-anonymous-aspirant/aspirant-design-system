@@ -14,6 +14,15 @@ const GLYPHS = {
   artifacts: '▤',
 }
 
+// The agent page's subpage names (#9412): the same registration, with the
+// text-presentation selector on the two glyphs that have an emoji form.
+const SUBPAGE_GLYPHS = {
+  responsibilities: '\u2696\uFE0E',
+  improvement: '\u2197\uFE0E',
+  owns: '◈',
+  activity: '∿',
+}
+
 // Draws `text` white on a transparent canvas in `font` and returns the largest
 // per-pixel channel spread (max-min of r,g,b) over opaque pixels. White ink
 // gives ~0; a colour-emoji rendering gives a large spread.
@@ -41,7 +50,7 @@ const maxSpread = (page, text, font) =>
 test('each nav name falls back to its glyph and has no image asset', async ({ page }) => {
   await page.goto(FIXTURE, { waitUntil: 'networkidle' })
   const reg = await page.evaluate(() => window.__registry)
-  for (const [name, glyph] of Object.entries(GLYPHS)) {
+  for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS })) {
     expect(reg[name].glyph, name).toBe(glyph)
     // registryAsset falls back to the name itself for a null asset; what keeps
     // AspIcon's image arm off is that the name is not an asset_map.json key.
@@ -55,13 +64,13 @@ for (const collapsed of [false, true]) {
     page,
   }) => {
     await page.goto(`${FIXTURE}${collapsed ? '?collapsed=1' : ''}`, { waitUntil: 'networkidle' })
-    for (const [name, glyph] of Object.entries(GLYPHS)) {
+    for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS })) {
       const icon = page.locator(`[data-test="nav-${name}"] .asp-icon`)
       await expect(icon.locator('.asp-icon__glyph')).toHaveText(glyph)
       await expect(icon.locator('.asp-icon__img')).toHaveCount(0)
     }
     const calls = await page.evaluate(() => window.__fetchCalls)
-    expect(calls.filter((u) => Object.keys(GLYPHS).some((n) => u.includes(n)))).toEqual([])
+    expect(calls.filter((u) => [...Object.keys(GLYPHS), ...Object.keys(SUBPAGE_GLYPHS)].some((n) => u.includes(n)))).toEqual([])
   })
 }
 
@@ -70,10 +79,19 @@ for (const theme of ['light', 'dark']) {
     await page.goto(`${FIXTURE}${theme === 'dark' ? '?theme=dark' : ''}`, {
       waitUntil: 'networkidle',
     })
-    for (const [name, glyph] of Object.entries(GLYPHS)) {
+    for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS })) {
       const el = page.locator(`[data-test="nav-${name}"] .asp-icon__glyph`)
       const font = await el.evaluate((e) => getComputedStyle(e).font)
       expect(await maxSpread(page, glyph, font), `${name} ${glyph}`).toBeLessThan(40)
+    }
+    // The subpage names at both sizes the agent page uses (#9412 acceptance 3).
+    for (const [name, glyph] of Object.entries(SUBPAGE_GLYPHS)) {
+      for (const size of ['sm', 'md']) {
+        const el = page.locator(`[data-test="glyph-${name}-${size}"] .asp-icon__glyph`)
+        await expect(el).toHaveText(glyph)
+        const font = await el.evaluate((e) => getComputedStyle(e).font)
+        expect(await maxSpread(page, glyph, font), `${name} ${size} ${glyph}`).toBeLessThan(40)
+      }
     }
   })
 }

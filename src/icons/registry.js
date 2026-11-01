@@ -59,6 +59,15 @@ export const iconRegistry = {
   processes: { glyph: '⟳', asset: null },
   corpus: { glyph: '§', asset: null },
   artifacts: { glyph: '▤', asset: null },
+  // The console's agent-page subpage links (system_3 #9303, #9412; §3.113 names
+  // a registered name, never a raw glyph, so the §1.4 upgrade can reach them).
+  // ⚖ and ↗ have emoji forms, so they carry U+FE0E (text presentation) and
+  // render in the inherited ink like the rest. ☰ was rejected (reads as a menu
+  // on every platform) and ▣ sits too close to `artifacts` ▤ in the same bar.
+  responsibilities: { glyph: '\u2696\uFE0E', asset: null },
+  improvement: { glyph: '\u2197\uFE0E', asset: null },
+  owns: { glyph: '◈', asset: null },
+  activity: { glyph: '∿', asset: null },
 }
 
 /** Unicode fallback glyph for `name`, or `null` if unregistered. */

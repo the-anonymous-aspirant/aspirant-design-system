@@ -226,9 +226,19 @@ defineExpose({
   background: transparent;
   color: var(--text-body);
   font-family: inherit;
-  font-size: var(--text-sm);
+  /* §3.122 P9 / §1.9: phone-first text size — typed text is --text-base
+     (16px) below 768px per operator ruling c57324 (design primarily for a
+     fairphone), --text-sm from 768px up. (Also avoids iOS auto-zoom on
+     focus — a side effect, not the reason.) */
+  font-size: var(--text-base);
   line-height: 1;
   appearance: none;
+}
+
+@media (min-width: 768px) {
+  .field__input {
+    font-size: var(--text-sm);
+  }
 }
 
 .field__input:focus {

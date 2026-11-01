@@ -214,7 +214,11 @@ defineExpose({
   border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: var(--text-sm);
+  /* §3.122 P9 / §1.9: phone-first text size — typed text is --text-base
+     (16px) below 768px per operator ruling c57324 (design primarily for a
+     fairphone), --text-sm from 768px up. (Also avoids iOS auto-zoom on
+     focus — a side effect, not the reason.) */
+  font-size: var(--text-base);
   line-height: 1.4;
   resize: none;
   appearance: none;
@@ -222,6 +226,12 @@ defineExpose({
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
     background var(--transition-fast);
+}
+
+@media (min-width: 768px) {
+  .field__textarea {
+    font-size: var(--text-sm);
+  }
 }
 
 .field__textarea::placeholder {

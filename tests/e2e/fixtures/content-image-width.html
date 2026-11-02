@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AspContent image width fixture (#9578)</title>
+<script>
+  const q = new URLSearchParams(location.search)
+  if (q.get('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface-page); color: var(--text-body); }
+  /* A phone's reading column: the width the UX walk read /artifacts/712 at. */
+  section { width: 390px; margin-bottom: 24px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./content-image-width.js"></script>

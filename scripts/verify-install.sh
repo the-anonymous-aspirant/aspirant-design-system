@@ -103,6 +103,16 @@ done
 grep -q -- '--brand-primary' "$PKG/build/tokens.css" \
   || fail "build/tokens.css carries no --brand-primary custom property"
 echo "  ok  build/tokens.css declares --brand-primary"
+
+# system_3 #9578: an image in AspContent or AspProse never exceeds its column.
+# Asserted on the BUILT stylesheet a consumer imports, so a rule that compiled
+# away (a dropped :deep(), a scoped selector that no longer matches) fails here
+# even though the source still reads right.
+for sel in 'asp-content__prose' 'prose'; do
+  grep -Eq "(^|[},])\.${sel}\[data-v-[0-9a-f]+\] img\{max-width:100%;height:auto\}" "$PKG/dist/style.css" \
+    || fail "dist/style.css carries no .${sel} img { max-width: 100%; height: auto } rule"
+  echo "  ok  dist/style.css caps .${sel} img at its column"
+done
 echo "  resolved tokens.css: $PKG/build/tokens.css"
 
 say "optional heavy peers are genuinely absent"

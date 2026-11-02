@@ -6,6 +6,15 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **An image in AspContent or AspProse never exceeds its column**
+  (UX walk 2026-11-02 R2; task #9578).
+  - Markdown images rendered at their natural width, so a 1440px screenshot in
+    a 390px column was clipped to its left quarter on a phone. Both components
+    now give a descendant `img` `max-width: 100%; height: auto`: it scales
+    to the column and keeps its aspect ratio. To see an image at full size,
+    wrap it in a link.
+  - No consumer change. The console receives it with its DS pin bump (#9579).
+
 - **The required-field mark reads AspModal's panel as a dark setter**
   (`system_3_design_conventions.md` §3.121; task #9203).
   - The panel paints `--surface-card` but is not `.card`, so a required

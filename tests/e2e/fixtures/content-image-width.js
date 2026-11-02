@@ -22,6 +22,6 @@ createApp({
         h('section', { id: 'prose' }, [
           h(AspProse, null, () => [h('p', 'A screenshot:'), h('img', { src, alt: 'wide shot' })]),
         ]),
-      ]),
+      ])
   },
 }).mount('#app')

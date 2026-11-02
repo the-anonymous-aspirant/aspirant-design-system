@@ -13,7 +13,7 @@ const open = async (page, theme) => {
   await expect(page.locator('section img')).toHaveCount(3)
   // Every image decoded, so its box reflects the real 1440x360 bitmap.
   await page.waitForFunction(() =>
-    [...document.querySelectorAll('section img')].every((i) => i.complete && i.naturalWidth > 0),
+    [...document.querySelectorAll('section img')].every((i) => i.complete && i.naturalWidth > 0)
   )
 }
 

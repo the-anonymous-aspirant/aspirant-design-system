@@ -1,6 +1,8 @@
 <script setup>
 import AspContent from '../src/components/AspContent.vue'
 import AspCard from '../src/components/AspCard.vue'
+// A real 1440x360 PNG, shared with tests/e2e/content-image-width.spec.js.
+import WIDE_SHOT from '../tests/e2e/fixtures/content-image-width.png'
 
 const MARKDOWN = `# Deploy report
 
@@ -107,6 +109,10 @@ const LONG_BODY = Array.from(
     `control off-screen — the third defect this component was filed against.\n`
 ).join('\n')
 
+// A screenshot wider than a phone's column (system_3 #9578). It scales to the
+// column; wrapped in a link, a tap opens it at full size.
+const WIDE_IMAGE = `A 1440px screenshot in a 390px column:\n\n![wide screenshot](${WIDE_SHOT})\n\nWrapped in a link:\n\n[![wide screenshot](${WIDE_SHOT})](${WIDE_SHOT})`
+
 // Built by concatenation, never written contiguously: a literal closing script
 // tag in this string would terminate the `<script setup>` block itself, and
 // escaping it (`<\/script>`) trips `no-useless-escape`. Splitting after `</`
@@ -166,6 +172,12 @@ Markdown still renders **normally** around it.
       <AspCard>
         <AspContent :content="MARKDOWN" type="markdown" />
       </AspCard>
+    </Variant>
+
+    <Variant title="Wide image in a 390px column (scales to fit)">
+      <div class="phone-column">
+        <AspContent :content="WIDE_IMAGE" type="markdown" />
+      </div>
     </Variant>
 
     <Variant title="Fenced code (highlighted)">
@@ -263,6 +275,10 @@ Markdown still renders **normally** around it.
 .light-pane {
   padding: var(--space-lg);
   background: var(--surface-page);
+}
+
+.phone-column {
+  width: 390px;
 }
 
 .note {

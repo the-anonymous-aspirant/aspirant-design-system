@@ -174,4 +174,10 @@ defineProps({
 .prose :deep(strong) {
   font-weight: var(--font-weight-bold);
 }
+
+/* An image never exceeds its column: the same rule as AspContent (#9578). */
+.prose :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
 </style>

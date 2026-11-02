@@ -520,6 +520,18 @@ const scrollable = computed(() => props.maxHeight !== null)
   border: 0;
 }
 
+/*
+ * An image never exceeds its column (system_3 #9578, UX walk 2026-11-02 R2).
+ * marked emits a bare `<img>` at its natural size, so a 1440px screenshot in a
+ * 390px column overflowed and was clipped: on a phone the reader saw its left
+ * quarter. Scale it down to the column and keep its aspect ratio. A reader who
+ * needs full size follows the link the markdown wraps it in, if any.
+ */
+.asp-content__prose :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+
 .asp-content__prose :deep(table) {
   border-collapse: collapse;
   width: 100%;

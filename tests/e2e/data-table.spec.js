@@ -333,6 +333,25 @@ test('a card-mode secondary cell with an empty value renders no label; a sibling
   await expect(second).not.toContainText('Labels')
 })
 
+test('a slot-rendered secondary cell renders on the card even when the row has no value under its key (#9825)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/tests/e2e/fixtures/data-table.html?only=slot-secondary', { waitUntil: 'networkidle' })
+  await expect(page.locator('#slot-secondary table')).toHaveClass(/data-table--cards/)
+  const rows = cards(page, 'slot-secondary')
+
+  // The slot decides what an action column shows, not row.action (absent).
+  await expect(rows.first().locator('[data-test="block-probably-a-bot"]')).toBeVisible()
+  await expect(rows.nth(1).locator('[data-test="block-admin"]')).toBeVisible()
+  await expect(rows.first().locator('[data-test="block-probably-a-bot"]')).toHaveText('Block probably-a-bot')
+
+  // The #9769 T2 rule still holds for a plain column: row 1's empty State is
+  // omitted, row 2's is shown; the slot column keeps its label on both.
+  await expect(rows.first().locator('.data-table__card-label')).toHaveText(['Action'])
+  await expect(rows.nth(1).locator('.data-table__card-label')).toHaveText(['State', 'Action'])
+})
+
 test('narrow="scroll" renders the table as before at 390px', async ({ page }) => {
   const t = page.locator('#scroll-390 table')
   await expect(t).not.toHaveClass(/data-table--cards/)

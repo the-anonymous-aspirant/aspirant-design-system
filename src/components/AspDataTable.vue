@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
 
 import AspButton from './AspButton.vue'
 import AspSelect from './AspSelect.vue'
@@ -168,8 +168,16 @@ const cardRole = (col) => cardRoleOf(col, roles.value)
 // value renders neither its label nor its value — the §1.1 minimalism rule
 // (`new-column-null-means-not-recorded`) extended to the phone card list. `0`
 // and `false` are real values and stay visible.
+//
+// A column the consumer renders through a `cell-<key>` slot is never omitted
+// (task #9825): its content comes from the slot, not from `row[col.key]`, and
+// an action, badge or link column often has no raw value under its key at
+// all. Judging it by that value dropped the admin roster's Block button and
+// unverified badge, a flow's run links and a job source's details on phones.
+const slots = useSlots()
 const isEmptyCardSecondary = (col, row) => {
   if (cardRole(col) !== 'secondary') return false
+  if (slots[`cell-${col.key}`]) return false
   const v = row[col.key]
   return v == null || v === '' || (Array.isArray(v) && v.length === 0)
 }

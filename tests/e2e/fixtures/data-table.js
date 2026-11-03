@@ -124,6 +124,22 @@ const emptySecondaryRows = [
   { name: 'Draft the Q3 roadmap', priority: 'operator ask', labels: '', count: 7 },
 ]
 
+// #9825 — a secondary column rendered through a `cell-<key>` slot whose rows
+// carry NO value under its key (an action column, like the client's admin
+// roster Block button): the slot content must still render on the card.
+// `state` is a plain secondary column, empty on the first row: still omitted
+// there (the #9769 T2 rule, the control).
+const slotSecondaryCols = [
+  { key: 'name', label: 'Account', role: 'identity' },
+  { key: 'state', label: 'State' },
+  { key: 'action', label: 'Action' },
+  { key: 'logins', label: 'Logins', role: 'figure', align: 'right' },
+]
+const slotSecondaryRows = [
+  { name: 'probably-a-bot', state: '', logins: 0 },
+  { name: 'admin', state: 'verified', logins: 12 },
+]
+
 // A /tasks-shaped table, columns and values as the console's /tasks renders
 // them, under the console's slack trick. `floorCols` declares the identity;
 // `slackCols` is the same table undeclared, the control that shows the
@@ -297,6 +313,17 @@ createApp({
         ]),
         h('section', { id: 'empty-secondary', style: 'margin-top:24px; width:390px' }, [
           h(AspDataTable, { columns: emptySecondaryCols, rows: emptySecondaryRows, rowKey: 'name' }),
+        ]),
+        // --- #9825 ---
+        h('section', { id: 'slot-secondary', style: 'margin-top:24px; width:390px' }, [
+          h(
+            AspDataTable,
+            { columns: slotSecondaryCols, rows: slotSecondaryRows, rowKey: 'name' },
+            {
+              'cell-action': ({ row }) =>
+                h('button', { type: 'button', 'data-test': `block-${row.name}` }, `Block ${row.name}`),
+            },
+          ),
         ]),
       ]
     }

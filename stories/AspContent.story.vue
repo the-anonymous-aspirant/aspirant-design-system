@@ -113,6 +113,17 @@ const LONG_BODY = Array.from(
 // column; wrapped in a link, a tap opens it at full size.
 const WIDE_IMAGE = `A 1440px screenshot in a 390px column:\n\n![wide screenshot](${WIDE_SHOT})\n\nWrapped in a link:\n\n[![wide screenshot](${WIDE_SHOT})](${WIDE_SHOT})`
 
+// An inline code span longer than a phone's column (system_3 #9770, UX walk
+// 2026-11-02 C1). It wraps rather than forcing the column to scroll sideways;
+// the fenced block below it keeps its own horizontal scroll.
+const LONG_INLINE_CODE = `Read \`backend.human_review_queue.subject_review_state(conn, 'task', task_id)\` for the live card, not the stale restated-ask premise a routing note may carry.
+
+A fenced block still scrolls sideways instead of wrapping:
+
+\`\`\`
+backend.human_review_queue.subject_review_state(conn, 'task', task_id)
+\`\`\``
+
 // Built by concatenation, never written contiguously: a literal closing script
 // tag in this string would terminate the `<script setup>` block itself, and
 // escaping it (`<\/script>`) trips `no-useless-escape`. Splitting after `</`
@@ -177,6 +188,12 @@ Markdown still renders **normally** around it.
     <Variant title="Wide image in a 390px column (scales to fit)">
       <div class="phone-column">
         <AspContent :content="WIDE_IMAGE" type="markdown" />
+      </div>
+    </Variant>
+
+    <Variant title="Long inline code in a 390px column (wraps, not scrolls)">
+      <div class="phone-column">
+        <AspContent :content="LONG_INLINE_CODE" type="markdown" />
       </div>
     </Variant>
 

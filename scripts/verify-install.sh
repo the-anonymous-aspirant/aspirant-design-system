@@ -113,6 +113,19 @@ for sel in 'asp-content__prose' 'prose'; do
     || fail "dist/style.css carries no .${sel} img { max-width: 100%; height: auto } rule"
   echo "  ok  dist/style.css caps .${sel} img at its column"
 done
+
+# system_3 #9770: inline code wraps rather than forcing the column to scroll
+# sideways, and a fenced block keeps its own horizontal-scroll affordance
+# (overflow-wrap reset back to normal on `pre code`). Asserted on the BUILT
+# stylesheet, same reasoning as the img check above.
+for sel in 'asp-content__prose' 'prose'; do
+  grep -Eq "(^|[},])\.${sel}\[data-v-[0-9a-f]+\] code\{[^}]*overflow-wrap:anywhere[^}]*\}" "$PKG/dist/style.css" \
+    || fail "dist/style.css carries no .${sel} code { overflow-wrap: anywhere } rule"
+  echo "  ok  dist/style.css wraps .${sel} inline code"
+  grep -Eq "(^|[},])\.${sel}\[data-v-[0-9a-f]+\] pre code\{[^}]*overflow-wrap:normal[^}]*\}" "$PKG/dist/style.css" \
+    || fail "dist/style.css carries no .${sel} pre code { overflow-wrap: normal } reset"
+  echo "  ok  dist/style.css keeps .${sel} fenced code un-wrapped"
+done
 echo "  resolved tokens.css: $PKG/build/tokens.css"
 
 say "optional heavy peers are genuinely absent"

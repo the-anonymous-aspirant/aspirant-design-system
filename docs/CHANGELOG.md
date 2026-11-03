@@ -23,6 +23,19 @@ newest first. Each entry names the design ruling it implements.
     below 640px; check any consumer that relied on that table staying a
     table at narrow widths.
 
+- **An inline `code` span in AspContent or AspProse wraps rather than
+  forcing a sideways scroll** (UX walk 2026-11-02 C1; task #9770).
+  - A long inline identifier or path rendered at its natural width, so
+    `/corpus/347`'s inline code measured a right edge of 458/406px in a
+    390px viewport and the content box scrolled sideways. Both components
+    now give inline `code` `overflow-wrap: anywhere`, extending §3.120's
+    identifier-wrap rule to `AspContent`'s own inline code.
+  - A fenced code block (`pre code`) is unaffected: it keeps its own
+    horizontal-scroll affordance, reset back to `overflow-wrap: normal`
+    explicitly so the block's `white-space: pre` stays the sole source of
+    truth for that behaviour.
+  - No consumer change.
+
 - **An image in AspContent or AspProse never exceeds its column**
   (UX walk 2026-11-02 R2; task #9578).
   - Markdown images rendered at their natural width, so a 1440px screenshot in

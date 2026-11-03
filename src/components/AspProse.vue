@@ -119,6 +119,11 @@ defineProps({
   font-family: var(--font-family-mono);
   /* Mono faces run large next to the base face at the same nominal size. */
   font-size: 0.9em;
+  /* An inline span wraps rather than forcing the column to scroll sideways
+     (§3.120's identifier-wrap rule, extended to inline code; task #9770). A
+     fenced block's own horizontal scroll is untouched below — `pre`'s
+     default `white-space: pre` already blocks wrapping there regardless. */
+  overflow-wrap: anywhere;
 }
 
 .prose :deep(pre) {
@@ -130,11 +135,13 @@ defineProps({
 }
 
 /* A code block must not inherit the inline-code chip treatment on top of the
-   block's own background — that double-tints it. */
+   block's own background — that double-tints it. Same for the inline wrap
+   rule above: a fenced block keeps its horizontal-scroll affordance. */
 .prose :deep(pre code) {
   padding: 0;
   background: none;
   border-radius: 0;
+  overflow-wrap: normal;
 }
 
 .prose :deep(blockquote) {

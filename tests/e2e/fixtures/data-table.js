@@ -96,6 +96,34 @@ const bigCards = Array.from({ length: 500 }, (_, i) => ({
   count: i,
 }))
 
+// §3.119 O1 / #9769 — a 3-column table (identity + secondary + figure), the
+// console's /agents-active "By state" shape. Used to be stuck in table mode
+// at any width (cardMode required >3 columns); now cards below 640px, and the
+// secondary column's long text wraps instead of truncating.
+const threeColCols = [
+  { key: 'status', label: 'Status', role: 'identity' },
+  { key: 'help', label: 'Meaning' },
+  { key: 'n', label: 'Count', role: 'figure', align: 'right' },
+]
+const threeColRows = [
+  { status: 'idle', help: 'Session alive, no active task assignment and no pending spawn.', n: 3 },
+  { status: 'working', help: 'Actively running a task-bound Claude session right now.', n: 5 },
+]
+
+// §3.119 T2 / #9769 — a secondary cell with an empty resolved value (no
+// priority, no labels) renders no label on the card; a sibling secondary
+// column with a value still shows its own.
+const emptySecondaryCols = [
+  { key: 'name', label: 'Task', role: 'identity' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'labels', label: 'Labels' },
+  { key: 'count', label: 'Count', role: 'figure', align: 'right' },
+]
+const emptySecondaryRows = [
+  { name: 'Fix the login redirect', priority: '', labels: 'bug', count: 3 },
+  { name: 'Draft the Q3 roadmap', priority: 'operator ask', labels: '', count: 7 },
+]
+
 // A /tasks-shaped table, columns and values as the console's /tasks renders
 // them, under the console's slack trick. `floorCols` declares the identity;
 // `slackCols` is the same table undeclared, the control that shows the
@@ -262,6 +290,13 @@ createApp({
         ]),
         h('section', { id: 'bigcards', style: 'margin-top:24px; width:390px' }, [
           h(AspDataTable, { columns: cardCols, rows: bigCards, rowKey: 'id' }),
+        ]),
+        // --- #9769 ---
+        h('section', { id: 'threecol', style: 'margin-top:24px; width:390px' }, [
+          h(AspDataTable, { columns: threeColCols, rows: threeColRows, rowKey: 'status' }),
+        ]),
+        h('section', { id: 'empty-secondary', style: 'margin-top:24px; width:390px' }, [
+          h(AspDataTable, { columns: emptySecondaryCols, rows: emptySecondaryRows, rowKey: 'name' }),
         ]),
       ]
     }

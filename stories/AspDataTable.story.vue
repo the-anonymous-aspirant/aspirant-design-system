@@ -95,6 +95,34 @@ const floorRows = Array.from({ length: 3 }, (_, i) => ({
   updated: '2026-10-29',
 }))
 
+// §3.119 O1 / #9769 — a 3-column table (identity + secondary + figure), the
+// console's /agents-active "By state" shape: used to be stuck in table mode
+// at any width; now cards below 640px.
+const threeColCols = [
+  { key: 'status', label: 'Status', role: 'identity' },
+  { key: 'help', label: 'Meaning' },
+  { key: 'n', label: 'Count', role: 'figure', align: 'right' },
+]
+const threeColRows = [
+  { status: 'idle', help: 'Session alive, no active task assignment and no pending spawn.', n: 3 },
+  { status: 'working', help: 'Actively running a task-bound Claude session right now.', n: 5 },
+  { status: 'wedged', help: 'Session alive but has not advanced its task in over an hour.', n: 1 },
+]
+
+// §3.119 T2 / #9769 — a secondary cell with no value (no priority, no labels)
+// renders no label on the card, while a sibling secondary column with a value
+// still shows its own.
+const emptySecondaryCols = [
+  { key: 'name', label: 'Task', role: 'identity' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'labels', label: 'Labels' },
+  { key: 'count', label: 'Count', role: 'figure', align: 'right' },
+]
+const emptySecondaryRows = [
+  { name: 'Fix the login redirect', priority: '', labels: 'bug', count: 3 },
+  { name: 'Draft the Q3 roadmap', priority: 'operator ask', labels: '', count: 7 },
+]
+
 // #4318 / §3.88 — per-row hooks demos.
 const rowAttrsDemo = (row) => ({ 'data-test-row-id': row.id, 'data-test-source': row.owner })
 const rowStateDemo = (row, i) => (i === 1 ? 'active' : i === 3 ? 'muted' : null)
@@ -211,7 +239,7 @@ const statusStyle = (v) => ({
     <Variant title="Card list below a 640px container (§3.119)">
       <p style="margin-bottom: 8px; color: var(--text-muted);">
         When the table's <strong>own container</strong> is narrower than 640px and it has more than
-        three columns, each row renders as a card: the <code>identity</code> column top-left (it
+        two columns, each row renders as a card: the <code>identity</code> column top-left (it
         wraps, never truncates), the <code>figure</code> top-right (mono when numeric, never
         truncates), the rest stacked as label-value pairs. The header row is hidden, so sorting moves
         into one "Sort by" select. Row hooks, <code>rowState</code> and keyboard activation apply to
@@ -232,6 +260,31 @@ const statusStyle = (v) => ({
       </div>
       <div style="width: 640px; border: 1px dashed var(--border-subtle);">
         <AspDataTable :columns="roleCols" :rows="roleRows" row-key="id" caption="640px container: table" />
+      </div>
+    </Variant>
+
+    <Variant title="A 3-column table also cards (§3.119 O1, task #9769)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        The card-mode band widened from &gt;3 to &gt;2 columns: a declared identity plus at least
+        one other column is enough to be worth stacking. A 3-column table — the console's
+        <code>/agents-active</code> "By state" shape — used to be stuck in table mode at any width,
+        where its narrow explanatory column truncated with an ellipsis below the ≥640px yield
+        floor. Below 640px it now cards, and the secondary column's text wraps instead.
+      </p>
+      <div style="width: 390px; border: 1px dashed var(--border-subtle);">
+        <AspDataTable :columns="threeColCols" :rows="threeColRows" row-key="status" />
+      </div>
+    </Variant>
+
+    <Variant title="Empty secondary cells render no label (§3.119 T2, task #9769)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A card-mode secondary cell whose resolved value is <code>null</code>/<code>undefined</code>/
+        <code>''</code>/an empty array renders neither its label nor its value — no "Priority" row
+        with nothing after it. A sibling secondary column that does have a value still shows its
+        label. <code>0</code> and <code>false</code> are real values and stay visible.
+      </p>
+      <div style="width: 390px; border: 1px dashed var(--border-subtle);">
+        <AspDataTable :columns="emptySecondaryCols" :rows="emptySecondaryRows" row-key="name" />
       </div>
     </Variant>
 

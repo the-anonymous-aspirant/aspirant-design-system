@@ -16,8 +16,9 @@ import { cardRoleOf, resolveRoles } from './dataTableRoles.js'
 //            role?='secondary', title?: (row) => string | null }]
 // rows:    array of plain objects keyed by column.key.
 //
-// Phone card list (§3.114 D6 as extended by §3.119, task #9133): when the
-// table's OWN container is narrower than 640px and more than three columns are
+// Phone card list (§3.114 D6 as extended by §3.119, task #9133; band widened
+// to >2 columns and empty secondary cells omitted by task #9769): when the
+// table's OWN container is narrower than 640px and more than two columns are
 // visible, each row renders as a card — identity top-left, figure top-right, the
 // secondary cells stacked as label-value pairs. `role` names which column is
 // which (dataTableRoles.js). `narrow="scroll"` keeps today's horizontal scroll at
@@ -163,6 +164,16 @@ watch(
 )
 const cardRole = (col) => cardRoleOf(col, roles.value)
 
+// T2 (§3.119, task #9769): a card-mode secondary cell with an empty resolved
+// value renders neither its label nor its value — the §1.1 minimalism rule
+// (`new-column-null-means-not-recorded`) extended to the phone card list. `0`
+// and `false` are real values and stay visible.
+const isEmptyCardSecondary = (col, row) => {
+  if (cardRole(col) !== 'secondary') return false
+  const v = row[col.key]
+  return v == null || v === '' || (Array.isArray(v) && v.length === 0)
+}
+
 // The switch is measured on the table's own wrapper, not the viewport, so a
 // table inside a narrow card switches too. It is a ResizeObserver rather than a
 // CSS container query: `container-type: inline-size` adds inline-size
@@ -182,7 +193,7 @@ const cardMode = computed(
   () =>
     !cardLocked.value &&
     props.narrow === 'cards' &&
-    props.columns.length > 3 &&
+    props.columns.length > 2 &&
     containerWidth.value > 0 &&
     containerWidth.value < CARD_BREAKPOINT,
 )
@@ -793,39 +804,40 @@ const tableClasses = computed(() => ({
               @click="onRowClick(row, startIndex + i, $event)"
               @keydown="onRowKeydown(row, startIndex + i, $event)"
             >
-              <td
-                v-for="col in columns"
-                :key="col.key"
-                :class="cellClasses(col, row)"
-                :style="cellStyle(col)"
-                :title="(col.truncate || yields(col)) && !cardMode ? titleFor(col, row) : undefined"
-                :role="cardMode ? 'cell' : undefined"
-              >
-                <!-- A secondary cell in a card is a label-value pair; the label
-                     is the column label, since the header row is hidden. -->
-                <template v-if="cardMode && cardRole(col) === 'secondary'">
-                  <span class="data-table__card-label">{{ col.label }}</span>
-                  <span class="data-table__card-value">
-                    <slot
-                      :name="`cell-${col.key}`"
-                      :row="row"
-                      :value="row[col.key]"
-                      :index="startIndex + i"
-                    >
-                      {{ row[col.key] }}
-                    </slot>
-                  </span>
-                </template>
-                <slot
-                  v-else
-                  :name="`cell-${col.key}`"
-                  :row="row"
-                  :value="row[col.key]"
-                  :index="startIndex + i"
+              <template v-for="col in columns" :key="col.key">
+                <td
+                  v-if="!cardMode || !isEmptyCardSecondary(col, row)"
+                  :class="cellClasses(col, row)"
+                  :style="cellStyle(col)"
+                  :title="(col.truncate || yields(col)) && !cardMode ? titleFor(col, row) : undefined"
+                  :role="cardMode ? 'cell' : undefined"
                 >
-                  {{ row[col.key] }}
-                </slot>
-              </td>
+                  <!-- A secondary cell in a card is a label-value pair; the label
+                       is the column label, since the header row is hidden. -->
+                  <template v-if="cardMode && cardRole(col) === 'secondary'">
+                    <span class="data-table__card-label">{{ col.label }}</span>
+                    <span class="data-table__card-value">
+                      <slot
+                        :name="`cell-${col.key}`"
+                        :row="row"
+                        :value="row[col.key]"
+                        :index="startIndex + i"
+                      >
+                        {{ row[col.key] }}
+                      </slot>
+                    </span>
+                  </template>
+                  <slot
+                    v-else
+                    :name="`cell-${col.key}`"
+                    :row="row"
+                    :value="row[col.key]"
+                    :index="startIndex + i"
+                  >
+                    {{ row[col.key] }}
+                  </slot>
+                </td>
+              </template>
             </tr>
             <!-- Bottom spacer holds the height of the rows below the window. -->
             <tr v-if="bottomPad" class="data-table__spacer" aria-hidden="true">
@@ -1096,8 +1108,8 @@ const tableClasses = computed(() => ({
   vertical-align: bottom;
 }
 
-/* --- Card mode (§3.114 D6 / §3.119, #9133) ----------------------------------
-   Below a 640px container, a table of more than three columns renders each row
+/* --- Card mode (§3.114 D6 / §3.119, #9133; band widened to >2 cols, #9769) --
+   Below a 640px container, a table of more than two columns renders each row
    as a card. Same DOM as table mode (the <tr> is the card), so rowAttrs,
    rowState, the click/keyboard handlers and tabindex apply unchanged; the
    explicit ARIA roles in the template keep the table semantics that a changed

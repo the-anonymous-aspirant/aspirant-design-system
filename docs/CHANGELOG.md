@@ -6,6 +6,23 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: empty secondary cells are omitted; a 3-column table cards
+  too** (UX walk 2026-11-02 T2/O1; task #9769).
+  - Card mode's band widens from more than three columns to more than two: a
+    declared identity plus one other column is enough to be worth stacking.
+    A 3-column table (identity + secondary + figure) now flips to card mode
+    below a 640px container instead of being stuck in table mode at any
+    width, where a narrow secondary column truncated past the ≥640px
+    yield-cap floor.
+  - A card-mode secondary cell whose resolved value is
+    `null`/`undefined`/`''`/an empty array renders neither its label nor its
+    value — no "Priority" row with nothing after it. `0` and `false` are
+    real values and still show.
+  - **Consumer note.** A 2-or-fewer-column table is unaffected. A 3+ column
+    table that previously stayed in table mode at every width now cards
+    below 640px; check any consumer that relied on that table staying a
+    table at narrow widths.
+
 - **An image in AspContent or AspProse never exceeds its column**
   (UX walk 2026-11-02 R2; task #9578).
   - Markdown images rendered at their natural width, so a 1440px screenshot in

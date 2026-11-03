@@ -281,11 +281,56 @@ test('the switch is between a 639px container (cards) and a 640px one (table)', 
   await expect(page.locator('#cards-640 thead')).toHaveCount(1)
 })
 
-test('a table of three columns stays a table in a narrow container', async ({ page }) => {
-  // `#attrs` (3 columns) sits in the full-width page; render it narrow.
+test('a table of three columns cards in a narrow container (§3.119 O1, #9769)', async ({
+  page,
+}) => {
+  // `#small` (3 columns, no declared roles) sits in the full-width page by
+  // default; render it narrow. The band widened from >3 to >2 columns, so a
+  // 3-column table now cards too (it used to stay a table at any width).
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/tests/e2e/fixtures/data-table.html?only=small', { waitUntil: 'networkidle' })
-  await expect(page.locator('#small table')).not.toHaveClass(/data-table--cards/)
+  await expect(page.locator('#small table')).toHaveClass(/data-table--cards/)
+})
+
+test('a 3-column identity+secondary+figure table cards, text wraps not yield-caps (§3.119 O1, #9769)', async ({
+  page,
+}) => {
+  // The console's /agents-active "By state" shape: used to be stuck in table
+  // mode at any width, truncating the "Meaning" column past the ≥640px yield
+  // floor. Below 640px it now cards.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/tests/e2e/fixtures/data-table.html?only=threecol', { waitUntil: 'networkidle' })
+  await expect(page.locator('#threecol table')).toHaveClass(/data-table--cards/)
+  await expect(page.locator('#threecol thead')).toHaveCount(0)
+  const help = page.locator('#threecol .data-table__card-cell--secondary').first()
+  await expect(help.locator('.data-table__card-label')).toHaveText('Meaning')
+  // No yield-cap ellipsis path in card mode: it wraps across more than one line.
+  const box = await help.locator('.data-table__card-value').evaluate((el) => ({
+    overflow: getComputedStyle(el).textOverflow,
+    height: el.getBoundingClientRect().height,
+    line: parseFloat(getComputedStyle(el).fontSize),
+  }))
+  expect(box.overflow).not.toBe('ellipsis')
+  expect(box.height).toBeGreaterThan(box.line * 1.5)
+})
+
+test('a card-mode secondary cell with an empty value renders no label; a sibling with a value keeps its own (§3.119 T2, #9769)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/tests/e2e/fixtures/data-table.html?only=empty-secondary', { waitUntil: 'networkidle' })
+  await expect(page.locator('#empty-secondary table')).toHaveClass(/data-table--cards/)
+  const rows = cards(page, 'empty-secondary')
+
+  // Row 1: empty priority (no label at all), non-empty labels (keeps its label).
+  const first = rows.first()
+  await expect(first.locator('.data-table__card-label')).toHaveText(['Labels'])
+  await expect(first).not.toContainText('Priority')
+
+  // Row 2: the inverse — empty labels, non-empty priority.
+  const second = rows.nth(1)
+  await expect(second.locator('.data-table__card-label')).toHaveText(['Priority'])
+  await expect(second).not.toContainText('Labels')
 })
 
 test('narrow="scroll" renders the table as before at 390px', async ({ page }) => {

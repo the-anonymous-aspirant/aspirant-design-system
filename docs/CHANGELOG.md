@@ -6,6 +6,17 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: a slot-rendered secondary cell is never omitted on a card**
+  (fix to #9769's T2 rule; task #9825).
+  - #9769 omitted a card-mode secondary cell when `row[col.key]` was empty,
+    without asking whether the consumer renders that column through a
+    `cell-<key>` slot. An action, badge or link column often has no raw value
+    under its key, so on phones it vanished: aspirant-client's admin roster
+    lost its Block button and unverified badge, a browser flow its run links,
+    and a job source its details. A column with a `cell-<key>` slot now
+    always renders, and the slot decides what it shows; only a plain-text
+    secondary cell with an empty value is omitted.
+
 - **AspDataTable: empty secondary cells are omitted; a 3-column table cards
   too** (UX walk 2026-11-02 T2/O1; task #9769).
   - Card mode's band widens from more than three columns to more than two: a

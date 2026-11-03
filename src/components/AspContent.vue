@@ -484,6 +484,11 @@ const scrollable = computed(() => props.maxHeight !== null)
   font-family: var(--font-family-mono);
   /* Mono runs large next to the base face at the same nominal size. */
   font-size: 0.9em;
+  /* An inline span wraps rather than forcing the column to scroll sideways
+     (§3.120's identifier-wrap rule, extended to inline code; task #9770). A
+     fenced block's own horizontal scroll is untouched below — `pre`'s
+     `white-space: pre` already blocks wrapping there regardless. */
+  overflow-wrap: anywhere;
 }
 
 .asp-content__prose :deep(a) {
@@ -581,12 +586,14 @@ const scrollable = computed(() => props.maxHeight !== null)
 }
 
 /* A block's `code` child must not also take the inline chip treatment — that
-   double-tints it. */
+   double-tints it. Same for the inline wrap rule above: a fenced block keeps
+   its horizontal-scroll affordance, not a reflow. */
 .asp-content__prose :deep(pre code) {
   padding: 0;
   background: none;
   border-radius: 0;
   font-size: inherit;
+  overflow-wrap: normal;
 }
 
 /*

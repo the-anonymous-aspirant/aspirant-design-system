@@ -6,6 +6,12 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspInput, AspSelect, AspTextarea: a `labelHint` prop for a per-field "what is this" affordance**
+  (task #9927, from an aspirant-client operator ask on #9926). A short
+  explanation shown next to the label on hover/focus, via `AspTooltip` —
+  distinct from the always-visible `hint` line below the control. Opt-in: a
+  caller that does not pass `labelHint` renders exactly as before.
+
 - **AspDataTable: a slot-rendered secondary cell is never omitted on a card**
   (fix to #9769's T2 rule; task #9825).
   - #9769 omitted a card-mode secondary cell when `row[col.key]` was empty,

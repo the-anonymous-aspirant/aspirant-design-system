@@ -234,6 +234,14 @@
       "series-10-on-dark": {
         "value": "#82b1ff",
         "comment": "Brand accent (soft blue)"
+      },
+      "series-1-text-on-dark": {
+        "value": "#ffb300",
+        "comment": "§3.131 (system_3 #9939/#9941) — series TEXT ink for dark setters: a word that names series 1 wears its hue at the 4.5:1 text floor. = deriveInk(series-1-on-dark, #424242, AA), which clears unchanged: 5.60:1 vs #424242, 8.00 vs #2a2a2a, 9.70 vs #1a1a1a. Flat across themes like --feedback-error-text-on-dark (the card is dark in both themes, §3.18 setter). Text sibling of the 3:1 mark token; never re-floor the mark to serve a text need (§3.108)."
+      },
+      "series-2-text-on-dark": {
+        "value": "#7fb8d8",
+        "comment": "§3.131 (system_3 #9939/#9941) — series 2 TEXT ink for dark setters. = deriveInk(series-2-on-dark #4a9bc8, #424242, AA): mixed 7/24 toward white. 4.67:1 vs #424242, 6.66 vs #2a2a2a, 8.08 vs #1a1a1a. Only series 1 and 2 are minted: no consumer paints series-3..10 as DOM text yet (§3.108 restraint)."
       }
     },
     "feedback": {

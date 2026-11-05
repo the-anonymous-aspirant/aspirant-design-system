@@ -142,6 +142,20 @@ export const feedbackTextOnCard = () => [
 ]
 
 /**
+ * The §3.131 series TEXT tokens (system_3 #9939/#9941) on their worst
+ * sanctioned setter, the card (#424242), as TEXT-role rows. Kept apart from the
+ * series MARK tokens on purpose (§3.108): a 4.5 probe pointed at
+ * --chart-series-2-on-dark (#4a9bc8, 3.26:1 here) would fail, and the fix for
+ * that is this text sibling, never re-flooring the mark.
+ */
+export const chartSeriesTextOnCard = () => [
+  h(DS.AspCard, { 'data-surface': 'card-chart-series-text' }, () => [
+    h('p', { style: { color: 'var(--chart-series-1-text-on-dark)', margin: 0 } }, 'series 1 text on card'),
+    h('p', { style: { color: 'var(--chart-series-2-text-on-dark)', margin: 0 } }, 'series 2 text on card'),
+  ]),
+]
+
+/**
  * The chat surface, on both the light page and inside a card.
  *
  * Rendering it on TWO backdrops is the whole point rather than duplication: the
@@ -260,6 +274,7 @@ export const shell = (extra = []) =>
         ...surfaces(),
         ...cardHeadings(),
         ...feedbackTextOnCard(),
+        ...chartSeriesTextOnCard(),
         ...chatSurfaces(),
         ...openPanels(),
         h(modalSpecimen()),

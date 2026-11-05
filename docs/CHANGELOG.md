@@ -6,6 +6,19 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspInput, AspTextarea: the error state reads on a dark setter** (conventions
+  §3.121, design_agent c61986 on system_3 #10026; found by #9994, report 850).
+  Inside AspModal's panel, a non-ghost AspCard or `surface="card"`:
+  - The error message takes `--feedback-error-text-on-dark`, the same token the
+    required mark already used there. It was `#8b0f10` on `#424242`, 1.04:1;
+    it is now 4.96:1 (light) and 7.08:1 (dark).
+  - The errored control keeps its normal fill, so the typed text keeps its usual
+    contrast (it was 1.00:1 on `--feedback-error-bg`). The state is carried by a
+    2px two-tone edge: the outer border `--feedback-error-on-dark` against the
+    setter, and an inner inset ring of `--feedback-error-text` against the fill.
+    Each clears 3:1.
+  - On the page and inside a ghost card nothing changes. No token is added.
+
 - **AspChart: legend words wear their series' colour; two series TEXT tokens**
   (conventions §3.131, task #9941; operator ask on system_3 #9656: tell which
   line is "created" and which is "done" on the system_3 Overview flow cards).

@@ -304,6 +304,42 @@ defineExpose({
   color: var(--feedback-error-text);
 }
 
+/*
+ * The error state on a dark setter (system_3 #10026, design_agent c61986):
+ * §3.121's reading for the required mark, applied to the message and the
+ * errored control. On AspModal's panel the page tokens measured 1.0:1 for
+ * the message (#8b0f10 on #424242) and 1.1:1 for the typed text on
+ * --feedback-error-bg (report 850). On a dark setter the message takes the
+ * on-dark ink; the control keeps its normal fill, so the typed text keeps
+ * its usual contrast, and carries the state by a 2px edge drawn two-tone,
+ * like the focus indicator above: the outer 1px border sits on the setter
+ * and takes --feedback-error-on-dark (--feedback-error-solid is 1.79:1 on
+ * #424242, under the 3:1 a control's edge owes); the inner 1px inset ring
+ * sits on the fill and takes the themed --feedback-error-text, because in
+ * the light theme the fill is near-white and #ff7a7c measured 2.40:1 on it
+ * (no flat hue clears 3:1 against both #424242 and #f9f9f9 with margin).
+ * The inset ring thickens the edge without shifting the layout, so the
+ * state is thickness as well as hue. No token is minted.
+ */
+:where(.card:not(.card--variant-ghost), .modal__panel) .field:not(.field--surface-page) .field__message--error,
+.field--surface-card .field__message--error {
+  color: var(--feedback-error-text-on-dark);
+}
+
+:where(.card:not(.card--variant-ghost), .modal__panel) .field:not(.field--surface-page) .field__textarea--error,
+.field--surface-card .field__textarea--error {
+  background: var(--surface-elevated);
+  border-color: var(--feedback-error-on-dark);
+  box-shadow: inset 0 0 0 1px var(--feedback-error-text);
+}
+
+:where(.card:not(.card--variant-ghost), .modal__panel) .field:not(.field--surface-page) .field__textarea--error:focus,
+.field--surface-card .field__textarea--error:focus {
+  box-shadow:
+    inset 0 0 0 1px var(--feedback-error-text),
+    var(--shadow-focus);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .field__textarea {
     transition: none;

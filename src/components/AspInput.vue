@@ -7,6 +7,7 @@ let idCounter = 0
 <script setup>
 import { computed, ref } from 'vue'
 import AspIcon from './AspIcon.vue'
+import AspTooltip from './AspTooltip.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -29,6 +30,12 @@ const props = defineProps({
   },
   placeholder: { type: String, default: null },
   label: { type: String, default: null },
+  // A short explanation of what the field is, shown next to the label on
+  // hover/focus rather than as a permanent `hint` line (#9927 — a per-field
+  // "what is this" affordance, distinct from `hint`'s always-visible
+  // guidance text). Omitted by default: every existing caller renders
+  // unchanged.
+  labelHint: { type: String, default: null },
   hint: { type: String, default: null },
   // A non-empty string renders as the error message; a bare `true` styles the
   // field as invalid without adding message text (the caller shows it elsewhere).
@@ -93,6 +100,9 @@ defineExpose({
     <label v-if="label" class="field__label" :for="uid">
       {{ label }}
       <span v-if="required" class="field__required" aria-hidden="true">*</span>
+      <AspTooltip v-if="labelHint" :content="labelHint">
+        <span class="field__label-hint" tabindex="0" :aria-label="`More about ${label}`">?</span>
+      </AspTooltip>
     </label>
 
     <div
@@ -155,6 +165,31 @@ defineExpose({
 
 .field__required {
   color: var(--feedback-error-text);
+}
+
+/* The hover/focus trigger for `labelHint` (#9927): a small round glyph, same
+   line as the label, taking the muted ink rather than the label's own so it
+   reads as an affordance and not as more label text. `inline-flex` keeps it
+   centered on the glyph regardless of the font's own vertical metrics. */
+.field__label-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: var(--space-2xs);
+  border: 1px solid var(--text-muted);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  cursor: help;
+}
+
+.field__label-hint:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 /* The mark is part of the field, so a dark setter gives it the dark-setter
    ink (§3.121): #8b0f10 measured 1.04:1 on #424242. Same setter reading as

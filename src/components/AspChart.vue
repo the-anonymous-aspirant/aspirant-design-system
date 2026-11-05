@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { AA, deriveInk, luminance, parseColor, toRgbString } from '../utils/color_contrast.js'
 
 // chart.js is an OPTIONAL peer (package.json). Importing it at module scope
 // would make it mandatory for every consumer of the barrel — a static
@@ -104,27 +105,28 @@ const cssVar = (name, fallback = '') => {
 // first opaque background the canvas composites against (§3.18 ink-follows-
 // setter); if none resolves, fail safe to the dark set — the signature
 // --surface-card that the operator-facing KPI sparklines sit on.
-const surfaceIsDark = () => {
-  if (!canvas.value) return true
-  const lin = (v) => {
-    const s = v / 255
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-  }
+//
+// surfaceBackground() is that walk, returning the colour itself (`[r, g, b, a]`)
+// or null when nothing resolves; the legend ink (§3.131) needs the colour, not
+// only which side of the threshold it falls on.
+const surfaceBackground = () => {
   let node = canvas.value
   while (node) {
-    const m = /^rgba?\(([^)]+)\)$/i.exec(getComputedStyle(node).backgroundColor)
-    if (m) {
-      const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number)
-      const a = p[3] != null ? p[3] : 1
-      if (a > 0 && p.length >= 3) {
-        const L = 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2])
-        return L < 0.4
-      }
-    }
+    const c = parseColor(getComputedStyle(node).backgroundColor)
+    if (c && c[3] > 0) return c
     node = node.parentElement
   }
-  return true
+  return null
 }
+
+const surfaceIsDark = () => {
+  const bg = surfaceBackground()
+  return bg ? luminance(bg) < 0.4 : true
+}
+
+// The fail-safe surface when no opaque background resolves: the same dark card
+// surfaceIsDark() falls back to.
+const FALLBACK_SURFACE = [66, 66, 66, 1] // #424242
 
 const palette = () => {
   const suffix = surfaceIsDark() ? '-on-dark' : '-on-light'
@@ -221,13 +223,48 @@ const themedData = () => {
   return cloned
 }
 
-const themedDefaults = () => {
+// §3.131 (system_3 #9939/#9941): "which line is which?" On a legend whose items
+// carry two or more distinct colours, each label wears its own series' hue, so
+// the word that names a line reads as that line. The hue is DERIVED to the
+// 4.5:1 text floor against the surface the canvas actually paints on (§3.18
+// derive-and-adjust), never painted raw: a mark colour only owes 3:1. On the
+// light page that turns warning orange brownish; the swatch beside the word
+// keeps the bright hue, and §3.131 accepts the cost rather than drop the floor.
+//
+// It wraps Chart.js's own generator (the pie/doughnut override where the chart
+// type has one), so the items and swatches are exactly what Chart.js would draw
+// and only `fontColor` is added. The neutral `labels.color` ink stays in force
+// when there is no colour to match: one item, every item one colour, or an
+// item whose colour does not parse (a raw `var(--x)` string, a per-bar array).
+const seriesLegendLabels = (ChartCtor) => {
+  const base =
+    ChartCtor?.overrides?.[props.type]?.plugins?.legend?.labels?.generateLabels ||
+    ChartCtor?.defaults?.plugins?.legend?.labels?.generateLabels
+  if (typeof base !== 'function') return undefined
+  return (chart) => {
+    const items = base(chart)
+    const colours = items.map((it) => (typeof it.strokeStyle === 'string' ? parseColor(it.strokeStyle) : null))
+    const distinct = new Set(colours.filter(Boolean).map((c) => toRgbString(c)))
+    if (distinct.size < 2) return items
+    const bg = surfaceBackground() || FALLBACK_SURFACE
+    return items.map((it, i) =>
+      colours[i] ? { ...it, fontColor: toRgbString(deriveInk(colours[i], bg, AA)) } : it
+    )
+  }
+}
+
+const themedDefaults = (ChartCtor) => {
   const axis = resolvedInk(MUTED_ALPHA)
   const grid = resolvedInk(GRID_ALPHA)
   const font = cssVar('--font-family-base', 'system-ui, sans-serif')
   const cardBg = cssVar('--surface-card', '#424242')
   const cardText = cssVar('--text-on-dark', '#ffffff')
   const accent = cssVar('--border-card', '#ffb300')
+
+  // A consumer that sets its own legend label colour keeps it: a per-item
+  // fontColor would otherwise outrank it.
+  const consumerColour = props.options?.plugins?.legend?.labels?.color !== undefined
+  const generateLabels = consumerColour ? undefined : seriesLegendLabels(ChartCtor)
 
   const base = {
     responsive: true,
@@ -236,7 +273,11 @@ const themedDefaults = () => {
     font: { family: font },
     plugins: {
       legend: {
-        labels: { color: axis, font: { family: font } },
+        labels: {
+          color: axis,
+          font: { family: font },
+          ...(generateLabels ? { generateLabels } : {}),
+        },
       },
       tooltip: {
         backgroundColor: cardBg,
@@ -309,7 +350,7 @@ const render = async () => {
   chart = new ChartCtor(canvas.value, {
     type: props.type,
     data: themedData(),
-    options: mergeDeep(themedDefaults(), props.options),
+    options: mergeDeep(themedDefaults(ChartCtor), props.options),
     plugins: props.plugins,
   })
   drawn.value = true

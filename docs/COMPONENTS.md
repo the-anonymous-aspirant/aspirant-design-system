@@ -148,6 +148,8 @@ Props: `type` (line | bar | pie | doughnut | scatter), `data`, `options` (deep-m
 
 Datasets that omit their own colors are auto-assigned from the palette (by dataset for cartesian charts, by slice for pie/doughnut). Respects `prefers-reduced-motion`.
 
+Legend words wear their series' colour (§3.131): when the legend's items carry two or more distinct stroke colours, each label's ink is `deriveInk(<series colour>, <the surface the chart paints on>, 4.5)`, so the word naming a line reads as that line and still clears the text floor (on the light page warning orange turns brownish; the swatch keeps the bright hue). One item, a single shared colour, or a colour that does not parse keeps the neutral legend ink, and a consumer that sets `plugins.legend.labels.color` keeps theirs. Pie and doughnut slices share one stroke (`--surface-card`), so their legends stay neutral. For DOM text that names a series on a dark setter, use `--chart-series-1-text-on-dark` / `--chart-series-2-text-on-dark`, never the 3:1 mark tokens.
+
 Reference: `aspirant-client/src/components/RangeChart.vue` for the current shape.
 
 ### 8. `AspModal` — ✅ shipped

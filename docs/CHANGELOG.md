@@ -6,6 +6,18 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspChart: legend words wear their series' colour; two series TEXT tokens**
+  (conventions §3.131, task #9941; operator ask on system_3 #9656: tell which
+  line is "created" and which is "done" on the system_3 Overview flow cards).
+  - On a legend with two or more distinct series colours, each label is drawn
+    in its series' hue derived to 4.5:1 against the chart's own surface.
+    Single-colour legends, unparseable colours and a consumer-set
+    `legend.labels.color` keep their current ink. Swatches are unchanged.
+  - New tokens `--chart-series-1-text-on-dark` (`#ffb300`) and
+    `--chart-series-2-text-on-dark` (`#7fb8d8`): the 4.5:1 text siblings of the
+    series 1 and 2 mark tokens, for DOM text on a dark setter. No
+    `series-*-on-dark` / `series-*-on-light` mark value changed.
+
 - **AspInput, AspSelect, AspTextarea: a `labelHint` prop for a per-field "what is this" affordance**
   (task #9927, from an aspirant-client operator ask on #9926). A short
   explanation shown next to the label on hover/focus, via `AspTooltip` —

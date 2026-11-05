@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DS — AspChart legend words in their series' ink (§3.131)</title>
+<!-- Theme is set BEFORE any stylesheet applies, from ?theme=dark, matching the
+     other fixtures. -->
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  /* Production's ambient ink (--text-body), which AspChart's neutral legend ink
+     resolves from (§3.78); see asp-chart-contrast.html. */
+  body { margin: 0; background: var(--surface-page); color: var(--text-body); }
+  .slot { position: relative; padding: 16px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./chart-series-text.js"></script>

@@ -7,6 +7,7 @@ let idCounter = 0
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import AspTooltip from './AspTooltip.vue'
 
 // AspTextarea — the multi-line field-editor primitive, extracted from the
 // `<textarea rows="3">` that used to live trapped inside AspComposer.vue
@@ -28,6 +29,10 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: null },
   label: { type: String, default: null },
+  // Same `labelHint` contract as AspInput/AspSelect (#9927): a short
+  // explanation shown next to the label on hover/focus. Omitted by default,
+  // no visual change.
+  labelHint: { type: String, default: null },
   hint: { type: String, default: null },
   // A non-empty string renders as the error message; a bare `true` styles the
   // field as invalid without adding message text (the caller shows it elsewhere).
@@ -135,6 +140,9 @@ defineExpose({
     <label v-if="label" class="field__label" :for="uid">
       {{ label }}
       <span v-if="required" class="field__required" aria-hidden="true">*</span>
+      <AspTooltip v-if="labelHint" :content="labelHint">
+        <span class="field__label-hint" tabindex="0" :aria-label="`More about ${label}`">?</span>
+      </AspTooltip>
     </label>
 
     <textarea
@@ -189,6 +197,28 @@ defineExpose({
 :where(.card:not(.card--variant-ghost), .modal__panel) .field:not(.field--surface-page) .field__required,
 .field--surface-card .field__required {
   color: var(--feedback-error-text-on-dark);
+}
+
+/* `labelHint` trigger (#9927), identical to AspInput's `.field__label-hint`. */
+.field__label-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: var(--space-2xs);
+  border: 1px solid var(--text-muted);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  cursor: help;
+}
+
+.field__label-hint:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .field__textarea {

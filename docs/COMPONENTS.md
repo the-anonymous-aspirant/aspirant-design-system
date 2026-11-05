@@ -79,7 +79,9 @@ Reference: `aspirant-client/src/components/sidebar/Sidebar.vue`, `SidebarLink.vu
 
 Text input replacing `<v-text-field>`. Label + hint + error states. Control height is 34px (the §3.10 filter-row canon), overridable per call site via `--asp-input-height`.
 
-Props: `modelValue` (v-model), `label`, `hint`, `error`, `type` (text | search | number | password | email | tel | url), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
+Props: `modelValue` (v-model), `label`, `labelHint`, `hint`, `error`, `type` (text | search | number | password | email | tel | url), `placeholder`, `required`, `disabled`. Emits `update:modelValue`. Unrecognised attributes (`autocomplete`, `@blur`, …) fall through to the inner `<input>`, not the wrapper.
+
+`labelHint` (#9927) is an opt-in hover/focus explanation shown next to the label via `AspTooltip` — a "what is this field" affordance, distinct from `hint`'s always-visible guidance line below the control. Omitted, no trigger renders and nothing else changes.
 
 Exposes `focus()`, `select()`, and `el` (the inner `<input>`) to a caller holding a template ref. A `ref` on a component yields the *instance*, so without the exposure `x.focus()` is `undefined` and an open-and-type affordance — inline rename, inline create — degrades in the one way a test suite does not catch: the field still renders, still binds, still submits, and the caret never arrives. `tests/e2e/input.spec.js` asserts it through the same `ref` a consumer uses.
 
@@ -782,7 +784,7 @@ growing and scrolls internally. The max height is measured off the element's own
 `line-height`/padding/border rather than a hardcoded pixel guess, so it tracks whatever the
 type-scale tokens resolve to.
 
-Props: `modelValue` (v-model), `label`, `hint`, `error`, `required`, `disabled`, `rows`
+Props: `modelValue` (v-model), `label`, `labelHint` (#9927; same opt-in hover/focus affordance as `AspInput`'s), `hint`, `error`, `required`, `disabled`, `rows`
 (default `3`), `maxRows` (default `10`). Emits `update:modelValue`. Unrecognised attributes
 (`aria-label`, `@keydown`, `@paste`, …) fall through to the inner `<textarea>`, not the
 wrapper — the same contract `AspInput` uses.
@@ -830,7 +832,7 @@ broken); with no `label` prop, a consumer `id` forwards to the trigger so an ext
 handlers — are reserved and win over any colliding fall-through attr.
 
 Props: `modelValue` (v-model), `options` (`[{ value, label, disabled? }]`), `placeholder`
-(default `Select`), `label`, `disabled`, `ariaLabel` (accessible name when no visible `label`).
+(default `Select`), `label`, `labelHint` (#9927; same opt-in hover/focus affordance as `AspInput`'s), `disabled`, `ariaLabel` (accessible name when no visible `label`).
 Emits `update:modelValue`, `open`, `close`.
 
 ## Deferred (not in v0 10)

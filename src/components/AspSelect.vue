@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
+import AspTooltip from './AspTooltip.vue'
 
 // §3.95: the trigger is the labelable control, so a consumer's fall-through
 // attrs (an `id` that an external `<label for>` targets, an `aria-describedby`)
@@ -26,6 +27,9 @@ const props = defineProps({
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: 'Select' },
   label: { type: String, default: '' },
+  // Same `labelHint` contract as AspInput (#9927): a short explanation shown
+  // next to the label on hover/focus. Omitted by default, no visual change.
+  labelHint: { type: String, default: null },
   disabled: { type: Boolean, default: false },
   /** Accessible name when no visible `label` is given. */
   ariaLabel: { type: String, default: null },
@@ -250,7 +254,12 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
 
 <template>
   <div ref="root" class="select" :class="{ 'select--open': open, 'select--disabled': disabled }">
-    <label v-if="label" class="select__label" :for="`${uid}-trigger`">{{ label }}</label>
+    <label v-if="label" class="select__label" :for="`${uid}-trigger`">
+      {{ label }}
+      <AspTooltip v-if="labelHint" :content="labelHint">
+        <span class="select__label-hint" tabindex="0" :aria-label="`More about ${label}`">?</span>
+      </AspTooltip>
+    </label>
 
     <button
       v-bind="$attrs"
@@ -326,6 +335,28 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   line-height: 1.3;
   /* Sits on the ambient surface, so it takes the ambient ink. */
   color: inherit;
+}
+
+/* `labelHint` trigger (#9927), identical to AspInput's `.field__label-hint`. */
+.select__label-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: var(--space-2xs);
+  border: 1px solid var(--text-muted);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  cursor: help;
+}
+
+.select__label-hint:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 /*

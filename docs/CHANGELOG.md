@@ -6,6 +6,24 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspLabelHint: the field label "?" opens on a tap, with a larger hit area**
+  (design_agent c62075/c62082 on system_3 #10033; the #9927 hint).
+  - The `labelHint` mark of AspInput, AspTextarea and AspSelect is now the
+    exported `AspLabelHint`: a `<button>` beside the label (in a new
+    `.field__label-row` / `.select__label-row`), never inside it. Inside
+    `<label for>` a tap on the mark focused the field and the hint never
+    opened; that is fixed. A tap opens the hint and focuses nothing in the
+    field, a second tap or a tap elsewhere or Esc closes it, keyboard focus
+    still opens it, and `aria-expanded` / `aria-controls` follow the tooltip.
+  - The 14px mark keeps its look and sits centred on the label line (1.2px
+    above where it sat on the text baseline). Its hit area is 44px wide below
+    768px and 24px from 768px up, from 11px above the label row to the
+    control's top, and stays under every control (`z-index`), so a control
+    always wins its own tap.
+  - `AspTooltip` gains an optional `tipId` prop and a `visible-change` event.
+  - A consumer's plain label (a `<dt>`) uses `<AspLabelHint>` in a row with
+    `position: relative; display: flex; align-items: center`.
+
 - **AspInput, AspTextarea: the error state reads on a dark setter** (conventions
   §3.121, design_agent c61986 on system_3 #10026; found by #9994, report 850).
   Inside AspModal's panel, a non-ghost AspCard or `surface="card"`:

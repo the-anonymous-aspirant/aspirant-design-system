@@ -49,11 +49,19 @@ const props = defineProps({
   openDelay: { type: Number, default: 120 },
   /** Suppress the tooltip without unwrapping the trigger at the call site. */
   disabled: { type: Boolean, default: false },
+  /**
+   * The chip's id, for a trigger that names it with aria-controls
+   * (AspLabelHint, system_3 #10033). Generated when not given.
+   */
+  tipId: { type: String, default: '' },
 })
+
+/** Emitted with the new state whenever the chip opens or closes. */
+const emit = defineEmits(['visible-change'])
 
 const slots = defineSlots()
 
-const uid = `asp-tooltip-${Math.random().toString(36).slice(2, 9)}`
+const uid = props.tipId || `asp-tooltip-${Math.random().toString(36).slice(2, 9)}`
 
 const anchor = ref(null)
 const chip = ref(null)
@@ -181,6 +189,7 @@ const trackViewport = (on) => {
 }
 
 watch(visible, async (isVisible) => {
+  emit('visible-change', isVisible)
   if (isVisible) {
     await nextTick()
     place()

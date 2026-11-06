@@ -33,6 +33,26 @@ createApp({
               'onUpdate:modelValue': () => {},
             }),
           ]),
+          // #10033: two hinted fields with no gap between them, the worst case
+          // for the hint's upward reach over the field above.
+          h('div', { id: 'stacked', style: 'display:flex; flex-direction:column; gap:0' }, [
+            h('div', { id: 'stacked-upper' }, [
+              h(AspInput, {
+                label: 'Upper',
+                labelHint: 'The upper field.',
+                modelValue: '',
+                'onUpdate:modelValue': () => {},
+              }),
+            ]),
+            h('div', { id: 'stacked-lower' }, [
+              h(AspInput, {
+                label: 'Lower',
+                labelHint: 'The lower field.',
+                modelValue: '',
+                'onUpdate:modelValue': () => {},
+              }),
+            ]),
+          ]),
           h('div', { id: 'select-with-hint' }, [
             h(AspSelect, {
               label: 'Method',

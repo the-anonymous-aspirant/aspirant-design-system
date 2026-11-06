@@ -7,7 +7,7 @@ let idCounter = 0
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import AspTooltip from './AspTooltip.vue'
+import AspLabelHint from './AspLabelHint.vue'
 
 // AspTextarea — the multi-line field-editor primitive, extracted from the
 // `<textarea rows="3">` that used to live trapped inside AspComposer.vue
@@ -137,13 +137,15 @@ defineExpose({
     class="field"
     :class="{ 'field--disabled': disabled, [`field--surface-${surface}`]: surface !== 'auto' }"
   >
-    <label v-if="label" class="field__label" :for="uid">
-      {{ label }}
-      <span v-if="required" class="field__required" aria-hidden="true">*</span>
-      <AspTooltip v-if="labelHint" :content="labelHint">
-        <span class="field__label-hint" tabindex="0" :aria-label="`More about ${label}`">?</span>
-      </AspTooltip>
-    </label>
+    <!-- The hint is a button beside the label, never inside it (system_3
+         #10033): inside <label for>, a tap on it focused the control. -->
+    <div v-if="label" class="field__label-row">
+      <label class="field__label" :for="uid">
+        {{ label }}
+        <span v-if="required" class="field__required" aria-hidden="true">*</span>
+      </label>
+      <AspLabelHint v-if="labelHint" :content="labelHint" :label="label" mark-class="field__label-hint" />
+    </div>
 
     <textarea
       :id="uid"
@@ -172,6 +174,23 @@ defineExpose({
 </template>
 
 <style scoped>
+
+/* The label row (system_3 #10033): the label, then AspLabelHint's "?"
+   centred on the label line (design_agent c62082: 1.2px above where it sat on
+   the text baseline, so its 24px 2.5.8 circle clears the control with 0.8px
+   to spare). The row is the hit area's containing block. */
+.field__label-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Above AspLabelHint's hit area (z-index 0), so a control always wins its own
+   tap, even where the hit area reaches up over the field above (#10033). */
+.field__textarea {
+  position: relative;
+  z-index: 1;
+}
 .field {
   display: flex;
   flex-direction: column;
@@ -199,27 +218,7 @@ defineExpose({
   color: var(--feedback-error-text-on-dark);
 }
 
-/* `labelHint` trigger (#9927), identical to AspInput's `.field__label-hint`. */
-.field__label-hint {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  margin-left: var(--space-2xs);
-  border: 1px solid var(--text-muted);
-  border-radius: 50%;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: var(--font-weight-medium);
-  line-height: 1;
-  cursor: help;
-}
 
-.field__label-hint:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
 
 .field__textarea {
   display: block;

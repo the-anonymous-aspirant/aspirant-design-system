@@ -40,6 +40,12 @@ export const iconRegistry = {
   // it aria-hidden.
   separator: { glyph: '›', asset: null },
   search: { glyph: '⌕', asset: null },
+  // The conversation toolbar's config-door trigger (system_3 §3.77, operator
+  // ruling on #3617). Not an alias of `admin`: that entry's asset is the
+  // admin nav icon, and aliasing a nav identity onto a per-surface control is
+  // the §3.69 "the name evokes the wrong entity" trap. Glyph-only until the
+  // reMarkable SVG pipeline serves `settings.svg`.
+  settings: { glyph: '⚙', asset: null },
   // The composer's attach affordance (system_3 #3112). Glyph-only: no
   // hand-drawn paperclip exists yet, and registering the name here is what lets
   // it upgrade silently when the SVG pipeline serves `attach.svg` — a

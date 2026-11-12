@@ -23,7 +23,12 @@ defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
   modelValue: { type: [String, Number, null], default: null },
-  /** `[{ value, label, disabled? }]` */
+  /**
+   * `[{ value, label, disabled? }]`, or grouped (system_3 #10701):
+   * `[{ group: 'In', options: [{ value, label, disabled? }, ...] }, ...]`.
+   * A group renders as `role="group"` with a visible label that is never an
+   * option: not focusable, not selectable, not walked by the arrows.
+   */
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: 'Select' },
   label: { type: String, default: '' },
@@ -51,9 +56,33 @@ const panel = ref(null)
 const open = ref(false)
 const activeIndex = ref(-1)
 
-const selectable = computed(() => props.options.filter((o) => !o.disabled))
-const selected = computed(() => props.options.find((o) => o.value === props.modelValue) || null)
-const triggerText = computed(() => selected.value?.label ?? props.placeholder)
+// Grouped options are flattened once: every index below (the active option,
+// aria-activedescendant, the arrows) counts options only, never group labels.
+const isGrouped = computed(() => props.options.some((o) => o && Array.isArray(o.options)))
+const flat = computed(() => (isGrouped.value ? props.options.flatMap((g) => g.options || []) : props.options))
+const groups = computed(() => {
+  let index = 0
+  return props.options.map((g, gi) => ({
+    label: g.group,
+    id: `${uid}-group-${gi}`,
+    items: (g.options || []).map((option) => ({ option, index: index++ })),
+  }))
+})
+
+const selectable = computed(() => flat.value.filter((o) => !o.disabled))
+const selected = computed(() => flat.value.find((o) => o.value === props.modelValue) || null)
+// A grouped selection names its group on the closed trigger, "Out · Other"
+// (design_agent c66607 on system_3 #10701): the open panel's heading says
+// which kind an option is, the closed trigger has no heading. A flat list's
+// trigger is unchanged.
+const selectedGroup = computed(() => {
+  if (!isGrouped.value || !selected.value) return null
+  return groups.value.find((g) => g.items.some(({ option }) => option === selected.value)) || null
+})
+const triggerText = computed(() => {
+  if (!selected.value) return props.placeholder
+  return selectedGroup.value ? `${selectedGroup.value.label} · ${selected.value.label}` : selected.value.label
+})
 const optionId = (i) => `${uid}-option-${i}`
 
 // --- open/close -------------------------------------------------------------
@@ -64,7 +93,7 @@ const openPanel = async () => {
   emit('open')
   // Start on the selected option so ↑/↓ move relative to it, not from the top.
   activeIndex.value = Math.max(
-    props.options.findIndex((o) => o.value === props.modelValue),
+    flat.value.findIndex((o) => o.value === props.modelValue),
     0
   )
   await nextTick()
@@ -193,9 +222,10 @@ const moveActive = async (delta) => {
   if (!open.value) return openPanel()
   // Walk over disabled entries rather than landing on them.
   let i = activeIndex.value
-  for (let step = 0; step < props.options.length; step += 1) {
-    i = (i + delta + props.options.length) % props.options.length
-    if (!props.options[i].disabled) break
+  const list = flat.value
+  for (let step = 0; step < list.length; step += 1) {
+    i = (i + delta + list.length) % list.length
+    if (!list[i].disabled) break
   }
   activeIndex.value = i
   await nextTick()
@@ -216,7 +246,7 @@ const onKeydown = (event) => {
     case 'Enter':
     case ' ':
       event.preventDefault()
-      if (open.value) select(props.options[activeIndex.value])
+      if (open.value) select(flat.value[activeIndex.value])
       else openPanel()
       break
     case 'Escape':
@@ -292,6 +322,41 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
       :aria-label="label || ariaLabel || placeholder"
       @keydown="onKeydown"
     >
+      <!-- Grouped (system_3 #10701): each group is a labelled role="group";
+           its label is presentation only, so it is never an option. -->
+      <template v-if="isGrouped">
+        <li
+          v-for="g in groups"
+          :key="g.id"
+          class="select__group"
+          role="group"
+          :aria-labelledby="g.id"
+        >
+          <span :id="g.id" class="select__group-label" role="presentation">{{ g.label }}</span>
+          <ul class="select__group-options" role="presentation">
+            <li
+              v-for="{ option, index: i } in g.items"
+              :id="optionId(i)"
+              :key="option.value"
+              class="select__option"
+              :class="{
+                'select__option--active': i === activeIndex,
+                'select__option--selected': option.value === modelValue,
+                'select__option--disabled': option.disabled,
+              }"
+              role="option"
+              :aria-selected="option.value === modelValue"
+              :aria-disabled="option.disabled || undefined"
+              :data-active="i === activeIndex"
+              @click="select(option)"
+              @mousemove="activeIndex = option.disabled ? activeIndex : i"
+            >
+              {{ option.label }}
+            </li>
+          </ul>
+        </li>
+      </template>
+      <template v-else>
       <li
         v-for="(option, i) in options"
         :id="optionId(i)"
@@ -311,8 +376,9 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
       >
         {{ option.label }}
       </li>
+      </template>
 
-      <li v-if="!options.length" class="select__empty" role="presentation">No options</li>
+      <li v-if="!flat.length" class="select__empty" role="presentation">No options</li>
     </ul>
   </div>
 </template>
@@ -495,6 +561,34 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
 .select__option--disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Option groups (system_3 #10701). The label keeps the panel's full ink, so
+   it passes contrast on the dark panel in both themes; size, weight and case
+   set it apart from the options. It is not a hover or click target. */
+.select__group {
+  list-style: none;
+}
+
+.select__group + .select__group {
+  margin-top: var(--space-2xs);
+  border-top: 1px solid var(--surface-card-inner);
+}
+
+.select__group-label {
+  display: block;
+  padding: var(--space-2xs) var(--space-sm) 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.select__group-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .select__empty {

@@ -833,7 +833,12 @@ broken); with no `label` prop, a consumer `id` forwards to the trigger so an ext
 `aria-expanded`/`aria-controls`/`aria-activedescendant` wiring, `disabled`, the click/keydown
 handlers — are reserved and win over any colliding fall-through attr.
 
-Props: `modelValue` (v-model), `options` (`[{ value, label, disabled? }]`), `placeholder`
+**Option groups** (system_3 #10701): `options` may be `[{ group, options: [...] }, ...]`. Each
+group renders as a `role="group"` named by its visible label, which is never an option; the
+keyboard walks the options across groups; and the closed trigger reads `<group> · <label>` for a
+grouped selection.
+
+Props: `modelValue` (v-model), `options` (`[{ value, label, disabled? }]`, or grouped as above), `placeholder`
 (default `Select`), `label`, `labelHint` (#9927; same opt-in hover/focus affordance as `AspInput`'s), `disabled`, `ariaLabel` (accessible name when no visible `label`).
 Emits `update:modelValue`, `open`, `close`.
 

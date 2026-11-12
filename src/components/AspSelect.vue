@@ -357,25 +357,25 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
         </li>
       </template>
       <template v-else>
-      <li
-        v-for="(option, i) in options"
-        :id="optionId(i)"
-        :key="option.value"
-        class="select__option"
-        :class="{
-          'select__option--active': i === activeIndex,
-          'select__option--selected': option.value === modelValue,
-          'select__option--disabled': option.disabled,
-        }"
-        role="option"
-        :aria-selected="option.value === modelValue"
-        :aria-disabled="option.disabled || undefined"
-        :data-active="i === activeIndex"
-        @click="select(option)"
-        @mousemove="activeIndex = option.disabled ? activeIndex : i"
-      >
-        {{ option.label }}
-      </li>
+        <li
+          v-for="(option, i) in options"
+          :id="optionId(i)"
+          :key="option.value"
+          class="select__option"
+          :class="{
+            'select__option--active': i === activeIndex,
+            'select__option--selected': option.value === modelValue,
+            'select__option--disabled': option.disabled,
+          }"
+          role="option"
+          :aria-selected="option.value === modelValue"
+          :aria-disabled="option.disabled || undefined"
+          :data-active="i === activeIndex"
+          @click="select(option)"
+          @mousemove="activeIndex = option.disabled ? activeIndex : i"
+        >
+          {{ option.label }}
+        </li>
       </template>
 
       <li v-if="!flat.length" class="select__empty" role="presentation">No options</li>

@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AspSelect phone gutter fixture</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; }
+  /* The page's own phone gutter (§3.121 P5): every trigger starts at x=16. */
+  .page { padding: 16px; }
+  .row { display: flex; justify-content: space-between; gap: 8px; }
+  .row > div { width: 160px; }
+  .bottom { position: fixed; left: 0; right: 0; bottom: 24px; padding: 0 16px; }
+</style>
+<div id="app"></div>
+<script type="module" src="./select-gutter.js"></script>

@@ -6,6 +6,16 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSelect: on a phone, an open panel stays inside the 16px gutter**
+  (system_3 #10854, design_conventions §3.151). Below 768px the panel never
+  starts left of x=16 or ends past `innerWidth − 16`; from 768px up, the 8px
+  edge clamp is unchanged. Its width is chosen at open: at least the trigger,
+  as wide as its longest option needs, at most the content width between the
+  gutters. A longer option wraps and is never cut. The width holds until it
+  closes, so typing in a searchable panel moves neither edge; a resize may
+  re-place it. Before this, a trigger in the right half with long options got
+  a panel ending on the screen edge with most options wrapped, because the
+  width was read at the old `left` and the box regrew to the edge.
 - **AspSelect: Escape on an open select closes only its list** (system_3
   #10761). Inside an AspModal, Escape used to close both the list and the
   dialog, because the select did not consume the key. Now an open select

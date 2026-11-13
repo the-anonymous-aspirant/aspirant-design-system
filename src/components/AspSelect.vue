@@ -34,6 +34,9 @@ const props = defineProps({
    * `[{ value: 'all', label: 'All categories' }, { group: 'In', options }, ...]`:
    * they render in the order given, outside any group, with no heading, and
    * their trigger reads the bare label.
+   * Any option may carry `search`, a string matched in addition to its label
+   * when `searchable` is on (system_3 #10748): e.g. an epic's full title
+   * behind a label cut at 40 characters.
    */
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: 'Select' },
@@ -44,6 +47,13 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   /** Accessible name when no visible `label` is given. */
   ariaLabel: { type: String, default: null },
+  /**
+   * Opt-in search (design_conventions §3.149, system_3 #10748): a field at the
+   * top of the open panel narrows the options. Off by default; with it off the
+   * component renders and behaves exactly as before.
+   */
+  searchable: { type: Boolean, default: false },
+  searchPlaceholder: { type: String, default: 'Type to filter' },
 })
 
 const emit = defineEmits(['update:modelValue', 'open', 'close'])
@@ -113,9 +123,41 @@ const triggerText = computed(() => {
 })
 const optionId = (i) => `${uid}-option-${i}`
 
+// --- search (§3.149, system_3 #10748) ---------------------------------------
+// Matching ignores case; every word she types must appear, in any order, in
+// the label or the option's `search` text. Matches keep their order, and a
+// group shows only while one of its options matches. Indexes stay global, so
+// optionId and activeIndex mean the same thing with or without a filter.
+const query = ref('')
+const field = ref(null)
+const list = ref(null)
+let openPointerType = ''
+const words = computed(() => query.value.trim().toLowerCase().split(/\s+/).filter(Boolean))
+const matches = (o) => {
+  const hay = `${o.label ?? ''} ${o.search ?? ''}`.toLowerCase()
+  return words.value.every((w) => hay.includes(w))
+}
+const visibleSections = computed(() => {
+  if (!props.searchable || !words.value.length) return sections.value
+  return sections.value
+    .map((s) => ({ ...s, items: s.items.filter(({ option }) => matches(option)) }))
+    .filter((s) => s.items.length)
+})
+// The enabled options the arrows may land on, in display order.
+const walkable = computed(() =>
+  visibleSections.value.flatMap((s) => s.items.filter(({ option }) => !option.disabled).map(({ index }) => index))
+)
+const noMatch = computed(() => props.searchable && words.value.length > 0 && !visibleSections.value.length)
+const noMatchText = computed(() => (noMatch.value ? `No match for "${query.value.trim()}"` : ''))
+const fieldLabel = computed(() => `Filter ${props.label || props.ariaLabel || props.placeholder}`)
+const isPrintable = (event) => event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+
 // --- open/close -------------------------------------------------------------
 
-const openPanel = async () => {
+// `focusField` and `text` only act on a searchable select: the field takes
+// focus unless the panel opened from a touch (§3.149 Decision 6), and a
+// printable key on the closed trigger arrives already typed.
+const openPanel = async ({ focusField = false, text = '' } = {}) => {
   if (props.disabled || open.value) return
   open.value = true
   emit('open')
@@ -124,9 +166,11 @@ const openPanel = async () => {
     flat.value.findIndex((o) => o.value === props.modelValue),
     0
   )
+  if (props.searchable && text) query.value = text
   await nextTick()
   placePanel()
   scrollActiveIntoView()
+  if (props.searchable && focusField) field.value?.focus()
   window.addEventListener('scroll', onViewportChange, true)
   window.addEventListener('resize', onViewportChange)
 }
@@ -136,12 +180,27 @@ const closePanel = ({ focusTrigger = true } = {}) => {
   open.value = false
   activeIndex.value = -1
   flipped.value = false
+  sideChosen = false
+  openHeight = 0
+  // The typed text is dropped on every close (§3.149 Decision 5).
+  query.value = ''
+  openPointerType = ''
   stopFollowing()
   emit('close')
   if (focusTrigger) root.value?.querySelector('.select__trigger')?.focus()
 }
 
-const toggle = () => (open.value ? closePanel() : openPanel())
+const toggle = () => {
+  if (open.value) return closePanel()
+  // A touch open leaves the field unfocused, so a phone keeps its keyboard
+  // down (§3.149 Decision 6); a mouse open focuses it.
+  const touch = openPointerType === 'touch'
+  openPointerType = ''
+  openPanel({ focusField: !touch })
+}
+const onTriggerPointerDown = (event) => {
+  openPointerType = event.pointerType || ''
+}
 
 // --- placement --------------------------------------------------------------
 
@@ -159,6 +218,14 @@ const toggle = () => (open.value ? closePanel() : openPanel())
 // resize while open.
 const flipped = ref(false)
 const EDGE = 8
+// A searchable panel chooses its side once, at open, and keeps it until it
+// closes: narrowing and resizing never flip it, and the field she types into
+// never moves (§3.149 Decision 3; design_agent c67019 on #10748). For a panel
+// opened above the trigger, its top stays where it opened, one opening-height
+// above the trigger, so a shorter list shrinks away from the field rather than
+// pulling the field down.
+let sideChosen = false
+let openHeight = 0
 
 // A transform, filter, perspective or containment on an ancestor makes that
 // ancestor the containing block of a fixed descendant, so viewport
@@ -196,14 +263,29 @@ const placePanel = () => {
 
   // Its height under the component's own 15rem cap, read from scrollHeight so
   // nothing is mutated: briefly lifting the cap on every scroll would reset
-  // the panel's own scroll position.
+  // the panel's own scroll position. A searchable panel scrolls its list, not
+  // itself, so its natural height is the field row plus the list's content.
   el.style.minWidth = `${t.width}px`
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
-  const natural = Math.min(el.scrollHeight, 15 * rem)
-  flipped.value = natural > spaceBelow && spaceAbove > spaceBelow
+  const content = props.searchable
+    ? (el.querySelector('.select__search')?.offsetHeight || 0) + (list.value?.scrollHeight || 0)
+    : el.scrollHeight
+  const natural = Math.min(content, 15 * rem)
+  const holdSide = props.searchable && sideChosen
+  if (!holdSide) flipped.value = natural > spaceBelow && spaceAbove > spaceBelow
   const space = Math.max(flipped.value ? spaceAbove : spaceBelow, 0)
   el.style.setProperty('--select-panel-space', `${Math.floor(space)}px`)
-  const height = Math.min(natural, space)
+  let height = Math.min(natural, space)
+  if (props.searchable) {
+    if (!sideChosen) {
+      sideChosen = true
+      openHeight = height
+    } else if (flipped.value) {
+      // Position from the opening height (capped to the room above), so the
+      // field row holds still while the list narrows.
+      height = Math.min(openHeight, space)
+    }
+  }
 
   // A containing block positions from its padding box, inside its border.
   const cb = fixedContainingBlock(el)
@@ -247,7 +329,21 @@ const select = (option) => {
 
 const moveActive = async (delta) => {
   if (!selectable.value.length) return
-  if (!open.value) return openPanel()
+  if (!open.value) return openPanel({ focusField: true })
+  if (props.searchable) {
+    // The arrows walk only the matches (§3.149 Decision 5).
+    const vis = walkable.value
+    if (!vis.length) {
+      activeIndex.value = -1
+      return
+    }
+    const pos = vis.indexOf(activeIndex.value)
+    const next = pos === -1 ? (delta > 0 ? 0 : vis.length - 1) : (pos + delta + vis.length) % vis.length
+    activeIndex.value = vis[next]
+    await nextTick()
+    scrollActiveIntoView()
+    return
+  }
   // Walk over disabled entries rather than landing on them.
   let i = activeIndex.value
   const list = flat.value
@@ -275,7 +371,7 @@ const onKeydown = (event) => {
     case ' ':
       event.preventDefault()
       if (open.value) select(flat.value[activeIndex.value])
-      else openPanel()
+      else openPanel({ focusField: true })
       break
     case 'Escape':
       if (open.value) {
@@ -288,9 +384,59 @@ const onKeydown = (event) => {
       closePanel({ focusTrigger: false })
       break
     default:
+      // A printable key on the trigger types into the field (§3.149
+      // Decision 6): it opens a closed panel with that character, and after a
+      // touch open it moves focus into the field.
+      if (props.searchable && isPrintable(event)) {
+        event.preventDefault()
+        if (!open.value) {
+          openPanel({ focusField: true, text: event.key })
+        } else {
+          query.value += event.key
+          field.value?.focus()
+        }
+      }
       break
   }
 }
+
+// The field's own keys: the arrows walk the matches, Enter picks, Escape and
+// Tab close. Every other key, Space included, types.
+const onFieldKeydown = (event) => {
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      moveActive(1)
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      moveActive(-1)
+      break
+    case 'Enter':
+      event.preventDefault()
+      if (activeIndex.value >= 0 && walkable.value.includes(activeIndex.value)) select(flat.value[activeIndex.value])
+      break
+    case 'Escape':
+      event.preventDefault()
+      closePanel()
+      break
+    case 'Tab':
+      closePanel({ focusTrigger: false })
+      break
+    default:
+      break
+  }
+}
+
+// As the text narrows the list, the first match becomes the active option,
+// and the panel is placed again because its height changed.
+watch(query, async () => {
+  if (!open.value || !props.searchable) return
+  activeIndex.value = walkable.value.length ? walkable.value[0] : -1
+  await nextTick()
+  placePanel()
+  scrollActiveIntoView()
+})
 
 // --- click outside ----------------------------------------------------------
 
@@ -328,9 +474,10 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
       role="combobox"
       :aria-expanded="open"
       :aria-controls="`${uid}-panel`"
-      :aria-activedescendant="open && activeIndex >= 0 ? optionId(activeIndex) : undefined"
+      :aria-activedescendant="open && !searchable && activeIndex >= 0 ? optionId(activeIndex) : undefined"
       :aria-label="!label ? ariaLabel || placeholder : undefined"
       :disabled="disabled"
+      @pointerdown="onTriggerPointerDown"
       @click="toggle"
       @keydown="onKeydown"
     >
@@ -340,7 +487,99 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
       <span class="select__caret" aria-hidden="true">▾</span>
     </button>
 
+    <!-- Searchable (§3.149, system_3 #10748): the field is the panel's first
+         row and stays put while the list scrolls under it. While open it is
+         the control that owns the listbox, so the trigger stops pointing at
+         the active option (one pointer at a time). -->
+    <div
+      v-if="searchable"
+      v-show="open"
+      :id="`${uid}-popup`"
+      ref="panel"
+      class="select__panel select__panel--searchable"
+      :class="{ 'select__panel--flipped': flipped }"
+    >
+      <div class="select__search">
+        <input
+          ref="field"
+          v-model="query"
+          class="select__search-input"
+          type="text"
+          role="combobox"
+          aria-expanded="true"
+          aria-autocomplete="list"
+          :aria-controls="`${uid}-panel`"
+          :aria-activedescendant="activeIndex >= 0 ? optionId(activeIndex) : undefined"
+          :aria-label="fieldLabel"
+          :placeholder="searchPlaceholder"
+          autocomplete="off"
+          spellcheck="false"
+          @keydown="onFieldKeydown"
+        >
+      </div>
+      <ul
+        :id="`${uid}-panel`"
+        ref="list"
+        class="select__list"
+        role="listbox"
+        :aria-label="label || ariaLabel || placeholder"
+      >
+        <template v-for="s in visibleSections" :key="s.id">
+          <li v-if="s.label !== null" class="select__group" role="group" :aria-labelledby="s.id">
+            <span :id="s.id" class="select__group-label" role="presentation">{{ s.label }}</span>
+            <ul class="select__group-options" role="presentation">
+              <li
+                v-for="{ option, index: i } in s.items"
+                :id="optionId(i)"
+                :key="option.value"
+                class="select__option"
+                :class="{
+                  'select__option--active': i === activeIndex,
+                  'select__option--selected': option.value === modelValue,
+                  'select__option--disabled': option.disabled,
+                }"
+                role="option"
+                :aria-selected="option.value === modelValue"
+                :aria-disabled="option.disabled || undefined"
+                :data-active="i === activeIndex"
+                @click="select(option)"
+                @mousemove="activeIndex = option.disabled ? activeIndex : i"
+              >
+                {{ option.label }}
+              </li>
+            </ul>
+          </li>
+          <template v-else>
+            <li
+              v-for="{ option, index: i } in s.items"
+              :id="optionId(i)"
+              :key="option.value"
+              class="select__option"
+              :class="{
+                'select__option--active': i === activeIndex,
+                'select__option--selected': option.value === modelValue,
+                'select__option--disabled': option.disabled,
+              }"
+              role="option"
+              :aria-selected="option.value === modelValue"
+              :aria-disabled="option.disabled || undefined"
+              :data-active="i === activeIndex"
+              @click="select(option)"
+              @mousemove="activeIndex = option.disabled ? activeIndex : i"
+            >
+              {{ option.label }}
+            </li>
+          </template>
+        </template>
+        <!-- Not an option and not reachable by the arrows; the panel stays
+             open (§3.149 Decision 5). -->
+        <li v-if="noMatch" class="select__empty select__empty--nomatch" role="presentation">{{ noMatchText }}</li>
+        <li v-else-if="!flat.length" class="select__empty" role="presentation">No options</li>
+      </ul>
+    </div>
+
     <ul
+      v-else
       v-show="open"
       :id="`${uid}-panel`"
       ref="panel"
@@ -408,6 +647,9 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
 
       <li v-if="!flat.length" class="select__empty" role="presentation">No options</li>
     </ul>
+
+    <!-- The no-match line, announced when it appears (§3.149 Decision 7). -->
+    <span v-if="searchable" class="select__live" aria-live="polite">{{ open ? noMatchText : '' }}</span>
   </div>
 </template>
 
@@ -627,5 +869,72 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   padding: var(--space-2xs) var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* Searchable (§3.149, system_3 #10748). The panel holds the field row and a
+   list that scrolls under it, so the panel itself does not scroll. */
+.select__panel--searchable {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.select__search {
+  flex: none;
+  padding: var(--space-2xs) var(--space-2xs) var(--space-2xs);
+}
+
+/* AspInput's field-control treatment and tokens (D10). The field sets its own
+   background, so it sets its own ink and placeholder ink (§3.18). */
+.select__search-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--asp-input-height, 34px);
+  padding: 0 var(--space-sm);
+  background: var(--surface-elevated);
+  color: var(--text-body);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  font: inherit;
+  /* §3.135 field-control size: 16px below 768px, --text-sm from 768px. */
+  font-size: var(--text-base);
+  appearance: none;
+}
+
+@media (min-width: 768px) {
+  .select__search-input {
+    font-size: var(--text-sm);
+  }
+}
+
+.select__search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.select__search-input:focus {
+  outline: none;
+  border-color: var(--text-body);
+  box-shadow: var(--shadow-focus);
+}
+
+.select__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0 var(--space-2xs);
+  list-style: none;
+}
+
+.select__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 </style>

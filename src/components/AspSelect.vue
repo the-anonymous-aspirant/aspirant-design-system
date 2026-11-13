@@ -378,7 +378,11 @@ const onKeydown = (event) => {
       break
     case 'Escape':
       if (open.value) {
+        // Consumed: closing the list is all this Escape does. Left to bubble,
+        // an enclosing AspModal dismissed itself too (system_3 #10761). A
+        // closed select lets Escape through.
         event.preventDefault()
+        event.stopPropagation()
         closePanel()
       }
       break
@@ -420,7 +424,9 @@ const onFieldKeydown = (event) => {
       if (activeIndex.value >= 0 && walkable.value.includes(activeIndex.value)) select(flat.value[activeIndex.value])
       break
     case 'Escape':
+      // Consumed, as on the trigger (system_3 #10761).
       event.preventDefault()
+      event.stopPropagation()
       closePanel()
       break
     case 'Tab':

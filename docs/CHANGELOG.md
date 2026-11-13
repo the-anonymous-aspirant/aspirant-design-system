@@ -6,6 +6,24 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSelect: an opt-in search field in the open panel** (design_conventions
+  §3.149; built under system_3 #10748, Design ack c67019).
+  - `searchable` (default off) puts a field at the top of the open panel that
+    narrows the options. Matching ignores case and every typed word must appear
+    in the label or the option's optional `search` text. Matches keep their
+    order, and a group shows while one of its options matches. The first match
+    is active, the arrows walk only matches, and Enter picks.
+  - With nothing matching, the panel shows `No match for "<text>"`, announced
+    politely, and stays open. Escape, an outside press and Tab leave the value
+    unchanged. Every close drops the text.
+  - The field takes focus on a keyboard or mouse open, but not on a touch open,
+    so a phone keeps its keyboard down. A printable key on the closed trigger
+    opens the panel already typed.
+  - The panel chooses its side at open and keeps it, and the field never moves
+    while she types. A panel opened above keeps its opening height, so it stays
+    against its trigger (design_agent c67045). `searchPlaceholder` defaults to "Type to filter". Without
+    `searchable`, nothing changes.
+
 - **AspSelect: a grouped list may also hold plain options** (Design ack
   c66693 on system_3 #10702; built under #10712).
   - In a grouped list, an entry without `options` is a plain option: it renders

@@ -836,7 +836,9 @@ handlers — are reserved and win over any colliding fall-through attr.
 **Option groups** (system_3 #10701): `options` may be `[{ group, options: [...] }, ...]`. Each
 group renders as a `role="group"` named by its visible label, which is never an option; the
 keyboard walks the options across groups; and the closed trigger reads `<group> · <label>` for a
-grouped selection.
+grouped selection. A grouped list may also hold plain options (#10712), e.g. an "All
+categories" before the groups: they render in order outside any group, with no heading, and their
+trigger reads the bare label. Every group needs its label.
 
 Props: `modelValue` (v-model), `options` (`[{ value, label, disabled? }]`, or grouped as above), `placeholder`
 (default `Select`), `label`, `labelHint` (#9927; same opt-in hover/focus affordance as `AspInput`'s), `disabled`, `ariaLabel` (accessible name when no visible `label`).

@@ -6,6 +6,19 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSelect: a grouped list may also hold plain options** (Design ack
+  c66693 on system_3 #10702; built under #10712).
+  - In a grouped list, an entry without `options` is a plain option: it renders
+    in the order given, straight in the listbox and outside any group, with no
+    heading. `[{ value: 'all', label: 'All categories' }, { group: 'In', ... }, { group: 'Out', ... }]`
+    puts "All categories" above In and Out.
+  - A plain option's trigger reads its bare label ("All categories"); only a
+    labelled group lends `<group> · `. An unlabelled group is not a supported
+    shape, and the trigger no longer prints "undefined · " for one.
+  - The groups' divider also separates a run of plain options from a group
+    next to it. The arrows walk plain and grouped options together, in display
+    order. Flat and all-grouped lists render as before.
+
 - **AspSelect: option groups with a visible label** (design_agent c66290 (b) on
   system_3 #10630, Design ack c66607 on #10701).
   - `options` may be grouped: `[{ group: 'In', options: [{ value, label, disabled? }] }, ...]`.

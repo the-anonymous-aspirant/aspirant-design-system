@@ -51,3 +51,58 @@ test('a click on an option in a group selects it', async ({ page }) => {
   await trigger(page).click()
   await expect(page.getByRole('option', { name: 'Gift', exact: true })).toHaveCount(1)
 })
+
+// A grouped list may also hold plain options (system_3 #10712, design_agent
+// c66693): "All categories" sits above In and Out, in no group and under no
+// heading, and its trigger reads the bare label.
+test.describe('a plain option above the groups', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/tests/e2e/fixtures/select-groups.html?mixed=1', { waitUntil: 'networkidle' })
+  })
+
+  test('renders outside every group, first, with no heading', async ({ page }) => {
+    await trigger(page).click()
+    await expect(page.getByRole('option')).toHaveText(['All categories', 'Paid work', 'Gift', 'Other', 'travel', 'other'])
+    await expect(page.getByRole('group')).toHaveCount(2)
+    await expect(page.getByRole('group').getByRole('option', { name: 'All categories' })).toHaveCount(0)
+    // It is a direct child of the listbox, like a flat-list option.
+    await expect(panel(page).locator(':scope > .select__option')).toHaveText(['All categories'])
+    await expect(page.locator('.select__group-label')).toHaveText(['In', 'Out'])
+  })
+
+  test('choosing it reads the bare label; ArrowDown from it reaches In', async ({ page }) => {
+    await trigger(page).click()
+    await page.getByRole('option', { name: 'All categories' }).click()
+    await expect(page.locator('#value')).toHaveText('all')
+    await expect(trigger(page).locator('.select__value')).toHaveText('All categories')
+
+    await trigger(page).focus()
+    await page.keyboard.press('ArrowDown') // opens on the selected plain option
+    const active = async () => page.locator(`#${await trigger(page).getAttribute('aria-activedescendant')}`)
+    await expect(await active()).toHaveText('All categories')
+    await page.keyboard.press('ArrowDown')
+    await expect(await active()).toHaveText('Paid work')
+    await expect(await active()).toHaveAttribute('role', 'option')
+    await expect(page.getByRole('group', { name: 'In' }).getByRole('option', { name: 'Paid work' })).toHaveAttribute('data-active', 'true')
+  })
+
+  test("Out's other still names its group", async ({ page }) => {
+    await trigger(page).click()
+    await page.getByRole('group', { name: 'Out' }).getByRole('option', { name: 'other' }).click()
+    await expect(trigger(page).locator('.select__value')).toHaveText('Out · other')
+  })
+
+  test('the plain run and the first group are divided like two groups', async ({ page }) => {
+    await trigger(page).click()
+    const top = (sel) => page.locator(sel).first().evaluate((el) => getComputedStyle(el).borderTopWidth)
+    expect(await top('.select__group')).toBe('1px') // In, after All categories
+    expect(await top('.select__group + .select__group')).toBe('1px') // Out, after In
+  })
+})
+
+test('a group with no label lends nothing to the trigger', async ({ page }) => {
+  await page.goto('/tests/e2e/fixtures/select-groups.html?unlabelled=1', { waitUntil: 'networkidle' })
+  await trigger(page).click()
+  await page.getByRole('option', { name: 'Stray' }).click()
+  await expect(trigger(page).locator('.select__value')).toHaveText('Stray')
+})

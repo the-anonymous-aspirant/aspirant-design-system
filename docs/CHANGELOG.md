@@ -6,6 +6,12 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSelect: Escape on an open select closes only its list** (system_3
+  #10761). Inside an AspModal, Escape used to close both the list and the
+  dialog, because the select did not consume the key. Now an open select
+  stops it, on the trigger and in the search field. A second Escape, with the
+  list closed, still closes the modal.
+
 - **AspSelect: an opt-in search field in the open panel** (design_conventions
   §3.149; built under system_3 #10748, Design ack c67019).
   - `searchable` (default off) puts a field at the top of the open panel that

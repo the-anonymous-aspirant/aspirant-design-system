@@ -18,6 +18,21 @@ const empty = ref(null)
 const filterAgent = ref('all')
 const filterSearch = ref('')
 const long = ref(null)
+// Option groups (system_3 #10701): "Other" exists on both sides, which is why
+// Transactions' filter needs real groups rather than one flat list.
+const GROUPED = [
+  { group: 'In', options: [
+    { value: 'in:paid_work', label: 'Paid work' },
+    { value: 'in:gift', label: 'Gift' },
+    { value: 'in:other', label: 'Other' },
+  ] },
+  { group: 'Out', options: [
+    { value: 'out:materials', label: 'materials and supplies' },
+    { value: 'out:other', label: 'other' },
+    { value: 'out:travel', label: 'travel' },
+  ] },
+]
+const grouped = ref(null)
 const manyOptions = Array.from({ length: 24 }, (_, i) => ({
   value: `row-${i}`,
   label: `artifact-${String(i).padStart(3, '0')}.py`,
@@ -68,6 +83,16 @@ const manyOptions = Array.from({ length: 24 }, (_, i) => ({
 
     <Variant title="Empty">
       <AspSelect v-model="empty" label="Labels" :options="[]" placeholder="No labels" />
+    </Variant>
+
+    <Variant title="Grouped options">
+      <AspSelect v-model="grouped" label="Category" :options="GROUPED" placeholder="All categories" />
+      <p class="note">
+        Each group is a <code>role="group"</code> named by its label; the label is never an option.
+      </p>
+      <div data-theme="dark" class="dark-pane">
+        <AspSelect v-model="grouped" label="Category" :options="GROUPED" placeholder="All categories" />
+      </div>
     </Variant>
 
     <Variant title="Scrolling panel (24 options)">

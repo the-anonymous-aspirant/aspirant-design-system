@@ -172,7 +172,7 @@ const openPanel = async ({ focusField = false, text = '' } = {}) => {
   scrollActiveIntoView()
   if (props.searchable && focusField) field.value?.focus()
   window.addEventListener('scroll', onViewportChange, true)
-  window.addEventListener('resize', onViewportChange)
+  window.addEventListener('resize', onResize)
 }
 
 const closePanel = ({ focusTrigger = true } = {}) => {
@@ -182,6 +182,7 @@ const closePanel = ({ focusTrigger = true } = {}) => {
   flipped.value = false
   sideChosen = false
   openHeight = 0
+  chosenWidth = 0
   if (props.searchable && panel.value) panel.value.style.height = ''
   // The typed text is dropped on every close (§3.149 Decision 5).
   query.value = ''
@@ -228,6 +229,15 @@ const EDGE = 8
 // still caps that height to the room above.
 let sideChosen = false
 let openHeight = 0
+// The panel's width, chosen at open (and again on a resize) and held until it
+// closes (§3.151, system_3 #10854): typing never changes it, so neither edge
+// moves while she types. 0 means "measure at the next placement".
+let chosenWidth = 0
+// Below 768px the panel keeps the page's 16px phone gutter (§3.121 P5), so
+// her thumb has room at the edge where the back gesture starts; above it, the
+// 8px EDGE clamp is unchanged.
+const PHONE_GUTTER = 16
+const gutterFor = () => (window.innerWidth < 768 ? PHONE_GUTTER : EDGE)
 
 // A transform, filter, perspective or containment on an ancestor makes that
 // ancestor the containing block of a fixed descendant, so viewport
@@ -267,7 +277,20 @@ const placePanel = () => {
   // nothing is mutated: briefly lifting the cap on every scroll would reset
   // the panel's own scroll position. A searchable panel scrolls its list, not
   // itself, so its natural height is the field row plus the list's content.
-  el.style.minWidth = `${t.width}px`
+  // The width first, because wrapping changes the height. It is the panel's
+  // own max-content width, read with `width: max-content` so where the panel
+  // sits cannot shrink it. An auto-width fixed box shrinks to the room on its
+  // right, so a width read before moving `left` was stale, and the box
+  // regrew to the window edge (#10854). Then: at least the trigger, at most the
+  // content width between the gutters; a longer option wraps, never cut.
+  const gutter = gutterFor()
+  if (!chosenWidth) {
+    el.style.minWidth = ''
+    el.style.width = 'max-content'
+    const natural = el.getBoundingClientRect().width
+    chosenWidth = Math.min(Math.max(natural, t.width), window.innerWidth - 2 * gutter)
+  }
+  el.style.width = `${chosenWidth}px`
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
   const content = props.searchable
     ? (el.querySelector('.select__search')?.offsetHeight || 0) + (list.value?.scrollHeight || 0)
@@ -294,9 +317,10 @@ const placePanel = () => {
   const cb = fixedContainingBlock(el)
   const cbRect = cb && cb.getBoundingClientRect()
   const origin = cb ? { left: cbRect.left + cb.clientLeft, top: cbRect.top + cb.clientTop } : { left: 0, top: 0 }
-  const width = el.getBoundingClientRect().width
-  const left = Math.min(t.left, window.innerWidth - width - EDGE)
-  el.style.left = `${Math.max(left, EDGE) - origin.left}px`
+  // At the trigger's left edge; moved left only as far as the right gutter
+  // needs, and never past the left one. Placed with the width it now has.
+  const left = Math.max(Math.min(t.left, window.innerWidth - gutter - chosenWidth), gutter)
+  el.style.left = `${left - origin.left}px`
   // Upward, the box must end one gap above the trigger; its margin moves it
   // down by one gap, so its top is set two gaps higher.
   el.style.top = `${(flipped.value ? t.top - height - gap * 2 : t.bottom) - origin.top}px`
@@ -311,9 +335,16 @@ const onViewportChange = () => {
   })
 }
 
+// A resize may re-place the panel at a new width (§3.151 Decision 4);
+// a scroll keeps the width it has.
+const onResize = () => {
+  chosenWidth = 0
+  onViewportChange()
+}
+
 const stopFollowing = () => {
   window.removeEventListener('scroll', onViewportChange, true)
-  window.removeEventListener('resize', onViewportChange)
+  window.removeEventListener('resize', onResize)
   if (frame) cancelAnimationFrame(frame)
   frame = 0
 }
@@ -777,7 +808,7 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   line-height: 1;
 }
 
-/* Fixed, with top/left/min-width set from the trigger at open (placePanel):
+/* Fixed, with top/left/width set from the trigger at open (placePanel):
    no ancestor's overflow can clip it (#8402). The margin is the gap to the
    trigger; --select-panel-space caps the height to the room on its side. */
 .select__panel {

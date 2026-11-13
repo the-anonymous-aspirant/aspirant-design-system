@@ -171,7 +171,9 @@ test('placement: the field and a narrowed list stay in the 15rem cap, and the pa
 // design_agent c67019 on #10748 (§3.149 Decision 3): the side is chosen at open
 // and holds, and narrowing never moves the field she types into, even when the
 // panel opened above the trigger.
-test('(j) a panel opened above keeps its side, and the field does not move while she types', async ({ page }) => {
+// (k), design_agent c67045: an above-opened panel keeps its opening height,
+// so its bottom edge stays against the trigger as well.
+test('(j)(k) a panel opened above keeps its side, the field does not move, and the panel stays against its trigger', async ({ page }) => {
   await open(page, '?bottom=1')
   await trigger(page).click()
   await expect(field(page)).toBeFocused()
@@ -179,14 +181,20 @@ test('(j) a panel opened above keeps its side, and the field does not move while
   const above = async () => (await page.locator('.select__panel').boundingBox()).y + (await page.locator('.select__panel').boundingBox()).height <= t.y + 1
   expect(await above(), 'the panel opens above a trigger near the bottom').toBe(true)
   const top0 = await field(page).evaluate((el) => el.getBoundingClientRect().top)
+  const bottom = () => page.locator('.select__panel').evaluate((el) => el.getBoundingClientRect().bottom)
+  const bottom0 = await bottom()
   await field(page).fill('import')
   await expect(options(page)).toHaveCount(2)
   const top2 = await field(page).evaluate((el) => el.getBoundingClientRect().top)
   expect(Math.abs(top2 - top0), `field moved ${top2 - top0}px at two matches`).toBeLessThanOrEqual(1)
   expect(await above(), 'still above at two matches').toBe(true)
+  const bottom2 = await bottom()
+  expect(Math.abs(bottom2 - bottom0), `panel bottom moved ${bottom2 - bottom0}px at two matches`).toBeLessThanOrEqual(1)
   await field(page).fill('zebra quantum')
   await expect(page.locator('.select__empty--nomatch')).toBeVisible()
   const top3 = await field(page).evaluate((el) => el.getBoundingClientRect().top)
   expect(Math.abs(top3 - top0), `field moved ${top3 - top0}px at no match`).toBeLessThanOrEqual(1)
   expect(await above(), 'still above at no match').toBe(true)
+  const bottom3 = await bottom()
+  expect(Math.abs(bottom3 - bottom0), `panel bottom moved ${bottom3 - bottom0}px at no match`).toBeLessThanOrEqual(1)
 })

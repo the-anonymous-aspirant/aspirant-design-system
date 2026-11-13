@@ -182,6 +182,7 @@ const closePanel = ({ focusTrigger = true } = {}) => {
   flipped.value = false
   sideChosen = false
   openHeight = 0
+  if (props.searchable && panel.value) panel.value.style.height = ''
   // The typed text is dropped on every close (§3.149 Decision 5).
   query.value = ''
   openPointerType = ''
@@ -220,10 +221,11 @@ const flipped = ref(false)
 const EDGE = 8
 // A searchable panel chooses its side once, at open, and keeps it until it
 // closes: narrowing and resizing never flip it, and the field she types into
-// never moves (§3.149 Decision 3; design_agent c67019 on #10748). For a panel
-// opened above the trigger, its top stays where it opened, one opening-height
-// above the trigger, so a shorter list shrinks away from the field rather than
-// pulling the field down.
+// never moves (§3.149 Decision 3; design_agent c67019 on #10748). A panel
+// opened above the trigger keeps its opening height until it closes, so its
+// field stays where it opened AND its bottom edge stays against the trigger;
+// fewer matches leave panel fill under them (design_agent c67045). A resize
+// still caps that height to the room above.
 let sideChosen = false
 let openHeight = 0
 
@@ -281,10 +283,11 @@ const placePanel = () => {
       sideChosen = true
       openHeight = height
     } else if (flipped.value) {
-      // Position from the opening height (capped to the room above), so the
-      // field row holds still while the list narrows.
       height = Math.min(openHeight, space)
     }
+    // Above: the box keeps that height, so neither edge moves while she types.
+    // Below: it shortens from the bottom as before.
+    el.style.height = flipped.value ? `${height}px` : ''
   }
 
   // A containing block positions from its padding box, inside its border.

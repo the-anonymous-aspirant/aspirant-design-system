@@ -20,7 +20,8 @@ newest first. Each entry names the design ruling it implements.
     so a phone keeps its keyboard down. A printable key on the closed trigger
     opens the panel already typed.
   - The panel chooses its side at open and keeps it, and the field never moves
-    while she types. `searchPlaceholder` defaults to "Type to filter". Without
+    while she types. A panel opened above keeps its opening height, so it stays
+    against its trigger (design_agent c67045). `searchPlaceholder` defaults to "Type to filter". Without
     `searchable`, nothing changes.
 
 - **AspSelect: a grouped list may also hold plain options** (Design ack

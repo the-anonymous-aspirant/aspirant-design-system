@@ -33,6 +33,10 @@ const GROUPED = [
   ] },
 ]
 const grouped = ref(null)
+// A plain option above the groups (system_3 #10712): Transactions' "All
+// categories" belongs to neither side, so it sits outside both, unheaded.
+const MIXED = [{ value: 'all', label: 'All categories' }, ...GROUPED]
+const mixed = ref('all')
 const manyOptions = Array.from({ length: 24 }, (_, i) => ({
   value: `row-${i}`,
   label: `artifact-${String(i).padStart(3, '0')}.py`,
@@ -92,6 +96,16 @@ const manyOptions = Array.from({ length: 24 }, (_, i) => ({
       </p>
       <div data-theme="dark" class="dark-pane">
         <AspSelect v-model="grouped" label="Category" :options="GROUPED" placeholder="All categories" />
+      </div>
+    </Variant>
+
+    <Variant title="Grouped, with a leading plain option">
+      <AspSelect v-model="mixed" label="Category" :options="MIXED" />
+      <p class="note">
+        A plain option sits outside every group, with no heading; its trigger reads the bare label.
+      </p>
+      <div data-theme="dark" class="dark-pane">
+        <AspSelect v-model="mixed" label="Category" :options="MIXED" />
       </div>
     </Variant>
 

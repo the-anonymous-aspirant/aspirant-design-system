@@ -27,7 +27,13 @@ const props = defineProps({
    * `[{ value, label, disabled? }]`, or grouped (system_3 #10701):
    * `[{ group: 'In', options: [{ value, label, disabled? }, ...] }, ...]`.
    * A group renders as `role="group"` with a visible label that is never an
-   * option: not focusable, not selectable, not walked by the arrows.
+   * option: not focusable, not selectable, not walked by the arrows. Every
+   * group needs its `group` label, which names the `role="group"`; an
+   * unlabelled group is not a supported shape.
+   * A grouped list may also hold plain options (system_3 #10712), e.g.
+   * `[{ value: 'all', label: 'All categories' }, { group: 'In', options }, ...]`:
+   * they render in the order given, outside any group, with no heading, and
+   * their trigger reads the bare label.
    */
   options: { type: Array, default: () => [] },
   placeholder: { type: String, default: 'Select' },
@@ -56,32 +62,54 @@ const panel = ref(null)
 const open = ref(false)
 const activeIndex = ref(-1)
 
-// Grouped options are flattened once: every index below (the active option,
-// aria-activedescendant, the arrows) counts options only, never group labels.
-const isGrouped = computed(() => props.options.some((o) => o && Array.isArray(o.options)))
-const flat = computed(() => (isGrouped.value ? props.options.flatMap((g) => g.options || []) : props.options))
-const groups = computed(() => {
+// The panel is a run of sections: a labelled `role="group"` for each
+// `{ group, options }` entry, and a plain section for each run of plain
+// options, which render straight into the listbox (system_3 #10712,
+// design_agent c66693: "All categories" above In and Out). A flat list is one
+// plain section. `flat` is every option in display order, once: every index
+// below (the active option, aria-activedescendant, the arrows) counts options
+// only, never group labels.
+const isGroup = (o) => !!o && Array.isArray(o.options)
+const sections = computed(() => {
+  const out = []
   let index = 0
-  return props.options.map((g, gi) => ({
-    label: g.group,
-    id: `${uid}-group-${gi}`,
-    items: (g.options || []).map((option) => ({ option, index: index++ })),
-  }))
+  props.options.forEach((o, oi) => {
+    if (isGroup(o)) {
+      out.push({
+        label: o.group,
+        id: `${uid}-group-${oi}`,
+        items: o.options.map((option) => ({ option, index: index++ })),
+      })
+      return
+    }
+    let run = out[out.length - 1]
+    if (!run || run.label !== null) {
+      run = { label: null, id: `${uid}-plain-${oi}`, items: [] }
+      out.push(run)
+    }
+    run.items.push({ option: o, index: index++ })
+  })
+  return out
 })
+const flat = computed(() => sections.value.flatMap((s) => s.items.map(({ option }) => option)))
 
 const selectable = computed(() => flat.value.filter((o) => !o.disabled))
 const selected = computed(() => flat.value.find((o) => o.value === props.modelValue) || null)
 // A grouped selection names its group on the closed trigger, "Out · Other"
 // (design_agent c66607 on system_3 #10701): the open panel's heading says
-// which kind an option is, the closed trigger has no heading. A flat list's
-// trigger is unchanged.
+// which kind an option is, the closed trigger has no heading. A plain option,
+// in a flat list or above the groups, reads its bare label; only a group with
+// a label lends it, so a malformed unlabelled group can't print "undefined · ".
 const selectedGroup = computed(() => {
-  if (!isGrouped.value || !selected.value) return null
-  return groups.value.find((g) => g.items.some(({ option }) => option === selected.value)) || null
+  if (!selected.value) return null
+  return (
+    sections.value.find((s) => s.label !== null && s.items.some(({ option }) => option === selected.value)) || null
+  )
 })
 const triggerText = computed(() => {
   if (!selected.value) return props.placeholder
-  return selectedGroup.value ? `${selectedGroup.value.label} · ${selected.value.label}` : selected.value.label
+  const group = selectedGroup.value?.label
+  return group ? `${group} · ${selected.value.label}` : selected.value.label
 })
 const optionId = (i) => `${uid}-option-${i}`
 
@@ -322,20 +350,19 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
       :aria-label="label || ariaLabel || placeholder"
       @keydown="onKeydown"
     >
-      <!-- Grouped (system_3 #10701): each group is a labelled role="group";
-           its label is presentation only, so it is never an option. -->
-      <template v-if="isGrouped">
+      <template v-for="s in sections" :key="s.id">
+        <!-- A group (system_3 #10701) is a labelled role="group"; its label is
+             presentation only, so it is never an option. -->
         <li
-          v-for="g in groups"
-          :key="g.id"
+          v-if="s.label !== null"
           class="select__group"
           role="group"
-          :aria-labelledby="g.id"
+          :aria-labelledby="s.id"
         >
-          <span :id="g.id" class="select__group-label" role="presentation">{{ g.label }}</span>
+          <span :id="s.id" class="select__group-label" role="presentation">{{ s.label }}</span>
           <ul class="select__group-options" role="presentation">
             <li
-              v-for="{ option, index: i } in g.items"
+              v-for="{ option, index: i } in s.items"
               :id="optionId(i)"
               :key="option.value"
               class="select__option"
@@ -355,27 +382,28 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
             </li>
           </ul>
         </li>
-      </template>
-      <template v-else>
-        <li
-          v-for="(option, i) in options"
-          :id="optionId(i)"
-          :key="option.value"
-          class="select__option"
-          :class="{
-            'select__option--active': i === activeIndex,
-            'select__option--selected': option.value === modelValue,
-            'select__option--disabled': option.disabled,
-          }"
-          role="option"
-          :aria-selected="option.value === modelValue"
-          :aria-disabled="option.disabled || undefined"
-          :data-active="i === activeIndex"
-          @click="select(option)"
-          @mousemove="activeIndex = option.disabled ? activeIndex : i"
-        >
-          {{ option.label }}
-        </li>
+        <!-- Plain options sit straight in the listbox, outside any group. -->
+        <template v-else>
+          <li
+            v-for="{ option, index: i } in s.items"
+            :id="optionId(i)"
+            :key="option.value"
+            class="select__option"
+            :class="{
+              'select__option--active': i === activeIndex,
+              'select__option--selected': option.value === modelValue,
+              'select__option--disabled': option.disabled,
+            }"
+            role="option"
+            :aria-selected="option.value === modelValue"
+            :aria-disabled="option.disabled || undefined"
+            :data-active="i === activeIndex"
+            @click="select(option)"
+            @mousemove="activeIndex = option.disabled ? activeIndex : i"
+          >
+            {{ option.label }}
+          </li>
+        </template>
       </template>
 
       <li v-if="!flat.length" class="select__empty" role="presentation">No options</li>
@@ -570,7 +598,11 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
   list-style: none;
 }
 
-.select__group + .select__group {
+/* The same divider between two groups and where a run of plain options meets
+   a group, either way round (#10712, design_agent c66693). */
+.select__group + .select__group,
+.select__option + .select__group,
+.select__group + .select__option {
   margin-top: var(--space-2xs);
   border-top: 1px solid var(--surface-card-inner);
 }

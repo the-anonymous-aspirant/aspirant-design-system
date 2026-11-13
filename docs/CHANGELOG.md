@@ -6,6 +6,19 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSelect: option groups with a visible label** (design_agent c66290 (b) on
+  system_3 #10630, Design ack c66607 on #10701).
+  - `options` may be grouped: `[{ group: 'In', options: [{ value, label, disabled? }] }, ...]`.
+    A flat list renders exactly as before.
+  - Each group is `role="group"` named by its label (`aria-labelledby`). The
+    label is presentation only: not an option, not focusable, and a click on
+    it selects nothing. It keeps the panel's `--text-on-dark` ink at
+    `--text-xs`, bold and uppercase, with a thin divider between groups.
+  - The arrows walk options across groups and skip disabled ones; Enter,
+    Space, Escape and Tab are unchanged.
+  - The closed trigger names the group of a grouped selection, as
+    `<group> · <label>` ("Out · Other"). The open panel keeps its options bare.
+
 - **AspLabelHint: the field label "?" opens on a tap, with a larger hit area**
   (design_agent c62075/c62082 on system_3 #10033; the #9927 hint).
   - The `labelHint` mark of AspInput, AspTextarea and AspSelect is now the

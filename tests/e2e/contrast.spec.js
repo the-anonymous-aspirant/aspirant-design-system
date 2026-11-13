@@ -167,3 +167,61 @@ test.describe('the probe itself', () => {
     ).toBeGreaterThan(0)
   })
 })
+
+// The searchable AspSelect panel (system_3 #10748, §3.149). Its states exist
+// only with the panel open and text typed, so the static matrix never reaches
+// them (§3.18: such a state belongs in the contrast matrix). The no-match line
+// is a text node and goes through MEASURE. The field's typed text and its
+// placeholder are not text nodes, so they are painted here: ink over the
+// field's own fill on a canvas, read back as pixels (the same
+// format-agnostic approach as MEASURE, so color-mix() inks composite right).
+const FIELD_INKS = () => {
+  const input = document.querySelector('.select__search-input')
+  const cs = getComputedStyle(input)
+  const ph = getComputedStyle(input, '::placeholder')
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+  const paint = (fg, bg) => {
+    cv.clearRect(0, 0, 1, 1)
+    cv.fillStyle = bg
+    cv.fillRect(0, 0, 1, 1)
+    const back = [...cv.getImageData(0, 0, 1, 1).data]
+    cv.fillStyle = fg
+    cv.fillRect(0, 0, 1, 1)
+    return [[...cv.getImageData(0, 0, 1, 1).data], back]
+  }
+  const lum = ([r, g, b]) => {
+    const f = (v) => {
+      const c = v / 255
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+  }
+  const ratio = (fg, bg) => {
+    const [a, b] = paint(fg, bg)
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return +((hi + 0.05) / (lo + 0.05)).toFixed(2)
+  }
+  return {
+    text: ratio(cs.color, cs.backgroundColor),
+    placeholder: ratio(ph.color, cs.backgroundColor),
+    fill: cs.backgroundColor,
+  }
+}
+
+for (const theme of THEMES) {
+  test(`the searchable select's field and no-match line meet AA (${theme})`, async ({ page }) => {
+    const q = theme === 'dark' ? '?theme=dark' : ''
+    await page.goto(`/tests/e2e/fixtures/select-search.html${q}`, { waitUntil: 'networkidle' })
+    await page.locator('.select__trigger').click()
+    const inks = await page.evaluate(FIELD_INKS)
+    expect(inks.text, `field text ${inks.text}:1 on ${inks.fill} (${theme})`).toBeGreaterThanOrEqual(AA)
+    expect(inks.placeholder, `placeholder ${inks.placeholder}:1 on ${inks.fill} (${theme})`).toBeGreaterThanOrEqual(AA)
+
+    await page.locator('.select__search-input').fill('zebra quantum')
+    await page.waitForTimeout(80)
+    const sites = (await page.evaluate(MEASURE, '.select__panel')).filter((r) => r.selector.includes('select__empty'))
+    // Teeth: the line must actually be measured, or the pass below means nothing.
+    expect(sites.length, `the no-match line was not measured in ${theme}`).toBe(1)
+    expect(sites[0].ratio, `no-match line ${sites[0].ratio}:1 on the panel (${theme})`).toBeGreaterThanOrEqual(AA)
+  })
+}

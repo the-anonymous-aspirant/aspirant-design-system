@@ -6,6 +6,17 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **`normalizeValueDomain` / `padByRange`: a line's focused frame is never
+  narrower than the flat-series frame** (system_3 #11100, design_conventions
+  §3.120 Q3, amended 2026-11-14). The position frame is the larger of the
+  range-padded frame and ±10% of the series' largest absolute value, centred
+  on the series, then rounded and clamped as before. A series that drifts
+  against its level is drawn as drift: a database growing 1.36% in a day
+  (3.064 to 3.106) now fills 7% of its frame, not all of it. A line whose
+  range is over about a sixth of its level gets exactly the frame it had, and
+  a flat series is unchanged. The frame changes smoothly across the two
+  cases. A consumer that frames a line with `normalizeValueDomain` picks this
+  up with no code change. Bar and diverging domains are unchanged.
 - **AspSelect: on a phone, an open panel stays inside the 16px gutter**
   (system_3 #10854, design_conventions §3.151). Below 768px the panel never
   starts left of x=16 or ends past `innerWidth − 16`; from 768px up, the 8px

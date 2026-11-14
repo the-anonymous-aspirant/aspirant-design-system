@@ -7,7 +7,7 @@ newest first. Each entry names the design ruling it implements.
 ## Unreleased
 
 - **Icon registry: aspirant-explorer's nav names** (system_3 #10973, UX walk
-  E5). `overview` ◱, `browse` ⊞, `datasets` ▤, `documents` ▯ and `upload` ⇧,
+  E5). `overview` ◱, `browse` ▦, `datasets` ▤, `documents` ▯ and `upload` ⇧,
   glyph-only like the console's nav names, and its Browse rows' `folder` ◫,
   `image` ◪, `audio` ♪ and `message-export` ▭. Each glyph is in the house
   typeface's own coverage, so an explorer that loads `fonts.css` draws them

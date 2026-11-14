@@ -27,7 +27,7 @@ const SUBPAGE_GLYPHS = {
 // house typeface's own coverage (checked against the Iosevka cmap).
 const EXPLORER_GLYPHS = {
   overview: '◱',
-  browse: '⊞',
+  browse: '▦',
   datasets: '▤',
   documents: '▯',
   upload: '⇧',

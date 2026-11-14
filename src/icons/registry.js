@@ -80,7 +80,7 @@ export const iconRegistry = {
   // house typeface, so they took the device font's shape or a box. Each glyph
   // here is one Iosevka carries, checked against the font's own cmap.
   overview: { glyph: '◱', asset: null },
-  browse: { glyph: '⊞', asset: null },
+  browse: { glyph: '▦', asset: null },
   datasets: { glyph: '▤', asset: null },
   documents: { glyph: '▯', asset: null },
   upload: { glyph: '⇧', asset: null },

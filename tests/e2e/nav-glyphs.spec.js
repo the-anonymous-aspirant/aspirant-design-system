@@ -23,6 +23,20 @@ const SUBPAGE_GLYPHS = {
   activity: '∿',
 }
 
+// aspirant-explorer's nav names (system_3 #10973): glyph-only, each in the
+// house typeface's own coverage (checked against the Iosevka cmap).
+const EXPLORER_GLYPHS = {
+  overview: '◱',
+  browse: '▦',
+  datasets: '▤',
+  documents: '▯',
+  upload: '⇧',
+  folder: '◫',
+  image: '◪',
+  audio: '♪',
+  'message-export': '▭',
+}
+
 // Draws `text` white on a transparent canvas in `font` and returns the largest
 // per-pixel channel spread (max-min of r,g,b) over opaque pixels. White ink
 // gives ~0; a colour-emoji rendering gives a large spread.
@@ -50,7 +64,7 @@ const maxSpread = (page, text, font) =>
 test('each nav name falls back to its glyph and has no image asset', async ({ page }) => {
   await page.goto(FIXTURE, { waitUntil: 'networkidle' })
   const reg = await page.evaluate(() => window.__registry)
-  for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS })) {
+  for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS, ...EXPLORER_GLYPHS })) {
     expect(reg[name].glyph, name).toBe(glyph)
     // registryAsset falls back to the name itself for a null asset; what keeps
     // AspIcon's image arm off is that the name is not an asset_map.json key.
@@ -64,13 +78,13 @@ for (const collapsed of [false, true]) {
     page,
   }) => {
     await page.goto(`${FIXTURE}${collapsed ? '?collapsed=1' : ''}`, { waitUntil: 'networkidle' })
-    for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS })) {
+    for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS, ...EXPLORER_GLYPHS })) {
       const icon = page.locator(`[data-test="nav-${name}"] .asp-icon`)
       await expect(icon.locator('.asp-icon__glyph')).toHaveText(glyph)
       await expect(icon.locator('.asp-icon__img')).toHaveCount(0)
     }
     const calls = await page.evaluate(() => window.__fetchCalls)
-    expect(calls.filter((u) => [...Object.keys(GLYPHS), ...Object.keys(SUBPAGE_GLYPHS)].some((n) => u.includes(n)))).toEqual([])
+    expect(calls.filter((u) => [...Object.keys(GLYPHS), ...Object.keys(SUBPAGE_GLYPHS), ...Object.keys(EXPLORER_GLYPHS)].some((n) => u.includes(n)))).toEqual([])
   })
 }
 
@@ -79,7 +93,7 @@ for (const theme of ['light', 'dark']) {
     await page.goto(`${FIXTURE}${theme === 'dark' ? '?theme=dark' : ''}`, {
       waitUntil: 'networkidle',
     })
-    for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS })) {
+    for (const [name, glyph] of Object.entries({ ...GLYPHS, ...SUBPAGE_GLYPHS, ...EXPLORER_GLYPHS })) {
       const el = page.locator(`[data-test="nav-${name}"] .asp-icon__glyph`)
       const font = await el.evaluate((e) => getComputedStyle(e).font)
       expect(await maxSpread(page, glyph, font), `${name} ${glyph}`).toBeLessThan(40)

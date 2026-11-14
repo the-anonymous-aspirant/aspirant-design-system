@@ -84,9 +84,15 @@ test.describe('position (line) — focused, padded, sign-correct on both ends', 
   })
 
   test('a percent axis pads by its range and clamps to [0, 100]', () => {
+    // 80–95: the range (15) is just under a sixth of the level (95), so the
+    // flat-series frame, ±9.5 about 87.5, is the wider (§3.120 Q3 amendment).
     expect(normalizeValueDomain(d([80, 95]), { encoding: 'position', unit: '%' })).toEqual({
-      min: 78.5,
-      max: 96.5,
+      min: 78,
+      max: 97,
+    })
+    expect(normalizeValueDomain(d([70, 95]), { encoding: 'position', unit: '%' })).toEqual({
+      min: 67.5,
+      max: 97.5,
     })
     expect(normalizeValueDomain(d([0, 100]), { encoding: 'position', unit: '%' })).toEqual({
       min: 0,
@@ -94,14 +100,14 @@ test.describe('position (line) — focused, padded, sign-correct on both ends', 
     })
   })
 
-  test('a small-range level gets a frame of its own range, not its magnitude (§3.120 Q3)', () => {
-    // #9104 B4-5: TASKS IN BACKLOG at 51–52 framed [45, 58] drew a 9px band.
-    const backlog = normalizeValueDomain(d([51, 52]), { encoding: 'position' })
-    expect(backlog).toEqual({ min: 50, max: 53 })
-    expect(backlog.max - backlog.min).toBeLessThanOrEqual(4)
+  test('a small move against its level sits in a band, on purpose (§3.120 Q3 amendment)', () => {
+    // #9104 B4-5 framed backlog 51–52 by its range, [50, 53], a full-height
+    // climb. The 2026-11-14 amendment undoes that on purpose: one task in 52 is
+    // not a trend, so the frame is ±10% of the level, centred on the series.
+    expect(normalizeValueDomain(d([51, 52]), { encoding: 'position' })).toEqual({ min: 46, max: 57 })
     expect(normalizeValueDomain(d([74.3, 75.8]), { encoding: 'position', unit: '%' })).toEqual({
-      min: 74.1,
-      max: 76,
+      min: 67.4,
+      max: 82.7,
     })
   })
 
@@ -125,6 +131,72 @@ test.describe('position (line) — focused, padded, sign-correct on both ends', 
     expect(y.min).toBeGreaterThan(0.5)
     expect(y.min).toBeLessThan(0.92)
     expect(y.max).toBeGreaterThan(0.98)
+  })
+})
+
+// The 10%-of-range frame as it was before the amendment, for "exactly today's
+// frame" (system_3 #11100). Kept here, not exported: it is the reference the
+// amendment must reproduce, not a second rule.
+const rangeOnlyFrame = (lo, hi, opts = {}) => {
+  const step = niceStep(lo, hi, opts)
+  const pad = Math.max(0.1 * (hi - lo), step)
+  return { min: Math.max(0, roundToUnit(lo - pad, step, 'down')), max: roundToUnit(hi + pad, step, 'up') }
+}
+
+test.describe('position — never narrower than the flat-series frame (§3.120 Q3 amendment)', () => {
+  test("DB SIZE's 1.36% day occupies at most a fifth of its frame", () => {
+    // 3.064 to 3.106 GB over 24 h was drawn as a full-height climb (O-16).
+    const y = normalizeValueDomain(d([3.064, 3.08, 3.106]), { encoding: 'position' })
+    expect(y).toEqual({ min: 2.774, max: 3.396 })
+    expect((3.106 - 3.064) / (y.max - y.min)).toBeLessThanOrEqual(0.2)
+  })
+
+  test('a line whose range is over a sixth of its level keeps exactly today\'s frame', () => {
+    // Level 100: a range of 20 (a fifth) is over the line, 15 is under it.
+    for (const lo of [80, 75, 50, 10]) {
+      expect(normalizeValueDomain(d([lo, 100]), { encoding: 'position' })).toEqual(rangeOnlyFrame(lo, 100, { allInteger: true }))
+    }
+    for (const [lo, hi, unit] of [[0.5, 0.98, ''], [40, 75, '%'], [1000, 1400, '']]) {
+      const allInteger = Number.isInteger(lo) && Number.isInteger(hi)
+      expect(normalizeValueDomain(d([lo, hi]), { encoding: 'position', unit })).toEqual(rangeOnlyFrame(lo, hi, { unit, allInteger }))
+    }
+  })
+
+  test('a line under a sixth of its level gets the wider flat-series frame, centred on it', () => {
+    const y = normalizeValueDomain(d([85, 100]), { encoding: 'position' })
+    const old = rangeOnlyFrame(85, 100, { allInteger: true })
+    expect(y.max - y.min).toBeGreaterThan(old.max - old.min)
+    // ±10 about 92.5, rounded outward to whole units.
+    expect(y).toEqual({ min: 82, max: 103 })
+  })
+
+  test('the frame widens smoothly across the cut-off, with no jump', () => {
+    // Sweep the range from 2% to 40% of a level of 100. Before rounding, the
+    // frame's width is 2 x max(range/2 + pad, 0.1 x level): continuous, and
+    // never falling as the range grows. Rounding outward adds at most one unit
+    // per side, so the drawn frame stays within two units of it everywhere,
+    // including at the cut-off near a sixth (range 16.7).
+    let prevExact = null
+    for (let r = 2; r <= 40; r += 0.25) {
+      const lo = 100 - r
+      const y = normalizeValueDomain(d([lo, 100]), { encoding: 'position' })
+      const step = niceStep(lo, 100, { allInteger: Number.isInteger(lo) })
+      const exact = 2 * Math.max(r / 2 + Math.max(0.1 * r, step), 0.1 * 100)
+      expect(y.max - y.min).toBeGreaterThanOrEqual(exact - 1e-9)
+      expect(y.max - y.min).toBeLessThanOrEqual(exact + 2 * step + 1e-9)
+      if (prevExact !== null) {
+        expect(exact).toBeGreaterThanOrEqual(prevExact - 1e-9)
+        // One sweep step moves the exact width by at most 1.2 x 0.25 (and by
+        // nothing on the flat side): no jump at the cut-off.
+        expect(exact - prevExact).toBeLessThanOrEqual(1.2 * 0.25 + 1e-9)
+      }
+      prevExact = exact
+    }
+  })
+
+  test('a negative series is framed by its largest absolute value too', () => {
+    const y = normalizeValueDomain(d([-101, -100]), { encoding: 'position' })
+    expect(y).toEqual({ min: -111, max: -90 })
   })
 })
 

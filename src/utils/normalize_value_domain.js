@@ -18,7 +18,8 @@
  *   - `position` (line/point/area) encodes POSITION, so a focused, padded range
  *     is honest and is exactly the operator's ask (#3344): expand the observed
  *     range outward on BOTH ends by 10% of the RANGE, at least one rounding
- *     unit (§3.120 Q3, `padByRange`).
+ *     unit, and never narrower than the flat-series frame (§3.120 Q3 and its
+ *     2026-11-14 amendment, `padByRange`).
  *
  * The magnitude-diverging expansion (`expandRange`) pads by each bound's own
  * magnitude instead. It is SIGN-CORRECT so it never clips a negative bound
@@ -117,12 +118,27 @@ export function expandRange(min, max, { unit = '', allInteger = false } = {}) {
  * one rounding unit, then rounded outward. Padding by each bound's own
  * magnitude (`expandRange`) drew a 51–52 series in a [45, 58] frame, a thin band
  * in a 48px cell. Same clamps as `expandRange`.
+ *
+ * A focused frame is never narrower than the flat-series frame (§3.120 Q3,
+ * amended 2026-11-14, system_3 #11100): ±10% of the series' largest absolute
+ * value, centred on the series. Padding by range alone drew DB SIZE's 1.36%
+ * day (3.064–3.106) as a full-height climb, which reads as a trend. Both frames
+ * are centred on the series' midpoint, so the larger is the one with the larger
+ * half-width: `max(range/2 + pad, 0.1 * max|v|)`. That is continuous, so the
+ * frame changes smoothly between the two, with no jump at a cut-off. The range
+ * frame wins once the range is over about a sixth of the level (0.6 x range >
+ * 0.1 x level), and there it is exactly the frame it always was.
  */
 export function padByRange(min, max, { unit = '', allInteger = false } = {}) {
   const step = niceStep(min, max, { unit, allInteger })
   const pad = Math.max(0.1 * (max - min), step)
-  let lower = roundToUnit(min - pad, step, 'down')
-  let upper = roundToUnit(max + pad, step, 'up')
+  const rangeHalf = (max - min) / 2 + pad
+  const flatHalf = 0.1 * Math.max(Math.abs(min), Math.abs(max))
+  // Where the range frame is the wider, keep its own arithmetic, so the frame
+  // is exactly the one it always was rather than an equal one up to float drift.
+  const mid = (min + max) / 2
+  let lower = roundToUnit(rangeHalf >= flatHalf ? min - pad : mid - flatHalf, step, 'down')
+  let upper = roundToUnit(rangeHalf >= flatHalf ? max + pad : mid + flatHalf, step, 'up')
   if (isPercentUnit(unit)) {
     lower = Math.max(PERCENT_DOMAIN[0], lower)
     upper = Math.min(PERCENT_DOMAIN[1], upper)

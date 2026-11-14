@@ -1,5 +1,6 @@
 <script setup>
 import AspChart from '../src/components/AspChart.vue'
+import { normalizeValueDomain } from '../src/utils/normalize_value_domain.js'
 
 const months = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -10,6 +11,21 @@ const lineData = {
     { label: 'Messages', data: [30, 42, 38, 51, 60, 25, 18] },
   ],
 }
+
+// §3.120 Q3 and its 2026-11-14 amendment (system_3 #11100): a position line's
+// frame is never narrower than ±10% of its level. A series that drifts 1.4% in
+// a day (a database's size) is drawn as drift; one that moves by half its level
+// (CPU over a day) keeps its range-padded frame.
+const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+const driftingData = {
+  labels: hours,
+  datasets: [{ label: 'DB size (GB)', data: hours.map((_, i) => Math.round((3.064 + (0.042 * i) / 23) * 1000) / 1000) }],
+}
+const movingData = {
+  labels: hours,
+  datasets: [{ label: 'CPU (%)', data: [22, 25, 31, 28, 35, 41, 47, 52, 58, 61, 57, 49, 44, 39, 46, 53, 60, 55, 48, 40, 33, 29, 26, 24] }],
+}
+const frameFor = (data) => ({ scales: { y: normalizeValueDomain(data, { encoding: 'position' }) } })
 
 const barData = {
   labels: ['health', 'agents', 'comms', 'tasks', 'corpus'],
@@ -61,6 +77,18 @@ const scatterData = {
     <Variant title="Line (2 series)">
       <div style="padding: 16px; background: var(--surface-page);">
         <AspChart type="line" :data="lineData" :height="320" aria-label="Weekly tasks done and messages" />
+      </div>
+    </Variant>
+
+    <Variant title="Line, focused frame: a series that drifts (§3.120 Q3)">
+      <div style="padding: 16px; background: var(--surface-page);">
+        <AspChart type="line" :data="driftingData" :options="frameFor(driftingData)" :height="160" aria-label="Database size over 24 hours, drifting 1.4%" />
+      </div>
+    </Variant>
+
+    <Variant title="Line, focused frame: a series that moves (§3.120 Q3)">
+      <div style="padding: 16px; background: var(--surface-page);">
+        <AspChart type="line" :data="movingData" :options="frameFor(movingData)" :height="160" aria-label="CPU over 24 hours, moving between 22 and 61 percent" />
       </div>
     </Variant>
 

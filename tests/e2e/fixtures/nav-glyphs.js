@@ -16,6 +16,8 @@ const NAV = ['agents', 'tasks', 'processes', 'corpus', 'artifacts']
 // The agent page's subpage names (#9412), rendered the same way, and once
 // more at sm and md for the size check.
 const SUBPAGES = ['responsibilities', 'improvement', 'owns', 'activity']
+// aspirant-explorer's nav names (system_3 #10973).
+const EXPLORER = ['overview', 'browse', 'datasets', 'documents', 'upload']
 
 const q = new URLSearchParams(location.search)
 if (q.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark'
@@ -29,7 +31,7 @@ window.fetch = (...args) => {
 }
 
 window.__registry = Object.fromEntries(
-  [...NAV, ...SUBPAGES].map((n) => [
+  [...NAV, ...SUBPAGES, ...EXPLORER].map((n) => [
     n,
     { glyph: registryFallback(n), asset: registryAsset(n), mapped: registryAsset(n) in assetMap },
   ])
@@ -48,7 +50,7 @@ createApp({
         },
         {
           sidebar: () =>
-            [...NAV, ...SUBPAGES].map((n) =>
+            [...NAV, ...SUBPAGES, ...EXPLORER].map((n) =>
               h(AspSidebarLink, {
                 to: `#${n}`,
                 label: n[0].toUpperCase() + n.slice(1),

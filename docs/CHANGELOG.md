@@ -6,6 +6,11 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **Icon registry: aspirant-explorer's nav names** (system_3 #10973, UX walk
+  E5). `overview` ◱, `browse` ⊞, `datasets` ▤, `documents` ▯ and `upload` ⇧,
+  glyph-only like the console's nav names. Each glyph is in the house
+  typeface's own coverage, so an explorer that loads `fonts.css` draws them
+  in Iosevka on every device rather than in the device font or as a box.
 - **AspSelect: on a phone, an open panel stays inside the 16px gutter**
   (system_3 #10854, design_conventions §3.151). Below 768px the panel never
   starts left of x=16 or ends past `innerWidth − 16`; from 768px up, the 8px

@@ -74,6 +74,16 @@ export const iconRegistry = {
   improvement: { glyph: '\u2197\uFE0E', asset: null },
   owns: { glyph: '◈', asset: null },
   activity: { glyph: '∿', asset: null },
+
+  // aspirant-explorer's nav (system_3 #10973, UX walk E5). Its icons were
+  // typed characters, two of them (a folder and a stacked page) outside the
+  // house typeface, so they took the device font's shape or a box. Each glyph
+  // here is one Iosevka carries, checked against the font's own cmap.
+  overview: { glyph: '◱', asset: null },
+  browse: { glyph: '⊞', asset: null },
+  datasets: { glyph: '▤', asset: null },
+  documents: { glyph: '▯', asset: null },
+  upload: { glyph: '⇧', asset: null },
 }
 
 /** Unicode fallback glyph for `name`, or `null` if unregistered. */

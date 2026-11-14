@@ -6,6 +6,16 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspPathTitle: the current folder keeps its whole name, and the middle
+  collapse fires on a short path** (system_3 #11248 of #10972, UX walk E4,
+  design_conventions §3.22 and §3.122 P3). Segments no longer shrink with an
+  ellipsis of their own. That shrinking hid the overflow from the collapse
+  measurement, so a three-part path of long names read "l… / syn… / doc…" on a
+  phone and never collapsed. Now the middle collapses first. If root + `…` +
+  current still does not fit, the line wraps and the current folder sits whole
+  on a line of its own. The header still never scrolls sideways. The title also
+  measures again once web fonts load. A consumer picks this up with no code
+  change.
 - **Icon registry: aspirant-explorer's nav names** (system_3 #10973, UX walk
   E5). `overview` ◱, `browse` ▦, `datasets` ▤, `documents` ▯ and `upload` ⇧,
   glyph-only like the console's nav names, and its Browse rows' `folder` ◫,

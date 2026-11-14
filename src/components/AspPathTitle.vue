@@ -55,20 +55,34 @@ const isCurrent = (index) => index === lastIndex.value
 
 // --- collapse ----------------------------------------------------------------
 //
-// A title path can be deep, and it must never wrap to a second line or push the
-// header sideways. On overflow the MIDDLE collapses to a single ellipsis,
-// keeping the first (root) and the last (current) — the two orientation anchors
-// — and progressively revealing tail segments while they still fit.
+// A title path can be deep, and it must never push the header sideways or clip
+// the current folder's name. On overflow the MIDDLE collapses to a single
+// ellipsis, keeping the first (root) and the last (current) — the two
+// orientation anchors — and progressively revealing tail segments while they
+// still fit (§3.22).
 //
 // The collapse is measured off rendered WIDTH, not segment count: a count
 // threshold would collapse a short 5-part path that fits and leave a long
 // 3-part path overflowing.
+//
+// Segments never shrink while measured. They once did (`min-width: 0` plus an
+// ellipsis on each), and then a short path of long names never overflowed at
+// all: each segment shrank to a stub, the current one included, and the
+// collapse never fired. The phone read "l… / syn… / doc…" (#10972).
+//
+// Only when the collapse is exhausted and root + … + current still does not
+// fit does the line wrap, so the current folder keeps its whole name on a line
+// of its own and a name longer than a line wraps inside itself rather than
+// clipping (§3.122 P3).
 
 const root = ref(null)
 const line = ref(null)
 
 /** How many segments, counting from index 1, are collapsed away. */
 const hidden = ref(0)
+
+/** True once the collapse is exhausted and the line still overflows. */
+const wrapped = ref(false)
 
 // Keep first + last: at most length - 2 can hide. The middle is the least
 // load-bearing part of a path.
@@ -102,22 +116,37 @@ const nodes = computed(() => {
 })
 
 let measuring = false
+// A request that arrives mid-measurement (a resize, the fonts landing) is not
+// dropped: the in-flight pass may have read the old widths, so it runs again.
+let measureAgain = false
 
 const measure = async () => {
-  if (measuring || !line.value) return
+  if (!line.value) return
+  if (measuring) {
+    measureAgain = true
+    return
+  }
   measuring = true
   try {
     // Re-expand first. Measuring from the collapsed state can only ever collapse
-    // further, so a widened viewport would never recover a hidden segment.
+    // further, so a widened viewport would never recover a hidden segment. The
+    // same holds for the wrap: measured wrapped, nothing ever overflows.
     hidden.value = 0
+    wrapped.value = false
     await nextTick()
     const el = line.value
-    while (hidden.value < maxHidden.value && el.scrollWidth > el.clientWidth + 1) {
+    const overflows = () => el.scrollWidth > el.clientWidth + 1
+    while (hidden.value < maxHidden.value && overflows()) {
       hidden.value += 1
       await nextTick()
     }
+    wrapped.value = overflows()
   } finally {
     measuring = false
+  }
+  if (measureAgain) {
+    measureAgain = false
+    measure()
   }
 }
 
@@ -126,6 +155,10 @@ let observedWidth = -1
 
 onMounted(() => {
   measure()
+  // A web font that arrives after mount changes every segment's width without
+  // resizing the root, so the first measurement can be stale. Measure again
+  // once the page's fonts have loaded.
+  document.fonts?.ready?.then(measure)
   if (typeof ResizeObserver === 'undefined') return
   // Observe the ROOT (its width is set by the page), never the line (its width
   // is set by content this component mutates — observing that is a feedback loop
@@ -152,7 +185,7 @@ const onNavigate = (node, event) =>
     <!-- A real heading: on a browse surface this IS the page's h1, so a screen
          reader announces the location as the heading rather than as an
          anonymous list. Ancestor segments are links inside it. -->
-    <h1 ref="line" class="path-title__line">
+    <h1 ref="line" class="path-title__line" :class="{ 'path-title__line--wrap': wrapped }">
       <template v-for="(node, position) in nodes" :key="node.key">
         <!-- Separator is decorative punctuation: aria-hidden so a reader hears
              "synthetic, documents", not "synthetic slash documents". -->
@@ -203,8 +236,9 @@ const onNavigate = (node, event) =>
   display: flex;
   align-items: baseline;
   gap: var(--space-2xs);
-  /* Never a second line, never a horizontal scrollbar on the page. The clip is
-     what `measure()` reads to decide the collapse. */
+  /* One line while the collapse can still make it fit, and never a horizontal
+     scrollbar on the page. The clip is what `measure()` reads to decide the
+     collapse; it never cuts a name, because segments do not shrink. */
   flex-wrap: nowrap;
   overflow: hidden;
   /* The page-title scale — NOT shrunk because the title has more parts. Matches
@@ -226,13 +260,28 @@ const onNavigate = (node, event) =>
 }
 
 .path-title__segment {
-  /* Let the flex algorithm shrink a segment below its content width so a single
-     very long name truncates instead of forcing the whole path to collapse. */
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* A segment keeps its whole name. Shrinking it with an ellipsis is what hid
+     the overflow from `measure()` and cut the current folder to a stub. */
+  flex-shrink: 0;
   white-space: nowrap;
   border-radius: var(--radius-sm);
+}
+
+/*
+ * The collapse is exhausted and root + … + current still does not fit: the line
+ * wraps, so the current folder lands whole on a line of its own. Only a name
+ * longer than a full line breaks, inside itself, and it is never clipped
+ * (§3.122 P3).
+ */
+.path-title__line--wrap {
+  flex-wrap: wrap;
+}
+
+.path-title__line--wrap .path-title__segment {
+  flex-shrink: 1;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /*

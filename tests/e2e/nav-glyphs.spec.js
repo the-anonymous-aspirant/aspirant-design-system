@@ -31,6 +31,10 @@ const EXPLORER_GLYPHS = {
   datasets: '▤',
   documents: '▯',
   upload: '⇧',
+  folder: '◫',
+  image: '◪',
+  audio: '♪',
+  'message-export': '▭',
 }
 
 // Draws `text` white on a transparent canvas in `font` and returns the largest

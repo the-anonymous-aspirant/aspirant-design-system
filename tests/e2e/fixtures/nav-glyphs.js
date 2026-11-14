@@ -17,7 +17,7 @@ const NAV = ['agents', 'tasks', 'processes', 'corpus', 'artifacts']
 // more at sm and md for the size check.
 const SUBPAGES = ['responsibilities', 'improvement', 'owns', 'activity']
 // aspirant-explorer's nav names (system_3 #10973).
-const EXPLORER = ['overview', 'browse', 'datasets', 'documents', 'upload']
+const EXPLORER = ['overview', 'browse', 'datasets', 'documents', 'upload', 'folder', 'image', 'audio', 'message-export']
 
 const q = new URLSearchParams(location.search)
 if (q.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark'

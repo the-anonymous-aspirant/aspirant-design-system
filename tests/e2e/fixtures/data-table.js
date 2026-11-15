@@ -292,6 +292,8 @@ createApp({
           },
         }),
         h('output', { id: 'clicked' }, clicked.value),
+        cardTable('cards-360', 360),
+        cardTable('cards-280', 280),
         cardTable('cards-639', 639),
         cardTable('cards-640', 640),
         cardTable('scroll-390', 390, { narrow: 'scroll' }),

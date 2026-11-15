@@ -724,7 +724,7 @@ const tableClasses = computed(() => ({
       />
       <AspButton
         variant="ghost"
-        size="sm"
+        size="icon"
         class="data-table__card-sort-dir"
         :disabled="!curSortBy"
         :aria-label="curSortDir === 'asc' ? 'Sorted ascending; reverse' : 'Sorted descending; reverse'"
@@ -1207,6 +1207,7 @@ const tableClasses = computed(() => ({
    and takes the cards' inline gutter so its label lines up with card text. */
 .data-table__card-sort {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-xs);
   padding: 0 var(--space-md);
@@ -1214,7 +1215,17 @@ const tableClasses = computed(() => ({
   font-family: var(--font-family-base);
   font-size: var(--text-sm);
 }
+/* Each part keeps its own width and never wraps inside itself (§3.135). When
+   the bar is too narrow, it wraps between the parts instead (§3.122 P3). */
 .data-table__card-sort-label {
   color: var(--text-muted);
+  white-space: nowrap;
+}
+.data-table__card-sort-select {
+  flex: none;
+  max-width: 100%;
+}
+.data-table__card-sort-select :deep(.select__value) {
+  white-space: nowrap;
 }
 </style>

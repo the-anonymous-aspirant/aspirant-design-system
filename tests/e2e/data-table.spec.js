@@ -392,6 +392,49 @@ test('card mode sorts through one "Sort by" select and a direction toggle', asyn
   expect((await counts()).map((t) => t.trim())[0]).toBe('240567')
 })
 
+// E-13 and E-9 of the 2026-11-14 UX walk (system_3 #11287): the bar's label and
+// select wrapped over two lines inside a 34px box, and the toggle was 34x24.
+for (const width of [390, 360, 280]) {
+  for (const theme of ['light', 'dark']) {
+    test(`at ${width}px the card sort bar keeps each part on one line, with a 44px toggle (${theme})`, async ({
+      page,
+    }) => {
+      // 280 is a card inside a 360px phone page, after the page and card gutters.
+      await page.setViewportSize({ width: Math.max(width, 360), height: 844 })
+      await page.goto(`/tests/e2e/fixtures/data-table.html?only=cards-${width}&theme=${theme}`, {
+        waitUntil: 'networkidle',
+      })
+      const bar = page.locator(`#cards-${width} .data-table__card-sort`)
+      await expect(bar).toBeVisible()
+      const m = await bar.evaluate((el) => {
+        const lines = (node) => {
+          const r = document.createRange()
+          r.selectNodeContents(node)
+          return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size
+        }
+        const box = (node) => node.getBoundingClientRect()
+        const label = el.querySelector('.data-table__card-sort-label')
+        const value = el.querySelector('.select__value')
+        const dir = el.querySelector('.data-table__card-sort-dir')
+        return {
+          labelLines: lines(label),
+          valueLines: lines(value),
+          valueText: value.textContent.trim(),
+          dir: { w: box(dir).width, h: box(dir).height },
+          barRight: box(el).right,
+          sectionRight: box(el.closest('section')).right,
+        }
+      })
+      expect(m.valueText).toBe('Default order')
+      expect(m.labelLines).toBe(1)
+      expect(m.valueLines).toBe(1)
+      expect(m.dir.w).toBeGreaterThanOrEqual(44)
+      expect(m.dir.h).toBeGreaterThanOrEqual(44)
+      expect(m.barRight).toBeLessThanOrEqual(m.sectionRight)
+    })
+  }
+}
+
 for (const width of [768, 1024]) {
   test(`at ${width}px a declared identity keeps its 24ch floor under the slack trick`, async ({
     page,

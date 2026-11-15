@@ -23,6 +23,14 @@ newest first. Each entry names the design ruling it implements.
   a flat series is unchanged. The frame changes smoothly across the two
   cases. A consumer that frames a line with `normalizeValueDomain` picks this
   up with no code change. Bar and diverging domains are unchanged.
+- **Export `deriveInk`, `parseColor`, `contrastRatio`, `toRgbString` and `AA` from the barrel**
+  (system_3 #10994). AspBarChart already used these internally to pick a
+  legible ink for a dynamically-coloured series; a consumer painting its own
+  dynamically-coloured surface (a chip, a tag, a swatch) can now reuse the
+  same derive-and-adjust algorithm instead of reimplementing contrast math —
+  the two-value light/dark pick it replaces fails on colours like `#c063c0`
+  that are sub-threshold against both ends. No existing component's behaviour
+  changes; this is additive only.
 - **AspSelect: on a phone, an open panel stays inside the 16px gutter**
   (system_3 #10854, design_conventions §3.151). Below 768px the panel never
   starts left of x=16 or ends past `innerWidth − 16`; from 768px up, the 8px

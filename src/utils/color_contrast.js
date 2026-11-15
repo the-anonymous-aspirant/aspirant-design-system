@@ -120,10 +120,20 @@ export const toRgbString = ([r, g, b, a = 1]) => {
  * white or black if nothing short of it passes. `steps` bounds the work; the
  * final step is the endpoint itself, so this cannot return a sub-threshold
  * colour when a passing one exists.
+ *
+ * Every candidate is measured and returned ROUNDED to integer channels, not
+ * as the idealized float the ramp computes. Every caller serializes this for
+ * CSS or canvas (`toRgbString`, which rounds), and `Math.round` can move a
+ * passing float down across the threshold — a #3498db background's passing
+ * float ink measured 4.521:1, and `rgb(43, 43, 43)` (its rounded form)
+ * measured 4.491:1, sub-AA. Rounding before the comparison, not after,
+ * is what keeps the "cannot return a sub-threshold colour" guarantee true
+ * of the value a caller actually paints with.
  */
 export const deriveInk = (preferred, background, target = AA, steps = 24) => {
   const bg = compositeOver(background, [255, 255, 255, 1])
-  const ink = compositeOver(preferred, bg)
+  const round = ([r, g, b, a]) => [Math.round(r), Math.round(g), Math.round(b), a]
+  const ink = round(compositeOver(preferred, bg))
 
   if (contrastRatio(ink, bg) >= target) return ink
 
@@ -140,12 +150,12 @@ export const deriveInk = (preferred, background, target = AA, steps = 24) => {
 
   for (let i = 1; i <= steps; i += 1) {
     const t = i / steps
-    const mixed = [
+    const mixed = round([
       ink[0] + (endpoint[0] - ink[0]) * t,
       ink[1] + (endpoint[1] - ink[1]) * t,
       ink[2] + (endpoint[2] - ink[2]) * t,
       1,
-    ]
+    ])
     if (contrastRatio(mixed, bg) >= target) return mixed
   }
 

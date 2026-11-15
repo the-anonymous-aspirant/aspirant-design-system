@@ -64,3 +64,11 @@ export { iconRegistry, registryFallback, registryAsset } from './icons/registry.
 // (AspBarChart), but the one raw line mount (system_3 HealthDetails drilldown)
 // has no preset and consumes this helper directly — one source, two call sites.
 export { normalizeValueDomain } from './utils/normalize_value_domain.js'
+
+// sRGB contrast math. AspBarChart consumes this internally for its own
+// dynamic per-series ink; a consumer that paints its own dynamically-coloured
+// surface (system_3 #10994: aspirant-client's EmotionalExcellence picks a
+// label ink per emotion's own fill) needs the same derive-and-adjust algorithm
+// rather than reimplementing it — the two-value light/dark pick it replaces
+// has a documented failure mode (a colour that fails against both ends).
+export { deriveInk, parseColor, contrastRatio, toRgbString, AA } from './utils/color_contrast.js'

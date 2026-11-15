@@ -12,6 +12,40 @@ const FIXTURE = '/tests/e2e/fixtures/path-title.html'
 const title = (page, region) => page.locator(`#${region} .path-title`)
 const segments = (page, region) => title(page, region).locator('.path-title__segment')
 
+const pageScrollsSideways = (page) =>
+  page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+
+/** How many lines the rendered parts land on, by distinct top edge. */
+const lineCount = async (page, region) => {
+  const tops = await title(page, region)
+    .locator('.path-title__segment, .path-title__ellipsis')
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)))
+  return new Set(tops).size
+}
+
+/**
+ * The labels of segments whose name is not fully shown: cut by an ellipsis of
+ * their own (content wider than the box) or reaching past the heading's edge,
+ * where the heading's `overflow: hidden` clips them. Empty means every name
+ * reads whole.
+ */
+const clippedSegments = (page, region) =>
+  title(page, region)
+    .locator('.path-title__segment')
+    .evaluateAll((els) =>
+      els
+        .filter((el) => {
+          const line = el.closest('.path-title__line').getBoundingClientRect()
+          const box = el.getBoundingClientRect()
+          return (
+            el.scrollWidth > el.clientWidth + 1 ||
+            box.right > line.right + 1 ||
+            box.left < line.left - 1
+          )
+        })
+        .map((el) => el.textContent.trim())
+    )
+
 test.describe('structure', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(FIXTURE, { waitUntil: 'networkidle' })
@@ -102,18 +136,58 @@ test.describe('collapse (AC6)', () => {
     expect(text).toMatch(/level-\d+/)
   })
 
-  test('never wraps and never scrolls the page sideways', async ({ page }) => {
-    const scrolls = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth
-    )
-    expect(scrolls, 'the page gained a horizontal scrollbar').toBe(false)
+  test('wraps only once the collapse is exhausted, and never scrolls the page sideways', async ({
+    page,
+  }) => {
+    expect(await pageScrollsSideways(page), 'the page gained a horizontal scrollbar').toBe(false)
 
-    // Single line: every rendered part shares one top edge. A wrapped row would
-    // put the tail on a second one.
-    const tops = await title(page, 'narrow')
-      .locator('.path-title__segment, .path-title__ellipsis')
-      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)))
-    expect(new Set(tops).size, `parts landed on ${new Set(tops).size} lines`).toBe(1)
+    // A second line is allowed only when root + … + current is all that is left
+    // and still does not fit. Wrapping while a middle segment is still shown
+    // would spend a line the collapse could have saved.
+    const lines = await lineCount(page, 'narrow')
+    if (lines > 1) {
+      expect(await segments(page, 'narrow').allInnerTexts()).toEqual(['synthetic', 'documents'])
+    }
+    expect(await clippedSegments(page, 'narrow')).toEqual([])
+  })
+
+  test('a short path of long names collapses the middle and keeps the current folder whole', async ({
+    page,
+  }) => {
+    // The defect (#10972): three segments that shrank to "l… / syn… / doc…",
+    // with no collapse at all. The collapse fires, and no name is cut.
+    await expect(title(page, 'short').locator('.path-title__ellipsis')).toHaveCount(1)
+    const texts = await segments(page, 'short').allInnerTexts()
+    expect(texts).toEqual(['lake', 'documents'])
+    expect(await clippedSegments(page, 'short')).toEqual([])
+    expect(await pageScrollsSideways(page)).toBe(false)
+  })
+
+  test('a current name longer than a line wraps inside itself, whole', async ({ page }) => {
+    const current = title(page, 'long-current').locator('.path-title__segment--current')
+    await expect(current).toHaveText('fake-quarterly-report-with-a-very-long-folder-name-2999')
+    expect(await clippedSegments(page, 'long-current')).toEqual([])
+    // It took more than one line of its own, rather than one clipped line.
+    const box = await current.boundingBox()
+    const lineHeight = await current.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight))
+    expect(box.height).toBeGreaterThan(lineHeight * 1.5)
+    expect(await pageScrollsSideways(page)).toBe(false)
+  })
+})
+
+test.describe('a path that fits', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+
+  test('shows every segment on one line, with no collapse', async ({ page }) => {
+    await page.goto(FIXTURE, { waitUntil: 'networkidle' })
+    await expect(title(page, 'short').locator('.path-title__ellipsis')).toHaveCount(0)
+    expect(await segments(page, 'short').allInnerTexts()).toEqual([
+      'lake',
+      'synthetic',
+      'documents',
+    ])
+    expect(await lineCount(page, 'short')).toBe(1)
+    expect(await clippedSegments(page, 'short')).toEqual([])
   })
 })
 

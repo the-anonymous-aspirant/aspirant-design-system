@@ -759,9 +759,13 @@ and `AspBreadcrumb` use, because raw `--text-hint` (`#82b1ff`) measures ~1.7:1 o
 on both surfaces in both themes.
 
 **Overflow** collapses the middle to a single `…`, keeping the first (root) and last (current)
-anchors and revealing tail segments while they fit — width-measured, not count-thresholded. It
-never wraps or scrolls the header sideways, and the elided segments are announced to assistive
-tech (an `sr-only` span), not silently dropped.
+anchors and revealing tail segments while they fit — width-measured, not count-thresholded. No
+segment ever shrinks or takes an ellipsis of its own, so the current folder's name is never cut.
+Only when the collapse is exhausted and root + `…` + current still does not fit does the line
+wrap, putting the current folder whole on a line of its own; a name longer than a line wraps
+inside itself rather than clipping (§3.122 P3, system_3 #10972). It never scrolls the header
+sideways, and the elided segments are announced to assistive tech (an `sr-only` span), not
+silently dropped.
 
 ### 22. `AspTextarea` — ✅ shipped
 

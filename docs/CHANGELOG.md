@@ -6,6 +6,17 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: the card-mode sort bar fits, and a short list has none**
+  (system_3 #11287 of #10974, UX walk E-13 and E-9, design_conventions §3.155,
+  §3.99, §3.135, §3.122 P3). The direction toggle is now `AspButton
+  size="icon"`, 44×44 instead of 34×24. "Sort by" and the select's text no
+  longer wrap inside themselves, and the select takes the width of its longest
+  option. A narrow container wraps the bar between "Sort by" and the
+  select-and-toggle pair, which stay together. The new prop
+  `cardSortMinRows` (default 6) leaves the bar out of a card list of 5 rows or
+  fewer, unless `manualSort` is on or the operator has changed the order. A
+  consumer with a short card list loses the bar with no code change. Pass
+  `:card-sort-min-rows="1"` to keep it.
 - **AspPathTitle: the current folder keeps its whole name, and the middle
   collapse fires on a short path** (system_3 #11248 of #10972, UX walk E4,
   design_conventions §3.22 and §3.122 P3). Segments no longer shrink with an

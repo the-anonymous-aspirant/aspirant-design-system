@@ -435,6 +435,92 @@ for (const width of [390, 360, 280]) {
   }
 }
 
+// §3.155 (system_3 #11287): a card list too short for its order to matter has
+// no sort bar, except as a page (manualSort) or after its order was changed.
+const openCards = async (page, id, width = 390) => {
+  await page.setViewportSize({ width, height: 844 })
+  await page.goto(`/tests/e2e/fixtures/data-table.html?only=${id}`, { waitUntil: 'networkidle' })
+  await expect(page.locator(`#${id} table`)).toHaveClass(/data-table--cards/)
+}
+
+test('a card list of 5 rows has no sort bar, and one of 6 rows has it', async ({ page }) => {
+  await openCards(page, 'cards-few')
+  await expect(cards(page, 'cards-few')).toHaveCount(5)
+  await expect(page.locator('#cards-few .data-table__card-sort')).toHaveCount(0)
+  await openCards(page, 'cards-390')
+  await expect(cards(page, 'cards-390')).toHaveCount(6)
+  await expect(page.locator('#cards-390 .data-table__card-sort')).toBeVisible()
+})
+
+test('a 5-row page under manualSort keeps its sort bar', async ({ page }) => {
+  await openCards(page, 'cards-few-manual')
+  await expect(cards(page, 'cards-few-manual')).toHaveCount(5)
+  await expect(page.locator('#cards-few-manual .data-table__card-sort')).toBeVisible()
+})
+
+test('a sort the operator chose stays when a filter leaves 4 rows', async ({ page }) => {
+  await openCards(page, 'cards-filter')
+  const bar = page.locator('#cards-filter .data-table__card-sort')
+  await bar.getByRole('combobox', { name: 'Sort by' }).click()
+  await page.getByRole('option', { name: 'Count' }).click()
+  await page.locator('#filter-4').click()
+  await expect(cards(page, 'cards-filter')).toHaveCount(4)
+  await expect(bar).toBeVisible()
+})
+
+test('an unsorted list that a filter leaves at 4 rows drops the sort bar', async ({ page }) => {
+  await openCards(page, 'cards-filter')
+  await expect(page.locator('#cards-filter .data-table__card-sort')).toBeVisible()
+  await page.locator('#filter-4').click()
+  await expect(cards(page, 'cards-filter')).toHaveCount(4)
+  await expect(page.locator('#cards-filter .data-table__card-sort')).toHaveCount(0)
+})
+
+test('at 360px a long column label wraps the bar between whole parts, never inside the select', async ({
+  page,
+}) => {
+  await openCards(page, 'cards-long', 360)
+  const bar = page.locator('#cards-long .data-table__card-sort')
+  const trigger = bar.getByRole('combobox', { name: 'Sort by' })
+  const before = (await trigger.boundingBox()).width
+  await trigger.click()
+  await page.getByRole('option', { name: 'Session started, local time' }).click()
+  const m = await bar.evaluate((el) => {
+    const lines = (node) => {
+      const r = document.createRange()
+      r.selectNodeContents(node)
+      return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size
+    }
+    const label = el.querySelector('.data-table__card-sort-label')
+    const value = el.querySelector('.select__value')
+    return {
+      labelLines: lines(label),
+      valueLines: lines(value),
+      valueText: value.textContent.trim(),
+      labelTop: label.getBoundingClientRect().top,
+      valueTop: value.getBoundingClientRect().top,
+      triggerW: el.querySelector('.data-table__card-sort-select').getBoundingClientRect().width,
+      barRight: el.getBoundingClientRect().right,
+      sectionRight: el.closest('section').getBoundingClientRect().right,
+    }
+  })
+  expect(m.valueText).toBe('Session started, local time')
+  expect(m.labelLines).toBe(1)
+  expect(m.valueLines).toBe(1)
+  // "Sort by" sits on its own line, and the select and toggle on the next.
+  expect(m.valueTop).toBeGreaterThan(m.labelTop)
+  // The measured width does not change with the choice.
+  expect(Math.abs(m.triggerW - before)).toBeLessThan(1)
+  expect(m.barRight).toBeLessThanOrEqual(m.sectionRight)
+})
+
+test('table mode keeps its header sort on a 5-row table', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/tests/e2e/fixtures/data-table.html?only=cards-few-640', { waitUntil: 'networkidle' })
+  await expect(page.locator('#cards-few-640 thead .data-table__sort').first()).toBeVisible()
+  await expect(page.locator('#cards-few-640 .data-table__card-sort')).toHaveCount(0)
+})
+
 for (const width of [768, 1024]) {
   test(`at ${width}px a declared identity keeps its 24ch floor under the slack trick`, async ({
     page,

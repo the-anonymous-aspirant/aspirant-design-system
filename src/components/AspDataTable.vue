@@ -61,6 +61,10 @@ const props = defineProps({
     default: 'cards',
     validator: (v) => ['cards', 'scroll'].includes(v),
   },
+  // Card mode shows its sort bar only from this many rows: below it the whole
+  // set is in view and its order changes nothing the operator does next
+  // (design_conventions §3.155, system_3 #11287).
+  cardSortMinRows: { type: Number, default: 6 },
 
   // --- Per-row hooks (§3.88, task #4318) -------------------------------------
   // rowAttrs(row, index) → object of attributes spread onto the data <tr> (test
@@ -342,12 +346,36 @@ const sortLabelId = `asp-dt-sort-${Math.random().toString(36).slice(2, 9)}`
 const sortOptions = computed(() =>
   props.columns.filter(isSortable).map((c) => ({ value: c.key, label: c.label })),
 )
+const CARD_SORT_PLACEHOLDER = 'Default order'
+// A measured width (§3.135): wide enough for the longest option, so the select
+// neither wraps nor resizes as the choice changes. `ch` slightly over-measures
+// prose, and 2.5rem holds the trigger's padding, gap and caret.
+const cardSortWidth = computed(() => {
+  const n = Math.max(
+    CARD_SORT_PLACEHOLDER.length,
+    ...sortOptions.value.map((o) => String(o.label).length),
+  )
+  return `calc(${n}ch + 2.5rem)`
+})
 const onCardSortKey = (key) => {
   if (key) applySort(key, 'asc')
 }
 const onCardSortDir = () => {
   if (curSortBy.value) applySort(curSortBy.value, curSortDir.value === 'asc' ? 'desc' : 'asc')
 }
+// The bar stays on a short list in two cases (§3.155): with manualSort `rows`
+// is one page, not the set; and once the order differs from the one the list
+// opened with, it stays so that order stays visible and can be undone.
+const openingSort = { by: props.sortBy, dir: props.sortDir }
+const showCardSort = computed(
+  () =>
+    cardMode.value &&
+    sortOptions.value.length > 0 &&
+    (props.manualSort ||
+      props.rows.length >= props.cardSortMinRows ||
+      curSortBy.value !== openingSort.by ||
+      curSortDir.value !== openingSort.dir),
+)
 
 // --- Virtualization state ----------------------------------------------------
 // The window is computed over `displayRows` (the SORTED set), so sort/filter and
@@ -712,14 +740,15 @@ const tableClasses = computed(() => ({
     :style="surfaceColor ? { '--asp-dt-surface': surfaceColor } : null"
   >
     <!-- Card mode hides the header row, so its sort moves here (#9133). -->
-    <div v-if="cardMode && sortOptions.length" class="data-table__card-sort">
+    <div v-if="showCardSort" class="data-table__card-sort">
       <span :id="sortLabelId" class="data-table__card-sort-label">Sort by</span>
       <AspSelect
         :model-value="curSortBy || null"
         :options="sortOptions"
-        placeholder="Default order"
+        :placeholder="CARD_SORT_PLACEHOLDER"
         :aria-labelledby="sortLabelId"
         class="data-table__card-sort-select"
+        :style="{ width: cardSortWidth }"
         @update:model-value="onCardSortKey"
       />
       <AspButton
@@ -1221,11 +1250,15 @@ const tableClasses = computed(() => ({
   color: var(--text-muted);
   white-space: nowrap;
 }
-.data-table__card-sort-select {
-  flex: none;
+/* AspSelect forwards class and style to its trigger, but only its root carries
+   this component's scope attribute, so these rules anchor on the root. */
+.data-table__card-sort > .select {
   max-width: 100%;
 }
-.data-table__card-sort-select :deep(.select__value) {
+.data-table__card-sort > .select :deep(.select__trigger) {
+  max-width: 100%;
+}
+.data-table__card-sort > .select :deep(.select__value) {
   white-space: nowrap;
 }
 </style>

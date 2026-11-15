@@ -189,6 +189,13 @@ const breakdownRows = [
 ]
 
 const clicked = ref('')
+// #11287 (§3.155): a short card list has no sort bar unless it is a page
+// (manualSort) or its order was changed. `filterRows` stands in for a
+// consumer's filter that leaves fewer rows after the operator sorted.
+const filterRows = ref(cardRows)
+const longCols = cardCols.map((c) =>
+  c.key === 'started' ? { ...c, label: 'Session started, local time' } : c,
+)
 // `?only=<section id>` renders one section, so a spec can check the document's
 // own horizontal scroll at a phone viewport without the wide sections.
 const only = new URLSearchParams(location.search).get('only')
@@ -294,6 +301,14 @@ createApp({
         h('output', { id: 'clicked' }, clicked.value),
         cardTable('cards-360', 360),
         cardTable('cards-280', 280),
+        cardTable('cards-few', 390, { rows: cardRows.slice(0, 5) }),
+        cardTable('cards-few-manual', 390, { rows: cardRows.slice(0, 5), manualSort: true }),
+        h('section', { id: 'cards-filter', style: 'margin-top:24px; width:390px' }, [
+          h('button', { id: 'filter-4', type: 'button', onClick: () => { filterRows.value = cardRows.slice(0, 4) } }, 'Filter to 4'),
+          h(AspDataTable, { columns: cardCols, rows: filterRows.value, rowKey: 'id' }),
+        ]),
+        cardTable('cards-long', 360, { columns: longCols }),
+        cardTable('cards-few-640', 640, { rows: cardRows.slice(0, 5) }),
         cardTable('cards-639', 639),
         cardTable('cards-640', 640),
         cardTable('scroll-390', 390, { narrow: 'scroll' }),

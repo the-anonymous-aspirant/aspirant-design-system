@@ -374,7 +374,8 @@ matrix that opts out with `narrow="scroll"` horizontal-scrolls instead.
 Props: `columns` (`[{ key, label, sortable?, align?, truncate?, width?, role?, title? }]`),
 `rows`, `density` (`default` | `compact`), `interactive` (hover +
 keyboard-operable rows), `sortBy` / `sortDir` (v-model-able), `manualSort`,
-`rowKey` (string | fn), `caption`, `narrow` (`cards` | `scroll`), `fit` (`fill` | `content`).
+`rowKey` (string | fn), `caption`, `narrow` (`cards` | `scroll`), `fit` (`fill` | `content`),
+`cardSortMinRows` (number, default 6).
 
 **Alignment and fit** (§3.119, system_3 #9136). `align: 'right' | 'center'` applies to the
 header cell and every data cell. The modifiers are qualified by the table, at (0,2,0), so they
@@ -410,6 +411,14 @@ viewport, so a table in a narrow card switches too.
   `row`/`cell` roles keep the semantics that a changed `display` drops. The
   header row is hidden, so sorting moves into one "Sort by" `AspSelect` plus a
   direction toggle, on the same path as a header click.
+- **The sort bar** (§3.155, system_3 #11287). It shows from `cardSortMinRows`
+  rows (default 6). Below that the whole set is in view, so the bar is left out,
+  except in two cases: under `manualSort` (`rows` is a page, not the set), and
+  once the order differs from the one the list opened with. The toggle is an
+  icon-only 44×44 button. "Sort by" and the select each stay on one line, and
+  the select is as wide as its longest option. A narrow container wraps the bar
+  between whole parts. An option wider than the whole bar is the consumer's to
+  shorten.
 - **Virtualized cards.** Above `virtualizeThreshold`, card mode measures each
   rendered card's height (cards are not pinned to `rowHeight`) and windows over
   the measured offsets, so the DOM stays bounded.

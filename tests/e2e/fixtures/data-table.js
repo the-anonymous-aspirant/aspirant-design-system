@@ -194,7 +194,7 @@ const clicked = ref('')
 // consumer's filter that leaves fewer rows after the operator sorted.
 const filterRows = ref(cardRows)
 const longCols = cardCols.map((c) =>
-  c.key === 'started' ? { ...c, label: 'Session started, local time' } : c,
+  c.key === 'started' ? { ...c, label: 'Session started, local' } : c,
 )
 // `?only=<section id>` renders one section, so a spec can check the document's
 // own horizontal scroll at a phone viewport without the wide sections.

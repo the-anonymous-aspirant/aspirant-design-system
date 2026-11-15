@@ -417,8 +417,8 @@ viewport, so a table in a narrow card switches too.
   once the order differs from the one the list opened with. The toggle is an
   icon-only 44×44 button. "Sort by" and the select each stay on one line, and
   the select is as wide as its longest option. A narrow container wraps the bar
-  between whole parts. An option wider than the whole bar is the consumer's to
-  shorten.
+  between "Sort by" and the select-and-toggle pair, which never separate. An
+  option wider than the bar less its toggle is the consumer's to shorten.
 - **Virtualized cards.** Above `virtualizeThreshold`, card mode measures each
   rendered card's height (cards are not pinned to `rowHeight`) and windows over
   the measured offsets, so the DOM stays bounded.

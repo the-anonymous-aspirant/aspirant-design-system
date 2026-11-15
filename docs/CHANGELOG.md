@@ -11,7 +11,8 @@ newest first. Each entry names the design ruling it implements.
   §3.99, §3.135, §3.122 P3). The direction toggle is now `AspButton
   size="icon"`, 44×44 instead of 34×24. "Sort by" and the select's text no
   longer wrap inside themselves, and the select takes the width of its longest
-  option. A narrow container wraps the bar between whole parts. The new prop
+  option. A narrow container wraps the bar between "Sort by" and the
+  select-and-toggle pair, which stay together. The new prop
   `cardSortMinRows` (default 6) leaves the bar out of a card list of 5 rows or
   fewer, unless `manualSort` is on or the operator has changed the order. A
   consumer with a short card list loses the bar with no code change. Pass

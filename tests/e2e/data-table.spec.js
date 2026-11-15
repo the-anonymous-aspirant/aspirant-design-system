@@ -421,6 +421,13 @@ for (const width of [390, 360, 280]) {
           valueLines: lines(value),
           valueText: value.textContent.trim(),
           dir: { w: box(dir).width, h: box(dir).height },
+          caretRight: box(el.querySelector('.select__caret')).right,
+          // The caret ends inside the trigger's padding edge, not in its padding.
+          triggerInner: (() => {
+            const t = el.querySelector('.data-table__card-sort-select')
+            const cs = getComputedStyle(t)
+            return box(t).right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth)
+          })(),
           barRight: box(el).right,
           sectionRight: box(el.closest('section')).right,
         }
@@ -430,6 +437,7 @@ for (const width of [390, 360, 280]) {
       expect(m.valueLines).toBe(1)
       expect(m.dir.w).toBeGreaterThanOrEqual(44)
       expect(m.dir.h).toBeGreaterThanOrEqual(44)
+      expect(m.caretRight).toBeLessThanOrEqual(m.triggerInner + 0.5)
       expect(m.barRight).toBeLessThanOrEqual(m.sectionRight)
     })
   }
@@ -484,7 +492,7 @@ test('at 360px a long column label wraps the bar between whole parts, never insi
   const trigger = bar.getByRole('combobox', { name: 'Sort by' })
   const before = (await trigger.boundingBox()).width
   await trigger.click()
-  await page.getByRole('option', { name: 'Session started, local time' }).click()
+  await page.getByRole('option', { name: 'Session started, local' }).click()
   const m = await bar.evaluate((el) => {
     const lines = (node) => {
       const r = document.createRange()
@@ -500,15 +508,33 @@ test('at 360px a long column label wraps the bar between whole parts, never insi
       labelTop: label.getBoundingClientRect().top,
       valueTop: value.getBoundingClientRect().top,
       triggerW: el.querySelector('.data-table__card-sort-select').getBoundingClientRect().width,
+      trigger: el.querySelector('.data-table__card-sort-select').getBoundingClientRect().toJSON(),
+      dir: el.querySelector('.data-table__card-sort-dir').getBoundingClientRect().toJSON(),
+      valueOverflow: value.scrollWidth - value.clientWidth,
+      valueRight: value.getBoundingClientRect().right,
+      caretRight: el.querySelector('.select__caret').getBoundingClientRect().right,
+      triggerInner: (() => {
+        const t = el.querySelector('.data-table__card-sort-select')
+        const cs = getComputedStyle(t)
+        return t.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth)
+      })(),
+      barW: el.getBoundingClientRect().width,
       barRight: el.getBoundingClientRect().right,
       sectionRight: el.closest('section').getBoundingClientRect().right,
     }
   })
-  expect(m.valueText).toBe('Session started, local time')
+  expect(m.valueText).toBe('Session started, local')
   expect(m.labelLines).toBe(1)
   expect(m.valueLines).toBe(1)
-  // "Sort by" sits on its own line, and the select and toggle on the next.
+  // "Sort by" sits on its own line, and the select and toggle together on the next.
   expect(m.valueTop).toBeGreaterThan(m.labelTop)
+  const mid = (r) => r.top + r.height / 2
+  expect(Math.abs(mid(m.dir) - mid(m.trigger))).toBeLessThan(2)
+  expect(m.dir.right).toBeLessThanOrEqual(m.sectionRight)
+  // The chosen option is whole inside its select, not cut or spilling out.
+  expect(m.valueOverflow).toBeLessThanOrEqual(0)
+  expect(m.valueRight).toBeLessThanOrEqual(m.trigger.right)
+  expect(m.caretRight).toBeLessThanOrEqual(m.triggerInner + 0.5)
   // The measured width does not change with the choice.
   expect(Math.abs(m.triggerW - before)).toBeLessThan(1)
   expect(m.barRight).toBeLessThanOrEqual(m.sectionRight)

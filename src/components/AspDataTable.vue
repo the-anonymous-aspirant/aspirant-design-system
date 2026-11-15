@@ -348,14 +348,16 @@ const sortOptions = computed(() =>
 )
 const CARD_SORT_PLACEHOLDER = 'Default order'
 // A measured width (§3.135): wide enough for the longest option, so the select
-// neither wraps nor resizes as the choice changes. `ch` slightly over-measures
-// prose, and 2.5rem holds the trigger's padding, gap and caret.
+// neither wraps nor resizes as the choice changes. `ch` is exact in the house
+// monospace and over-measures prose. The rest is AspSelect's trigger: two
+// --space-sm paddings, its --space-sm gap, the caret (under 1em) and a 1px
+// border each side.
 const cardSortWidth = computed(() => {
   const n = Math.max(
     CARD_SORT_PLACEHOLDER.length,
     ...sortOptions.value.map((o) => String(o.label).length),
   )
-  return `calc(${n}ch + 2.5rem)`
+  return `calc(${n}ch + 3 * var(--space-sm) + 1em + 2px)`
 })
 const onCardSortKey = (key) => {
   if (key) applySort(key, 'asc')
@@ -742,25 +744,28 @@ const tableClasses = computed(() => ({
     <!-- Card mode hides the header row, so its sort moves here (#9133). -->
     <div v-if="showCardSort" class="data-table__card-sort">
       <span :id="sortLabelId" class="data-table__card-sort-label">Sort by</span>
-      <AspSelect
-        :model-value="curSortBy || null"
-        :options="sortOptions"
-        :placeholder="CARD_SORT_PLACEHOLDER"
-        :aria-labelledby="sortLabelId"
-        class="data-table__card-sort-select"
-        :style="{ width: cardSortWidth }"
-        @update:model-value="onCardSortKey"
-      />
-      <AspButton
-        variant="ghost"
-        size="icon"
-        class="data-table__card-sort-dir"
-        :disabled="!curSortBy"
-        :aria-label="curSortDir === 'asc' ? 'Sorted ascending; reverse' : 'Sorted descending; reverse'"
-        @click="onCardSortDir"
-      >
-        {{ curSortDir === 'asc' ? '▲' : '▼' }}
-      </AspButton>
+      <!-- The select and its toggle wrap as one part, never apart (§3.155). -->
+      <span class="data-table__card-sort-control">
+        <AspSelect
+          :model-value="curSortBy || null"
+          :options="sortOptions"
+          :placeholder="CARD_SORT_PLACEHOLDER"
+          :aria-labelledby="sortLabelId"
+          class="data-table__card-sort-select"
+          :style="{ width: cardSortWidth }"
+          @update:model-value="onCardSortKey"
+        />
+        <AspButton
+          variant="ghost"
+          size="icon"
+          class="data-table__card-sort-dir"
+          :disabled="!curSortBy"
+          :aria-label="curSortDir === 'asc' ? 'Sorted ascending; reverse' : 'Sorted descending; reverse'"
+          @click="onCardSortDir"
+        >
+          {{ curSortDir === 'asc' ? '▲' : '▼' }}
+        </AspButton>
+      </span>
     </div>
     <div
       ref="scrollEl"
@@ -1250,15 +1255,21 @@ const tableClasses = computed(() => ({
   color: var(--text-muted);
   white-space: nowrap;
 }
+.data-table__card-sort-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  max-width: 100%;
+}
 /* AspSelect forwards class and style to its trigger, but only its root carries
    this component's scope attribute, so these rules anchor on the root. */
-.data-table__card-sort > .select {
+.data-table__card-sort-control > .select {
+  min-width: 0;
+}
+.data-table__card-sort-control > .select :deep(.select__trigger) {
   max-width: 100%;
 }
-.data-table__card-sort > .select :deep(.select__trigger) {
-  max-width: 100%;
-}
-.data-table__card-sort > .select :deep(.select__value) {
+.data-table__card-sort-control > .select :deep(.select__value) {
   white-space: nowrap;
 }
 </style>

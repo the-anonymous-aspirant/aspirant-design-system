@@ -6,6 +6,18 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **Icon registry: four glyphs move into the house typeface, and a test keeps
+  them there** (system_3 #11151, design c68713 on #10973 and ack c70197 on
+  #11151). `messages` ✉ → `@`, `search` ⌕ → ◎ (U+25CE), `disabled` ⌀ → ⊘
+  (U+2298) and `processes` ⟳ → ↻ (U+21BB). The old four are not in Iosevka 400
+  latin, so they drew in the device font or as a box. A consumer sees the new
+  glyph wherever the name renders as a glyph with no code change: the
+  console's Inbox and Processes nav, and every `AspInput type="search"`. A
+  new spec, `icon-font-coverage.spec.js`, reads the shipped WOFF2's own cmap
+  and fails on any registered glyph outside it. Variation selectors are
+  skipped. Four known misses (`aspiring_hand`, `support`, `attach`,
+  `responsibilities`) are pinned by name and code point until system_3 #11420
+  replaces them.
 - **Two series text tokens for dark setters: series 3 and 10** (system_3
   #11346 of #11340, design_conventions §3.156 Decision 8, applying §3.131
   Decision 2). `--chart-series-3-text-on-dark` (`#5dc1a6`) and
@@ -14,7 +26,6 @@ newest first. Each entry names the design ruling it implements.
   mark token on `#424242` and clears 4.5:1 on `#424242`, `#2a2a2a` and
   `#1a1a1a`. The tests pin both, as they pin series 1 and 2. Flat across
   themes; the mark tokens do not change (§3.108).
-
 - **AspDataTable: the card-mode sort bar fits, and a short list has none**
   (system_3 #11287 of #10974, UX walk E-13 and E-9, design_conventions §3.155,
   §3.99, §3.135, §3.122 P3). The direction toggle is now `AspButton

@@ -27,7 +27,10 @@ export const iconRegistry = {
   admin: { glyph: '⚙', asset: 'admin' },
   support: { glyph: '☕', asset: 'coffemug' },
   family: { glyph: '♥', asset: 'family' },
-  messages: { glyph: '✉', asset: 'messages' },
+  // `@`, not ✉: ✉ is outside the house typeface. The console's Inbox (this
+  // name's one consumer) lists mentions, which are written `@name`, so `@`
+  // names what it holds (system_3 #11151; design ack c70197).
+  messages: { glyph: '@', asset: 'messages' },
   default: { glyph: '○', asset: 'default' },
 
   // Glyph-only names — no aspirant asset yet; upgrade silently once the
@@ -39,7 +42,9 @@ export const iconRegistry = {
   // Decorative — rendered without a `label`, which is what makes AspIcon mark
   // it aria-hidden.
   separator: { glyph: '›', asset: null },
-  search: { glyph: '⌕', asset: null },
+  // ◎ (U+25CE), not ⌕: ⌕ (TELEPHONE RECORDER) is outside the house typeface,
+  // and the font has no magnifier (system_3 #11151; design ack c70197).
+  search: { glyph: '◎', asset: null },
   // The conversation toolbar's config-door trigger (system_3 §3.77, operator
   // ruling on #3617). Not an alias of `admin`: that entry's asset is the
   // admin nav icon, and aliasing a nav identity onto a per-surface control is
@@ -54,7 +59,9 @@ export const iconRegistry = {
   trusted: { glyph: '✧', asset: null },
   active: { glyph: '●', asset: null },
   badge: { glyph: '◐', asset: null },
-  disabled: { glyph: '⌀', asset: null },
+  // ⊘ (U+2298), not ⌀: ⌀ is outside the house typeface, so it drew in the
+  // device font or as a box (system_3 #11151; design c68713 on #10973).
+  disabled: { glyph: '⊘', asset: null },
   // The system_3 console's nav set (conventions §4.2; system_3 #8018).
   // Registered rather than passed to AspSidebarLink as raw strings, which
   // render verbatim and never take the hand-drawn upgrade (§1.4). None of these
@@ -62,7 +69,9 @@ export const iconRegistry = {
   // the `${name}.svg` arm can ever upgrade them.
   agents: { glyph: '◉', asset: null },
   tasks: { glyph: '☑', asset: null },
-  processes: { glyph: '⟳', asset: null },
+  // ↻ (U+21BB), not ⟳: ⟳ is outside the house typeface (system_3 #11151;
+  // design c68713 on #10973).
+  processes: { glyph: '↻', asset: null },
   corpus: { glyph: '§', asset: null },
   artifacts: { glyph: '▤', asset: null },
   // The console's agent-page subpage links (system_3 #9303, #9412; §3.113 names

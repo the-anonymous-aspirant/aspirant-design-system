@@ -6,6 +6,15 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **Two series text tokens for dark setters: series 3 and 10** (system_3
+  #11346 of #11340, design_conventions §3.156 Decision 8, applying §3.131
+  Decision 2). `--chart-series-3-text-on-dark` (`#5dc1a6`) and
+  `--chart-series-10-text-on-dark` (`#82b1ff`) are the words that name those
+  segments in the console's task lifecycle list. Each is `deriveInk` of its
+  mark token on `#424242` and clears 4.5:1 on `#424242`, `#2a2a2a` and
+  `#1a1a1a`. The tests pin both, as they pin series 1 and 2. Flat across
+  themes; the mark tokens do not change (§3.108).
+
 - **AspDataTable: the card-mode sort bar fits, and a short list has none**
   (system_3 #11287 of #10974, UX walk E-13 and E-9, design_conventions §3.155,
   §3.99, §3.135, §3.122 P3). The direction toggle is now `AspButton

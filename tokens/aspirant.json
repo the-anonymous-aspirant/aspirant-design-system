@@ -241,7 +241,15 @@
       },
       "series-2-text-on-dark": {
         "value": "#7fb8d8",
-        "comment": "§3.131 (system_3 #9939/#9941) — series 2 TEXT ink for dark setters. = deriveInk(series-2-on-dark #4a9bc8, #424242, AA): mixed 7/24 toward white. 4.67:1 vs #424242, 6.66 vs #2a2a2a, 8.08 vs #1a1a1a. Only series 1 and 2 are minted: no consumer paints series-3..10 as DOM text yet (§3.108 restraint)."
+        "comment": "§3.131 (system_3 #9939/#9941) — series 2 TEXT ink for dark setters. = deriveInk(series-2-on-dark #4a9bc8, #424242, AA): mixed 7/24 toward white. 4.67:1 vs #424242, 6.66 vs #2a2a2a, 8.08 vs #1a1a1a. Text tokens are minted only for a series a consumer paints as DOM text (§3.131 Decision 2, §3.108 restraint): 1 and 2 here, 3 and 10 below."
+      },
+      "series-3-text-on-dark": {
+        "value": "#5dc1a6",
+        "comment": "§3.156 Decision 8, applying §3.131 Decision 2 (system_3 #11340/#11346) — series 3 TEXT ink for dark setters: the word in the task lifecycle list that names series 3's segment. = deriveInk(series-3-on-dark #1aa881, #424242, AA). 4.62:1 vs #424242, 6.59 vs #2a2a2a, 7.99 vs #1a1a1a. Flat across themes (the card is dark in both, §3.18). Text sibling of the 3:1 mark token, which does not change (§3.108)."
+      },
+      "series-10-text-on-dark": {
+        "value": "#82b1ff",
+        "comment": "§3.156 Decision 8, applying §3.131 Decision 2 (system_3 #11340/#11346) — series 10 TEXT ink for dark setters. = deriveInk(series-10-on-dark #82b1ff, #424242, AA), which clears unchanged: 4.63:1 vs #424242, 6.62 vs #2a2a2a, 8.02 vs #1a1a1a. Flat across themes (§3.18). Text sibling of the 3:1 mark token, which does not change (§3.108)."
       }
     },
     "feedback": {

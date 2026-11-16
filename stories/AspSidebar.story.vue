@@ -82,7 +82,7 @@ const mobileCollapsed = ref(true)
           <AspSidebarLink to="/active" label="Active" icon="●" :active="true" />
           <AspSidebarLink to="/hover" label="Default" icon="○" />
           <AspSidebarLink to="/badge" label="With badge" icon="◐" badge="12" />
-          <AspSidebarLink to="/disabled" label="Disabled" icon="⌀" :disabled="true" />
+          <AspSidebarLink to="/disabled" label="Disabled" icon="disabled" :disabled="true" />
         </AspSidebar>
       </div>
     </Variant>

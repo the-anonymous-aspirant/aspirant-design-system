@@ -9,7 +9,7 @@ const FIXTURE = '/tests/e2e/fixtures/nav-glyphs.html'
 const GLYPHS = {
   agents: '◉',
   tasks: '☑',
-  processes: '⟳',
+  processes: '↻',
   corpus: '§',
   artifacts: '▤',
 }

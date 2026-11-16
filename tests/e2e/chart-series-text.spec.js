@@ -15,20 +15,29 @@ const hex = (c) => '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).pad
 test.describe('§3.131 series text tokens', () => {
   const card = parseColor('#424242')
 
-  test('deriveInk pins: series-1 clears unchanged, series-2 lightens to #7fb8d8', () => {
+  test('deriveInk pins: series-1 and series-10 clear unchanged; series-2 and series-3 lighten', () => {
     expect(hex(deriveInk(parseColor('#ffb300'), card, AA))).toBe('#ffb300')
     expect(hex(deriveInk(parseColor('#4a9bc8'), card, AA))).toBe('#7fb8d8')
+    // §3.156 Decision 8 (system_3 #11346): the task lifecycle bar's words.
+    expect(hex(deriveInk(parseColor('#1aa881'), card, AA))).toBe('#5dc1a6')
+    expect(hex(deriveInk(parseColor('#82b1ff'), card, AA))).toBe('#82b1ff')
   })
 
-  test('the built tokens equal deriveInk of their mark tokens, and clear 4.5:1 on #424242', async ({ page }) => {
+  // Every sanctioned dark setter: the worst (#424242), the dark-theme card
+  // (#2a2a2a) and the dark page (#1a1a1a).
+  const setters = ['#424242', '#2a2a2a', '#1a1a1a']
+
+  test('the built tokens equal deriveInk of their mark tokens, and clear 4.5:1 on every dark setter', async ({ page }) => {
     await page.goto('/tests/e2e/fixtures/chart-series-text.html')
     await page.waitForFunction(() => typeof window.__token === 'function')
-    for (const n of [1, 2]) {
+    for (const n of [1, 2, 3, 10]) {
       const mark = await page.evaluate((v) => window.__token(v), `--chart-series-${n}-on-dark`)
       const text = await page.evaluate((v) => window.__token(v), `--chart-series-${n}-text-on-dark`)
       expect(text, `--chart-series-${n}-text-on-dark is missing from build/tokens.css`).not.toBe('')
       expect(text.toLowerCase()).toBe(hex(deriveInk(parseColor(mark), card, AA)))
-      expect(contrastRatio(parseColor(text), card)).toBeGreaterThanOrEqual(AA)
+      for (const s of setters) {
+        expect(contrastRatio(parseColor(text), parseColor(s)), `series ${n} on ${s}`).toBeGreaterThanOrEqual(AA)
+      }
     }
   })
 })

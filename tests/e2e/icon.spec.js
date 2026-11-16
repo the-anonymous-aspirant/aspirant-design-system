@@ -17,7 +17,7 @@ test('SVG-arm icon issues no network request when unconfigured, renders its glyp
   page,
 }) => {
   const svgArm = page.locator('#svgArm .asp-icon')
-  await expect(svgArm.locator('.asp-icon__glyph')).toHaveText('⌕')
+  await expect(svgArm.locator('.asp-icon__glyph')).toHaveText('◎')
   await expect(svgArm.locator('.asp-icon__svg')).toHaveCount(0)
   const calls = await page.evaluate(() => window.__fetchCalls)
   expect(calls.some((u) => u.includes('search'))).toBe(false)

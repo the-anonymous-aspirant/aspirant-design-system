@@ -43,7 +43,7 @@ const iconBaseConfigured = isIconBaseConfigured()
       <div style="display: flex; gap: 20px; align-items: center; padding: 12px; background: var(--surface-page); color: var(--text-on-light);">
         <AspIcon name="custom-arrow" fallback="→" size="md" label="Next" />
         <AspIcon name="custom-check" fallback="✓" size="md" label="Confirmed" />
-        <AspIcon name="custom-mail" fallback="✉" size="md" label="Inbox" />
+        <AspIcon name="custom-mail" fallback="@" size="md" label="Inbox" />
       </div>
     </Variant>
 

@@ -17,15 +17,9 @@ const FONT = fileURLToPath(new URL('../../src/fonts/iosevka-latin-400-normal.wof
 // lookup (design ack c70197 on #11151).
 const isVariationSelector = (cp) => cp >= 0xfe00 && cp <= 0xfe0f
 
-// Known misses, each keyed by name AND code point so a swap to a different
-// glyph that is also off-font still fails. This list may only shrink: system_3
-// #11420 replaces all four and deletes it.
-const KNOWN_MISSES = {
-  aspiring_hand: [0x270b], // ✋ #11420
-  support: [0x2615], // ☕ #11420
-  attach: [0x1f4ce], // 📎 #11420
-  responsibilities: [0x2696], // ⚖ (+U+FE0E) #11420
-}
+// There is no allowlist. The four misses #11151 pinned (aspiring_hand,
+// support, attach, responsibilities) were replaced by system_3 #11420, so any
+// registered glyph outside the font now fails by name and code point.
 
 const hex = (cp) => `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`
 
@@ -47,10 +41,17 @@ test('the cmap reader reads the shipped Iosevka', () => {
   for (const ch of '✉⌕⌀⟳') expect(cmap.has(ch.codePointAt(0)), ch).toBe(false)
 })
 
-test('every registered glyph is in Iosevka 400 latin, apart from the pinned known misses', () => {
+test('every registered glyph is in Iosevka 400 latin', () => {
   const misses = missesOf(woff2Codepoints(FONT))
   const readable = (m) => Object.fromEntries(Object.entries(m).map(([n, cps]) => [n, cps.map(hex)]))
-  expect(readable(misses)).toEqual(readable(KNOWN_MISSES))
+  expect(readable(misses)).toEqual({})
+})
+
+test('the check still catches a glyph outside the font', () => {
+  // The four glyphs #11420 replaced are the positive control: none is in the
+  // font, so a registry that still held one would be reported.
+  const cmap = woff2Codepoints(FONT)
+  for (const ch of ['\u270B', '\u2615', '\u{1F4CE}', '\u2696']) expect(cmap.has(ch.codePointAt(0)), hex(ch.codePointAt(0))).toBe(false)
 })
 
 test('the four names #11151 fixed carry the glyphs design ruled', () => {
@@ -58,4 +59,11 @@ test('the four names #11151 fixed carry the glyphs design ruled', () => {
   expect(iconRegistry.search.glyph).toBe('◎')
   expect(iconRegistry.disabled.glyph).toBe('⊘')
   expect(iconRegistry.processes.glyph).toBe('↻')
+})
+
+test('the four names #11420 fixed carry the glyphs design ruled', () => {
+  expect(iconRegistry.aspiring_hand.glyph).toBe('☝')
+  expect(iconRegistry.support.glyph).toBe('⊔')
+  expect(iconRegistry.attach.glyph).toBe('+')
+  expect(iconRegistry.responsibilities.glyph).toBe('⊜')
 })

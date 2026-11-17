@@ -12,7 +12,10 @@ newest first. Each entry names the design ruling it implements.
   `+` and `responsibilities` ⚖ → ⊜ (U+229C). The old four are not in Iosevka
   400 latin, so they drew in the device font, as a colour emoji or as a box.
   A consumer sees the change with no code edit in one place: `AspComposer`'s
-  attach button, which reads `+` under its name "Attach file". The glyphs
+  attach button, which reads `+` under its name "Attach file". The button
+  draws it at the `lg` icon size (design c71563): at `sm` the `+` was about
+  7px of ink where the paperclip filled 18px. The button is 58 × 44px and
+  the composer's height is unchanged. The glyphs
   of `aspiring_hand` and `support` show only on the icon specimen today:
   aspirant-client's sidebar draws both as their image assets. The console's
   agent page passes its own fallback for `responsibilities`, so it changes

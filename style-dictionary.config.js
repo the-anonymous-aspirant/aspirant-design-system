@@ -104,7 +104,14 @@ StyleDictionary.registerFormat({
       .map((t) => `  ${cssVarNameLightEquivalent(t)}: ${t.value};`)
       .join('\n')
 
-    return `${header}:root {\n${rootLines}\n}\n\n[data-theme='dark'] {\n${darkLines}\n}\n`
+    // `color-scheme` rides with the theme attribute so the browser's own parts
+    // (scrollbars, file/date/colour pickers, autofill) follow it. Not on
+    // `:root`: with no attribute the browser default stays (system_3 #11585).
+    return (
+      `${header}:root {\n${rootLines}\n}\n\n` +
+      `[data-theme='dark'] {\n  color-scheme: dark;\n${darkLines}\n}\n\n` +
+      `[data-theme='light'] {\n  color-scheme: light;\n}\n`
+    )
   },
 })
 

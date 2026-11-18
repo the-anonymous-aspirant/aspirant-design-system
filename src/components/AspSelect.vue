@@ -54,9 +54,20 @@ const props = defineProps({
    */
   searchable: { type: Boolean, default: false },
   searchPlaceholder: { type: String, default: 'Type to filter' },
+  /**
+   * Opt-in, with `searchable` (design_conventions §3.161 Decision 1, system_3
+   * #11577): the open panel offers to take the typed text as a new name. While
+   * the trimmed text is not empty and equals no option's label (ignoring
+   * case), the list ends with one row, `Add “<text>”`. Choosing it emits
+   * `add` with the trimmed text and closes the panel; the select's own value
+   * does not change, so the page decides what it becomes. In this mode the
+   * "No match" line is not shown: the row stands in its place. Off by
+   * default; with it off the component renders and behaves exactly as before.
+   */
+  addable: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue', 'open', 'close'])
+const emit = defineEmits(['update:modelValue', 'open', 'close', 'add'])
 
 const uid = `asp-select-${Math.random().toString(36).slice(2, 9)}`
 const attrs = useAttrs()
@@ -149,6 +160,29 @@ const walkable = computed(() =>
 )
 const noMatch = computed(() => props.searchable && words.value.length > 0 && !visibleSections.value.length)
 const noMatchText = computed(() => (noMatch.value ? `No match for "${query.value.trim()}"` : ''))
+
+// --- add a new name (§3.161 Decision 1, system_3 #11577) ---------------------
+// The row is the last entry of the list and has the next index after the
+// options, so `activeIndex`, `optionId` and aria-activedescendant treat it as
+// one more option. It is never made active by typing: the watch on `query`
+// below makes the first MATCH active, and with no match nothing is active, so
+// a stray Enter adds nothing (§3.149 Decision 5, D13). Only the arrows and the
+// pointer reach it.
+const addText = computed(() => query.value.trim())
+const canAdd = computed(() => {
+  if (!props.searchable || !props.addable || !addText.value) return false
+  const typed = addText.value.toLowerCase()
+  return !flat.value.some((o) => String(o.label ?? '').toLowerCase() === typed)
+})
+const addIndex = computed(() => flat.value.length)
+const addLabel = computed(() => `Add “${addText.value}”`)
+// What the live region says. Without the mode, the no-match line as before.
+// With it, the row in place of that line: nothing matches, so the row is the
+// whole list, and it is said once by name (§3.161 Decision 1, point 7).
+const liveText = computed(() => {
+  if (!props.addable) return noMatchText.value
+  return noMatch.value && canAdd.value ? addLabel.value : ''
+})
 const fieldLabel = computed(() => `Filter ${props.label || props.ariaLabel || props.placeholder}`)
 const isPrintable = (event) => event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
 
@@ -361,12 +395,23 @@ const select = (option) => {
   closePanel()
 }
 
+// Hands the trimmed text to the page and closes; the value is the page's to
+// set. The text is read before closing, which drops it.
+const addNew = () => {
+  if (!canAdd.value) return
+  const text = addText.value
+  closePanel()
+  emit('add', text)
+}
+const addIsActive = () => canAdd.value && activeIndex.value === addIndex.value
+
 const moveActive = async (delta) => {
-  if (!selectable.value.length) return
+  if (!selectable.value.length && !canAdd.value) return
   if (!open.value) return openPanel({ focusField: true })
   if (props.searchable) {
-    // The arrows walk only the matches (§3.149 Decision 5).
-    const vis = walkable.value
+    // The arrows walk only the matches (§3.149 Decision 5), then the add row
+    // after the last of them.
+    const vis = canAdd.value ? [...walkable.value, addIndex.value] : walkable.value
     if (!vis.length) {
       activeIndex.value = -1
       return
@@ -404,8 +449,9 @@ const onKeydown = (event) => {
     case 'Enter':
     case ' ':
       event.preventDefault()
-      if (open.value) select(flat.value[activeIndex.value])
-      else openPanel({ focusField: true })
+      if (!open.value) openPanel({ focusField: true })
+      else if (addIsActive()) addNew()
+      else select(flat.value[activeIndex.value])
       break
     case 'Escape':
       if (open.value) {
@@ -452,7 +498,8 @@ const onFieldKeydown = (event) => {
       break
     case 'Enter':
       event.preventDefault()
-      if (activeIndex.value >= 0 && walkable.value.includes(activeIndex.value)) select(flat.value[activeIndex.value])
+      if (addIsActive()) addNew()
+      else if (activeIndex.value >= 0 && walkable.value.includes(activeIndex.value)) select(flat.value[activeIndex.value])
       break
     case 'Escape':
       // Consumed, as on the trigger (system_3 #10761).
@@ -611,10 +658,26 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
             </li>
           </template>
         </template>
+        <!-- The add row (§3.161 Decision 1): after the matches, or alone in
+             place of the no-match line. An option, so it is announced by name
+             when the arrows reach it; never selected, since it sets no value. -->
+        <li
+          v-if="canAdd"
+          :id="optionId(addIndex)"
+          class="select__option select__option--add"
+          :class="{ 'select__option--active': activeIndex === addIndex }"
+          role="option"
+          aria-selected="false"
+          :data-active="activeIndex === addIndex"
+          @click="addNew"
+          @mousemove="activeIndex = addIndex"
+        >
+          {{ addLabel }}
+        </li>
         <!-- Not an option and not reachable by the arrows; the panel stays
              open (§3.149 Decision 5). -->
-        <li v-if="noMatch" class="select__empty select__empty--nomatch" role="presentation">{{ noMatchText }}</li>
-        <li v-else-if="!flat.length" class="select__empty" role="presentation">No options</li>
+        <li v-if="noMatch && !addable" class="select__empty select__empty--nomatch" role="presentation">{{ noMatchText }}</li>
+        <li v-else-if="!flat.length && !canAdd" class="select__empty" role="presentation">No options</li>
       </ul>
     </div>
 
@@ -689,7 +752,7 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
     </ul>
 
     <!-- The no-match line, announced when it appears (§3.149 Decision 7). -->
-    <span v-if="searchable" class="select__live" aria-live="polite">{{ open ? noMatchText : '' }}</span>
+    <span v-if="searchable" class="select__live" aria-live="polite">{{ open ? liveText : '' }}</span>
   </div>
 </template>
 
@@ -871,6 +934,14 @@ watch(() => props.disabled, (d) => d && closePanel({ focusTrigger: false }))
 .select__option--disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* The add row (§3.161 Decision 1) is an option in size, ink and active
+   treatment, with no colour or icon of its own: the word "Add" is the mark.
+   The panel's width is held from open (§3.151), so a long name wraps inside
+   it, breaking inside a word only when nothing else fits; never cut. */
+.select__option--add {
+  overflow-wrap: anywhere;
 }
 
 /* Option groups (system_3 #10701). The label keeps the panel's full ink, so

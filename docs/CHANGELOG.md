@@ -6,6 +6,19 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspSelect: a searchable select can take a new name, from an "Add" row in
+  its panel** (system_3 #11577, design_conventions §3.161 Decision 1). A new
+  opt-in prop, `addable`, works with `searchable`. While the typed text,
+  trimmed, is not empty and equals no option's label (ignoring case), the list
+  ends with one row, `Add “<text>”`: after the matches, or alone where the
+  "No match" line was, which this mode does not show. Choosing it (a tap, a
+  click, or Enter once ↓ has reached it) emits `add` with the trimmed text and
+  closes the panel. The select does not change its own value; the page
+  decides. Typing never makes the row active, so Enter with nothing matching
+  adds nothing. The row is an option in size and ink, wraps a long name inside
+  the panel's width, and is announced by name. With `addable` off, nothing
+  changes.
+
 - **Icon registry: four glyphs move into the house typeface, and a test keeps
   them there** (system_3 #11151, design c68713 on #10973 and ack c70197 on
   #11151). `messages` ✉ → `@`, `search` ⌕ → ◎ (U+25CE), `disabled` ⌀ → ⊘

@@ -124,6 +124,26 @@ const emptySecondaryRows = [
 ]
 
 // #4318 / §3.88 — per-row hooks demos.
+// §3.165 (system_3 #11626): a Transactions-like table, its identity declared
+// and 700px of fixed-width columns, in `table-layout: fixed` as the Invoices
+// app sets it. At 800px the identity cannot keep its 24ch floor, so it cards;
+// at 950px it is a table.
+const crushCols = [
+  { key: 'paid_on', label: 'Date', width: '90px' },
+  { key: 'who', label: 'Who and what for', role: 'identity' },
+  { key: 'method', label: 'Method', width: '150px' },
+  { key: 'category', label: 'Category', width: '140px' },
+  { key: 'invoice', label: 'Invoice', width: '120px' },
+  { key: 'in', label: 'In', width: '100px', align: 'right' },
+  { key: 'out', label: 'Out', width: '100px', align: 'right', role: 'figure' },
+]
+const crushRows = [
+  { id: 1, paid_on: '2026-09-28', who: 'Max Platzhalter · Tattoo (small) and a follow-up session', method: 'Bank transfer', category: 'Paid work', invoice: 'Draft', in: '€60.00', out: '' },
+  { id: 2, paid_on: '2026-09-20', who: 'Bahn · Leipzig and back for the Siebdruck workshop', method: 'Card', category: 'Travel', invoice: '', in: '', out: '-€89.90' },
+  { id: 3, paid_on: '2026-09-12', who: 'Galerie Beispiel · Tattoo', method: 'Bank transfer', category: 'Paid work', invoice: '2026-006', in: '€220.00', out: '' },
+]
+const crushWidth = ref(800)
+
 const rowAttrsDemo = (row) => ({ 'data-test-row-id': row.id, 'data-test-source': row.owner })
 const rowStateDemo = (row, i) => (i === 1 ? 'active' : i === 3 ? 'muted' : null)
 
@@ -288,6 +308,24 @@ const statusStyle = (v) => ({
       </div>
     </Variant>
 
+    <Variant title="Cards when the identity cannot keep its floor (§3.165, task #11626)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        At 640px and wider, a table with a declared identity shows its cards when, after its other
+        columns have yielded, the identity is narrower than 24ch or the table is wider than its box.
+        Here every other column has a fixed width (700px in all) in <code>table-layout: fixed</code>.
+        Drag the width: it cards below about 894px and returns to the table only once the box is as
+        wide as the table last needed, so it does not flicker. A card draws no label for an empty
+        cell (the "In" or "Out" it does not have).
+      </p>
+      <label style="display: block; margin-bottom: 8px;">
+        Box width: {{ crushWidth }}px
+        <input v-model.number="crushWidth" type="range" min="600" max="1100" step="2" style="width: 320px;">
+      </label>
+      <div class="crush-box" :style="{ width: `${crushWidth}px`, border: '1px dashed var(--border-subtle)' }">
+        <AspDataTable :columns="crushCols" :rows="crushRows" row-key="id" />
+      </div>
+    </Variant>
+
     <Variant title="narrow=&quot;scroll&quot; (homogeneous matrix)">
       <p style="margin-bottom: 8px; color: var(--text-muted);">
         A matrix where every column is the same kind of figure opts out with
@@ -384,3 +422,11 @@ const statusStyle = (v) => ({
     </Variant>
   </Story>
 </template>
+
+<style>
+/* What the Invoices app does to its own tables (§3.165 variant). */
+.crush-box table {
+  table-layout: fixed;
+  width: 100%;
+}
+</style>

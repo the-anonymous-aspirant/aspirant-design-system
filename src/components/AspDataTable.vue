@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
+import { Comment, Fragment, Text, computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
 
 import AspButton from './AspButton.vue'
 import AspSelect from './AspSelect.vue'
@@ -178,10 +178,31 @@ const cardRole = (col) => cardRoleOf(col, roles.value)
 // an action, badge or link column often has no raw value under its key at
 // all. Judging it by that value dropped the admin roster's Block button and
 // unverified badge, a flow's run links and a job source's details on phones.
+//
+// A slot column that renders nothing at all is empty too (§3.165, system_3
+// #11626): on the Book's card a payment drew an "Out" label with no value,
+// because the cell's slot renders its amount only for money out. "Nothing"
+// is judged on what the slot returns for this row: only comments (a false
+// `v-if`) and blank text. Any element is content, even an empty wrapper, and
+// so is a control with no text, such as a checkbox; the #9825 columns above
+// all render one.
 const slots = useSlots()
-const isEmptyCardSecondary = (col, row) => {
+const rendersNothing = (nodes) =>
+  (nodes || []).every((n) => {
+    if (n == null || typeof n === 'boolean') return true
+    if (typeof n === 'string' || typeof n === 'number') return String(n).trim() === ''
+    if (n.type === Comment) return true
+    if (n.type === Text) return String(n.children ?? '').trim() === ''
+    if (n.type === Fragment) return rendersNothing(Array.isArray(n.children) ? n.children : [])
+    return false
+  })
+// A slot that renders nothing falls back to the cell's default content, the
+// raw value (`renderSlot`'s fallback), so such a cell is empty only when that
+// value is empty too.
+const isEmptyCardSecondary = (col, row, index) => {
   if (cardRole(col) !== 'secondary') return false
-  if (slots[`cell-${col.key}`]) return false
+  const slot = slots[`cell-${col.key}`]
+  if (slot && !rendersNothing(slot({ row, value: row[col.key], index }))) return false
   const v = row[col.key]
   return v == null || v === '' || (Array.isArray(v) && v.length === 0)
 }
@@ -195,19 +216,38 @@ const isEmptyCardSecondary = (col, row) => {
 const CARD_BREAKPOINT = 640
 const viewportEl = ref(null)
 const containerWidth = ref(0)
+// --- Cards when the identity cannot keep its floor (§3.165, system_3 #11626) --
+// At 640px and wider a table with a DECLARED identity also shows its cards when,
+// after its secondary columns have yielded, the identity cell is narrower than
+// its 24ch floor or the table is wider than its box. That test is on the table
+// as it renders, so it holds in `table-layout: fixed`, where a cell's
+// `min-width` does not hold its column open, and in auto layout, where the
+// floor binds and the table overflows instead.
+//
+// In card mode the table cannot be measured, so the switch remembers how wide
+// a box the table needed when it was last measured (`crushNeed`) and returns to
+// the table only once the box is at least that wide. The estimate is the box
+// width then, plus the overflow, plus what the identity lacked; it errs wide, so
+// the table it returns to fits. Each new crush raises the need past the width
+// that crushed it, so a drag across the switch changes mode once each way.
+const crushed = ref(false)
+let crushNeed = 0
 // A shrink-to-fit parent can make the two modes disagree about the width (the
 // table is wide enough for table mode only while it is in card mode). Past a
-// few flips inside one frame, stay in table mode rather than loop.
+// few flips inside one frame, stop. Under 640px that stays in table mode, as
+// before. At 640px and wider the flips come from this switch, and there the
+// table is the crushed form, so the lock lands on the cards (§3.165).
 let flips = 0
 let flipFrame = 0
 const cardLocked = ref(false)
+const crushLocked = ref(false)
 const cardMode = computed(
   () =>
     !cardLocked.value &&
     props.narrow === 'cards' &&
     props.columns.length > 2 &&
     containerWidth.value > 0 &&
-    containerWidth.value < CARD_BREAKPOINT,
+    (containerWidth.value < CARD_BREAKPOINT || crushed.value || crushLocked.value),
 )
 watch(cardMode, () => {
   flips += 1
@@ -218,12 +258,51 @@ watch(cardMode, () => {
     })
   }
   if (flips > 4) {
-    cardLocked.value = true
-    if (import.meta.env?.DEV)
-      // eslint-disable-next-line no-console
-      console.warn('[AspDataTable] card mode oscillated under a shrink-to-fit parent; staying in table mode.')
+    if (containerWidth.value >= CARD_BREAKPOINT && roles.value.identityDeclared) {
+      crushLocked.value = true
+      if (import.meta.env?.DEV)
+        // eslint-disable-next-line no-console
+        console.warn('[AspDataTable] the identity-floor switch oscillated; staying in card mode.')
+    } else {
+      cardLocked.value = true
+      if (import.meta.env?.DEV)
+        // eslint-disable-next-line no-console
+        console.warn('[AspDataTable] card mode oscillated under a shrink-to-fit parent; staying in table mode.')
+    }
   }
 })
+// Back to the table once the box is as wide as the table last needed.
+watch(containerWidth, (w) => {
+  if (crushed.value && !crushLocked.value && w >= crushNeed) crushed.value = false
+})
+// A new set of columns needs a new measurement.
+watch(
+  () => props.columns,
+  () => {
+    crushed.value = false
+    crushNeed = 0
+  },
+)
+// Run after the yield caps have rendered, in table mode only.
+const checkCrush = async () => {
+  if (props.narrow !== 'cards' || !roles.value.identityDeclared || props.columns.length <= 2) return
+  if (cardMode.value || containerWidth.value < CARD_BREAKPOINT || !scrollEl.value) return
+  const run = yieldRun
+  await nextTick()
+  if (run !== yieldRun || cardMode.value) return
+  const el = scrollEl.value
+  const identity = el?.querySelector('td.data-table__td--identity, th.data-table__th--identity')
+  if (!identity) return
+  const floor = parseFloat(getComputedStyle(identity).minWidth) || 0
+  const short = floor - identity.getBoundingClientRect().width
+  const overflow = el.scrollWidth - el.clientWidth
+  if (short <= 0.5 && overflow <= 1) return
+  crushNeed = Math.max(
+    Math.ceil(containerWidth.value + Math.max(0, overflow) + Math.max(0, short)),
+    Math.floor(containerWidth.value) + 1,
+  )
+  crushed.value = true
+}
 const measureContainer = () => {
   if (viewportEl.value) containerWidth.value = viewportEl.value.getBoundingClientRect().width
 }
@@ -241,6 +320,10 @@ const yieldCaps = ref(null)
 // the UNCAPPED layout, and only the latest call writes, so caps never compound.
 let yieldRun = 0
 const measureYield = async () => {
+  await computeYield()
+  await checkCrush()
+}
+const computeYield = async () => {
   const run = ++yieldRun
   yieldCaps.value = null
   // A `narrow="scroll"` matrix keeps its sideways scroll; it never yields.
@@ -848,7 +931,7 @@ const tableClasses = computed(() => ({
             >
               <template v-for="col in columns" :key="col.key">
                 <td
-                  v-if="!cardMode || !isEmptyCardSecondary(col, row)"
+                  v-if="!cardMode || !isEmptyCardSecondary(col, row, startIndex + i)"
                   :class="cellClasses(col, row)"
                   :style="cellStyle(col)"
                   :title="(col.truncate || yields(col)) && !cardMode ? titleFor(col, row) : undefined"

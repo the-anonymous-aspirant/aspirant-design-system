@@ -83,6 +83,31 @@ const EPICS = [
   }),
 ]
 const epic = ref('all')
+
+// Searchable, taking a new name (§3.161 Decision 1, system_3 #11577). The
+// story stands in for the page: it adds the name to its own list and picks
+// it, which is what the Invoices expense dialog will do.
+const CATEGORIES = [
+  'materials and supplies',
+  'equipment',
+  'software and subscriptions',
+  'office and postage',
+  'travel',
+  'phone and internet',
+  'rent and utilities',
+  'insurance',
+  'fees and charges',
+  'training and books',
+  'Private',
+]
+const categoryOptions = ref(CATEGORIES.map((c) => ({ value: c, label: c })))
+const category = ref('travel')
+const lastAdded = ref('')
+const addCategory = (name) => {
+  lastAdded.value = name
+  categoryOptions.value = [...categoryOptions.value, { value: name, label: name }]
+  category.value = name
+}
 </script>
 
 <template>
@@ -158,6 +183,33 @@ const epic = ref('all')
       </p>
       <div data-theme="dark" class="dark-pane">
         <AspSelect v-model="epic" label="Epic" :options="EPICS" searchable search-placeholder="Number or title" />
+      </div>
+    </Variant>
+
+    <Variant title="Searchable, takes a new name">
+      <AspSelect
+        v-model="category"
+        label="Category"
+        :options="categoryOptions"
+        searchable
+        addable
+        search-placeholder="Type to filter or add"
+        @add="addCategory"
+      />
+      <p class="note">
+        Type a name that is not in the list: the last row offers to add it. Typing never makes that row active, so Enter
+        with nothing matching adds nothing; reach it with ↓ or a tap. Last added: {{ lastAdded || 'none' }}.
+      </p>
+      <div data-theme="dark" class="dark-pane">
+        <AspSelect
+          v-model="category"
+          label="Category"
+          :options="categoryOptions"
+          searchable
+          addable
+          search-placeholder="Type to filter or add"
+          @add="addCategory"
+        />
       </div>
     </Variant>
 

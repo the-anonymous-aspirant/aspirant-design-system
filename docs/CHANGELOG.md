@@ -6,6 +6,19 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: a `select` column leads the card, before the identity**
+  (system_3 #11747, design_conventions §3.132 Decision 6). A column may declare
+  `role: 'select'` for the row's checkbox: at most one, and it must be the
+  first column; a second, or one that is not first, warns and is secondary,
+  and no `select` column is ever the default identity. In a card the select
+  cell sits on the first line, before the identity, in a grid column of the
+  column's `width` (2.5rem if none), the same on every card, so every identity
+  starts on one edge, also where the cell renders nothing; a wrapped identity
+  keeps the checkbox on its first line. No label is drawn for it. A click or a
+  key in the select cell never reaches the row, in a card and in the table, so
+  a tick does not open an `interactive` row. The card sort bar never offers
+  it, and the virtualized card estimate does not count it as a line. The table
+  itself, and any table without a `select` column, render as before.
 - **Icon registry: the last four glyphs move into the house typeface, and the
   coverage test has no allowlist** (system_3 #11420, design ack c70242).
   `aspiring_hand` ✋ → ☝ (U+261D), `support` ☕ → ⊔ (U+2294), `attach` 📎 →

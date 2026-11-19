@@ -426,8 +426,11 @@ const cellClasses = (col, row) => {
 // one compact select plus a direction toggle. Both go through applySort, the
 // path a header click takes.
 const sortLabelId = `asp-dt-sort-${Math.random().toString(36).slice(2, 9)}`
+// A select column is a row's checkbox, never a sort key (system_3 #11747).
 const sortOptions = computed(() =>
-  props.columns.filter(isSortable).map((c) => ({ value: c.key, label: c.label })),
+  props.columns
+    .filter((c) => isSortable(c) && c.key !== roles.value.select)
+    .map((c) => ({ value: c.key, label: c.label })),
 )
 const CARD_SORT_PLACEHOLDER = 'Default order'
 // A measured width (§3.135): wide enough for the longest option, so the select
@@ -625,7 +628,11 @@ onBeforeUnmount(() => {
 const cardHeights = ref([])
 const cardEstimate = computed(() => {
   // padding + identity line + one label-value line per secondary cell + gap.
-  const secondary = Math.max(0, props.columns.length - 1 - (roles.value.figure ? 1 : 0))
+  // The figure and the select cell share the identity's line.
+  const secondary = Math.max(
+    0,
+    props.columns.length - 1 - (roles.value.figure ? 1 : 0) - (roles.value.select ? 1 : 0),
+  )
   return 16 + 22 + secondary * 22 + 4
 })
 const virtualCards = computed(() => virtualize.value && cardMode.value)
@@ -792,6 +799,13 @@ const ariaSortFor = (col) => {
 const onRowClick = (row, index, event) => {
   if (props.interactive) emit('row-click', row, index, event)
 }
+// The select cell holds the row's checkbox: a click or a key in it never
+// reaches the row, so a tick does not open the record (§3.132 Decision 6,
+// system_3 #11747), in either mode.
+const isSelectCol = (col) => roles.value.select != null && col.key === roles.value.select
+const stopAtSelect = (col, event) => {
+  if (isSelectCol(col)) event.stopPropagation()
+}
 const onRowKeydown = (row, index, event) => {
   if (props.interactive && (event.key === 'Enter' || event.key === ' ')) {
     event.preventDefault()
@@ -807,7 +821,20 @@ const tableClasses = computed(() => ({
   'data-table--fit-content': props.fit === 'content',
   'data-table--cards': cardMode.value,
   'data-table--cards-figure': cardMode.value && roles.value.figure != null,
+  'data-table--cards-select': cardMode.value && roles.value.select != null,
 }))
+
+// The select cell's grid column in a card: the column's declared width, or
+// 2.5rem, the same on every card so the identities line up.
+const tableStyle = computed(() => {
+  const style = {}
+  if (virtualize.value) style['--asp-dt-row-h'] = `${props.rowHeight}px`
+  if (cardMode.value && roles.value.select != null) {
+    const col = props.columns.find((c) => c.key === roles.value.select)
+    style['--asp-dt-select-w'] = col?.width || '2.5rem'
+  }
+  return Object.keys(style).length ? style : null
+})
 </script>
 
 <template>
@@ -859,7 +886,7 @@ const tableClasses = computed(() => ({
     >
       <table
         :class="tableClasses"
-        :style="virtualize ? { '--asp-dt-row-h': `${rowHeight}px` } : null"
+        :style="tableStyle"
         :aria-rowcount="ariaRowCount"
         :role="cardMode ? 'table' : undefined"
       >
@@ -936,6 +963,8 @@ const tableClasses = computed(() => ({
                   :style="cellStyle(col)"
                   :title="(col.truncate || yields(col)) && !cardMode ? titleFor(col, row) : undefined"
                   :role="cardMode ? 'cell' : undefined"
+                  @click="stopAtSelect(col, $event)"
+                  @keydown="stopAtSelect(col, $event)"
                 >
                   <!-- A secondary cell in a card is a label-value pair; the label
                        is the column label, since the header row is hidden. -->
@@ -1293,6 +1322,34 @@ const tableClasses = computed(() => ({
   align-items: baseline;
   gap: var(--space-sm);
   font-size: var(--text-sm);
+}
+/* A select column (system_3 #11747, §3.132 Decision 6): the row's checkbox
+   leads the card's first line, before the identity, in a column of the same
+   width on every card, so every identity starts on one edge, also where the
+   cell renders nothing. It sits on the identity's first line when the
+   identity wraps. Secondary cells still span the card. */
+.data-table--cards-select .data-table__row {
+  grid-template-columns: var(--asp-dt-select-w, 2.5rem) minmax(0, 1fr);
+}
+.data-table--cards-select.data-table--cards-figure .data-table__row {
+  grid-template-columns: var(--asp-dt-select-w, 2.5rem) minmax(0, 1fr) auto;
+}
+.data-table--cards td.data-table__card-cell--select {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  min-height: 1lh;
+}
+.data-table--cards-select td.data-table__card-cell--identity {
+  grid-column: 2 / -1;
+}
+.data-table--cards-select.data-table--cards-figure td.data-table__card-cell--identity {
+  grid-column: 2;
+}
+.data-table--cards-select td.data-table__card-cell--figure {
+  grid-column: 3;
 }
 .data-table__card-label {
   flex: 0 0 auto;

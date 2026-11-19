@@ -56,10 +56,23 @@ test("AspListItem: named and raw icons render at the slot's size", async ({ page
 test('sm icons outside a text slot keep the standalone 1rem', async ({ page }) => {
   await page.goto(FIXTURE, { waitUntil: 'networkidle' })
   const icons = page.locator('#standalone .asp-icon--sm')
-  // AspBackButton, AspInput type=search, AspComposer attach.
-  await expect(icons).toHaveCount(3)
+  // AspBackButton and AspInput type=search. AspComposer's attach left this set
+  // when its glyph became `+` and its icon `lg` (system_3 #11420; below).
+  await expect(icons).toHaveCount(2)
   const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize))
   for (const hgt of await icons.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) {
     expect(Math.abs(hgt - rem)).toBeLessThanOrEqual(0.5)
   }
+})
+
+// system_3 #11420: the attach glyph is `+`, drawn at `lg` so it reads as a
+// control beside Send (design c71563). `lg` is AspIcon's standalone 2rem.
+test("AspComposer's attach icon is lg, the standalone 2rem", async ({ page }) => {
+  await page.goto(FIXTURE, { waitUntil: 'networkidle' })
+  const icon = page.locator('#standalone [data-testid="composer-attach"] .asp-icon')
+  await expect(icon).toHaveCount(1)
+  await expect(icon).toHaveClass(/asp-icon--lg/)
+  const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize))
+  const height = await icon.evaluate((e) => e.getBoundingClientRect().height)
+  expect(Math.abs(height - 2 * rem)).toBeLessThanOrEqual(0.5)
 })

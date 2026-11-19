@@ -379,7 +379,12 @@ const onComposerKeydown = (event) => {
           data-testid="composer-attach"
           @click="openPicker"
         >
-          <AspIcon name="attach" size="sm" />
+          <!-- `lg`, not `sm`: the glyph is `+` (system_3 #11420), and at `sm`
+               it was about 7px of ink in a 44px button, where the paperclip it
+               replaced filled 18px. At `lg` it reads as a control beside Send;
+               the button stays 44px tall and the row's height does not change
+               (design c71563 on #11420). -->
+          <AspIcon name="attach" size="lg" />
         </AspButton>
         <!-- The picker itself: kept out of the tab order and off-screen rather
              than `display:none`, because a hidden-but-focusable input is a

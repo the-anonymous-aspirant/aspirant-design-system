@@ -6,6 +6,21 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: cards when the identity column cannot keep its floor, and no
+  label for an empty slot cell in a card** (system_3 #11626, design_conventions
+  §3.165, completing §3.119). At 640px and wider, a table with a declared
+  identity now shows its card list when, after its secondary columns have
+  yielded, the identity cell is narrower than its 24ch floor or the table is
+  wider than its box. The test is on the table as it renders, so it holds in
+  `table-layout: fixed`, where the floor's `min-width` does not hold a column
+  open. In card mode the table returns only once its box is as wide as the
+  table last needed, so a drag across the switch changes mode once each way,
+  and if the switch still loops it settles on the cards. A table with no
+  declared identity, a `narrow="scroll"` table, and a table that fits render as
+  before. In a card, a `cell-<key>` slot that renders nothing for the row (only
+  a false `v-if` or blank text) over an empty value draws no label; any element
+  the slot renders, an empty wrapper or a checkbox, is content and keeps its
+  label, as #9825 requires.
 - **`data-theme` sets `color-scheme`, so the browser's own parts follow the
   theme** (system_3 #11585, design spec on that task). `build/tokens.css` now
   gives `[data-theme='dark']` `color-scheme: dark` and adds `[data-theme='light']

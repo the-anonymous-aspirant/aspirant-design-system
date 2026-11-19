@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AspDataTable identity-floor switch fixture</title>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
+</script>
+<style>
+  body { margin: 0; padding: 16px; background: var(--surface-page, #fff); color: var(--text-body); }
+  /* What the Invoices app does to its own tables. */
+  .fixed :where(table) { table-layout: fixed; width: 100%; }
+</style>
+<div id="app"></div>
+<script type="module" src="./data-table-crush.js"></script>

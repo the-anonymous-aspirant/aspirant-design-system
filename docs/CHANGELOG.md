@@ -6,6 +6,15 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **`data-theme` sets `color-scheme`, so the browser's own parts follow the
+  theme** (system_3 #11585, design spec on that task). `build/tokens.css` now
+  gives `[data-theme='dark']` `color-scheme: dark` and adds `[data-theme='light']
+  { color-scheme: light; }`, so scrollbars, date/file/colour pickers and autofill
+  draw dark inside a dark theme and light inside a light island. `:root` is
+  unchanged: with no attribute the browser default stays. No token value
+  changes, and in dark no component's computed colours move
+  (`tests/e2e/color-scheme.spec.js`). aspirant-client's own copy of this rule in
+  `src/style.css` can go once it ships this `main`.
 - **AspSelect: a searchable select can take a new name, from an "Add" row in
   its panel** (system_3 #11577, design_conventions §3.161 Decision 1). A new
   opt-in prop, `addable`, works with `searchable`. While the typed text,

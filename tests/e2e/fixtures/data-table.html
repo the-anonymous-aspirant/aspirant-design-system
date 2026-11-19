@@ -6,6 +6,11 @@
     document.documentElement.setAttribute('data-theme', 'dark')
 </script>
 <style>
+  /* Match production: the app paints the page with the theme's surface and
+     ambient ink. Without them the cards' text took the browser default, which
+     follows `color-scheme` (system_3 #11585): white in dark, measured against a
+     transparent page as if it were white. */
+  body { background: var(--surface-page); color: var(--text-body); }
   /* The console's /tasks slack trick (frontend-vue Tasks.vue): the truncate
      column takes the row's slack and ellipsizes. Without a floor it collapses
      (#9104 B1-1); the #9133 floor must hold against it. */

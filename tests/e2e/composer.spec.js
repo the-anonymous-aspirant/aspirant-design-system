@@ -137,6 +137,33 @@ test('the paperclip is labelled and clears the 44px touch floor', async ({ page 
   expect(box.width).toBeGreaterThanOrEqual(44)
 })
 
+// system_3 #11420: the attach glyph is `+`, which at the `sm` icon size was
+// about 7px of ink in a 44px button. It is drawn at `lg` (design c71563), and
+// that must not make the row taller: the button is no taller than Send.
+test('the attach mark is large enough to read, and does not grow the row', async ({ page }) => {
+  const attach = emptyBound(page).locator('[data-testid="composer-attach"]')
+  const glyph = attach.locator('.asp-icon__glyph')
+  await expect(glyph).toHaveText('+')
+  // Ink, not box: the glyph drawn in its own computed font, painted columns counted.
+  const ink = await glyph.evaluate((el) => {
+    const c = document.createElement('canvas')
+    c.width = c.height = 96
+    const ctx = c.getContext('2d')
+    ctx.font = getComputedStyle(el).font
+    ctx.textBaseline = 'top'
+    ctx.fillText(el.textContent, 24, 24)
+    const d = ctx.getImageData(0, 0, 96, 96).data
+    let x0 = 96
+    let x1 = -1
+    for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) if (d[(y * 96 + x) * 4 + 3] > 0) { x0 = Math.min(x0, x); x1 = Math.max(x1, x) }
+    return x1 - x0 + 1
+  })
+  expect(ink, `the + is ${ink}px of ink wide`).toBeGreaterThanOrEqual(12)
+  const attachBox = await attach.boundingBox()
+  const sendBox = await emptyBound(page).locator('.asp-composer__send').boundingBox()
+  expect(attachBox.height).toBeLessThanOrEqual(sendBox.height + 0.5)
+})
+
 test('the paperclip sits IMMEDIATELY LEFT of Send — one control cluster (system_3 #3994)', async ({ page }) => {
   // Operator ask 2026-08-17: attach appears NEXT TO Send, not a full row away
   // in the leading cluster. Left of Send, and adjacent — the gap between the

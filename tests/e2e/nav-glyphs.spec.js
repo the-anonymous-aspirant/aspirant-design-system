@@ -15,9 +15,10 @@ const GLYPHS = {
 }
 
 // The agent page's subpage names (#9412): the same registration, with the
-// text-presentation selector on the two glyphs that have an emoji form.
+// text-presentation selector on ↗, the one glyph that has an emoji form.
+// `responsibilities` is ⊜ since system_3 #11420 (the scales were off-font).
 const SUBPAGE_GLYPHS = {
-  responsibilities: '\u2696\uFE0E',
+  responsibilities: '⊜',
   improvement: '\u2197\uFE0E',
   owns: '◈',
   activity: '∿',

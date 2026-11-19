@@ -21,11 +21,16 @@
 
 export const iconRegistry = {
   // Named icons that alias an existing hand-drawn aspirant PNG.
-  aspiring_hand: { glyph: '✋', asset: 'aspiring_hand' },
+  // ☝ (U+261D), not ✋: ✋ is outside the house typeface, so it drew in the
+  // device font or as a box. ☝ is a hand reaching up, and Iosevka carries it
+  // (system_3 #11420; design ack c70242).
+  aspiring_hand: { glyph: '☝', asset: 'aspiring_hand' },
   home: { glyph: '⌂', asset: 'home_icon' },
   applications: { glyph: '◇', asset: 'applications' },
   admin: { glyph: '⚙', asset: 'admin' },
-  support: { glyph: '☕', asset: 'coffemug' },
+  // ⊔ (U+2294, SQUARE CUP), not ☕: the font has no mug, and a cup's outline
+  // is the nearest it has (system_3 #11420; design ack c70242).
+  support: { glyph: '⊔', asset: 'coffemug' },
   family: { glyph: '♥', asset: 'family' },
   // `@`, not ✉: ✉ is outside the house typeface. The console's Inbox (this
   // name's one consumer) lists mentions, which are written `@name`, so `@`
@@ -53,9 +58,12 @@ export const iconRegistry = {
   settings: { glyph: '⚙', asset: null },
   // The composer's attach affordance (system_3 #3112). Glyph-only: no
   // hand-drawn paperclip exists yet, and registering the name here is what lets
-  // it upgrade silently when the SVG pipeline serves `attach.svg` — a
-  // hard-coded 📎 in AspComposer would never take that upgrade.
-  attach: { glyph: '📎', asset: null },
+  // it upgrade silently when the SVG pipeline serves `attach.svg`, which a
+  // glyph hard-coded in AspComposer would never take.
+  // `+`, not a paperclip: the font has none, and the old one drew as a colour
+  // emoji. Beside the text field, on a button named "Attach file", `+` reads
+  // as "add a file" (system_3 #11420; design ack c70242).
+  attach: { glyph: '+', asset: null },
   trusted: { glyph: '✧', asset: null },
   active: { glyph: '●', asset: null },
   badge: { glyph: '◐', asset: null },
@@ -76,10 +84,13 @@ export const iconRegistry = {
   artifacts: { glyph: '▤', asset: null },
   // The console's agent-page subpage links (system_3 #9303, #9412; §3.113 names
   // a registered name, never a raw glyph, so the §1.4 upgrade can reach them).
-  // ⚖ and ↗ have emoji forms, so they carry U+FE0E (text presentation) and
-  // render in the inherited ink like the rest. ☰ was rejected (reads as a menu
-  // on every platform) and ▣ sits too close to `artifacts` ▤ in the same bar.
-  responsibilities: { glyph: '\u2696\uFE0E', asset: null },
+  // ↗ has an emoji form, so it carries U+FE0E (text presentation) and renders
+  // in the inherited ink like the rest. ☰ was rejected (reads as a menu on
+  // every platform) and ▣ sits too close to `artifacts` ▤ in the same bar.
+  // `responsibilities` is ⊜ (U+229C, a balance kept as a closed shape), not
+  // the scales it was: U+2696 is outside the house typeface (system_3 #11420;
+  // design ack c70242).
+  responsibilities: { glyph: '⊜', asset: null },
   improvement: { glyph: '\u2197\uFE0E', asset: null },
   owns: { glyph: '◈', asset: null },
   activity: { glyph: '∿', asset: null },

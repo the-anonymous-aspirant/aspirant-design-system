@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import AspCheckbox from '../src/components/AspCheckbox.vue'
 import AspDataTable from '../src/components/AspDataTable.vue'
 
 const columns = [
@@ -143,6 +144,29 @@ const crushRows = [
   { id: 3, paid_on: '2026-09-12', who: 'Galerie Beispiel · Tattoo', method: 'Bank transfer', category: 'Paid work', invoice: '2026-006', in: '€220.00', out: '' },
 ]
 const crushWidth = ref(800)
+
+// A select column (§3.132 Decision 6, task #11747): Transactions' shape. 40 +
+// 90 + 140 + 120 + 100 = 490px of fixed columns, so a 656px box cards too.
+// Row 2 cannot be selected (its cell renders nothing); row 3's identity wraps.
+const selectCols = [
+  { key: 'select', label: '', sortable: false, width: '40px', role: 'select' },
+  { key: 'paid_on', label: 'Date paid', width: '90px' },
+  { key: 'who', label: 'Who and what for', sortable: false, role: 'identity' },
+  { key: 'category', label: 'Category', width: '140px' },
+  { key: 'invoice', label: 'Invoice', width: '120px' },
+  { key: 'amount', label: 'Amount', width: '100px', align: 'right', role: 'figure' },
+]
+const selectRows = [
+  { id: 1, paid_on: '2026-09-28', who: 'Max Platzhalter · Tattoo (small)', category: 'Paid work', invoice: '', amount: '€60.00', selectable: true },
+  { id: 2, paid_on: '2026-09-20', who: 'Galerie Beispiel · Tattoo', category: 'Paid work', invoice: '2026-006', amount: '€220.00', selectable: false },
+  { id: 3, paid_on: '2026-09-12', who: 'Studio Erfunden · Wandbild für das Treppenhaus, zweiter Abschnitt, mit Gerüst', category: 'Paid work', invoice: '', amount: '€480.00', selectable: true },
+  { id: 4, paid_on: '2026-08-19', who: 'Bahn · Leipzig and back', category: 'Travel', invoice: '', amount: '-€89.90', selectable: true },
+]
+const ticked = ref([])
+const toggleTick = (id, on) => {
+  ticked.value = on ? [...ticked.value, id] : ticked.value.filter((x) => x !== id)
+}
+const selectClicked = ref('(none)')
 
 const rowAttrsDemo = (row) => ({ 'data-test-row-id': row.id, 'data-test-source': row.owner })
 const rowStateDemo = (row, i) => (i === 1 ? 'active' : i === 3 ? 'muted' : null)
@@ -324,6 +348,36 @@ const statusStyle = (v) => ({
       <div class="crush-box" :style="{ width: `${crushWidth}px`, border: '1px dashed var(--border-subtle)' }">
         <AspDataTable :columns="crushCols" :rows="crushRows" row-key="id" />
       </div>
+    </Variant>
+
+    <Variant title="A select column leads the card (§3.132 D6, task #11747)">
+      <p style="margin-bottom: 8px; color: var(--text-muted);">
+        A column declared <code>role: 'select'</code> (at most one, and the first column) holds the
+        row's checkbox. In a card it sits on the first line, before the identity, in a column of the
+        same width on every card, so every identity starts on one edge, also where the cell renders
+        nothing (row 2). When the identity wraps (row 3) the checkbox stays with its first line. A
+        click on it ticks it and does not reach the row. The table itself does not change.
+      </p>
+      <p style="margin: 8px 0; color: var(--text-muted);">Ticked: {{ ticked.join(', ') || '(none)' }}. Last clicked row: {{ selectClicked }}</p>
+      <template v-for="theme in ['light', 'dark']" :key="theme">
+        <div :data-theme="theme" style="background: var(--surface-page); color: var(--text-body); padding: 8px 0; margin-bottom: 16px;">
+          <template v-for="w in [504, 656]" :key="w">
+            <p style="margin: 8px 0; color: var(--text-muted);">{{ theme }}, a {{ w }}px box</p>
+            <div class="crush-box" :style="{ width: `${w}px`, border: '1px dashed var(--border-subtle)', marginBottom: '16px' }">
+              <AspDataTable :columns="selectCols" :rows="selectRows" row-key="id" interactive @row-click="(row) => (selectClicked = row.who)">
+                <template #cell-select="{ row }">
+                  <AspCheckbox
+                    v-if="row.selectable"
+                    :model-value="ticked.includes(row.id)"
+                    :aria-label="`Select row ${row.id}`"
+                    @update:model-value="toggleTick(row.id, $event)"
+                  />
+                </template>
+              </AspDataTable>
+            </div>
+          </template>
+        </div>
+      </template>
     </Variant>
 
     <Variant title="narrow=&quot;scroll&quot; (homogeneous matrix)">

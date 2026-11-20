@@ -410,6 +410,9 @@ const cellClasses = (col, row) => {
         // The ≥640px floor binds a DECLARED identity only (dataTableRoles.js).
         'data-table__td--identity': roles.value.identityDeclared && col.key === roles.value.identity,
         'data-table__td--figure': col.key === roles.value.figure,
+        // A class only, for the row's handlers to recognise the cell; the
+        // table looks as before (system_3 #11747).
+        'data-table__td--select': isSelectCol(col),
         'data-table__td--yield': yields(col),
       },
     ]
@@ -796,17 +799,22 @@ const ariaSortFor = (col) => {
   return curSortDir.value === 'asc' ? 'ascending' : 'descending'
 }
 
-const onRowClick = (row, index, event) => {
-  if (props.interactive) emit('row-click', row, index, event)
-}
 // The select cell holds the row's checkbox: a click or a key in it never
-// reaches the row, so a tick does not open the record (§3.132 Decision 6,
-// system_3 #11747), in either mode.
+// opens the row, so a tick does not open the record (§3.132 Decision 6,
+// system_3 #11747), in either mode. The row's own handlers ignore an event
+// from inside that cell. The cell holds no listener of its own: a listener on
+// every cell kept the row's own click from running in a consumer's build
+// (aspirant-client's Invoices list stopped opening an invoice; system_3
+// #11753), so the check lives where the click is handled.
 const isSelectCol = (col) => roles.value.select != null && col.key === roles.value.select
-const stopAtSelect = (col, event) => {
-  if (isSelectCol(col)) event.stopPropagation()
+const fromSelectCell = (event) =>
+  roles.value.select != null &&
+  !!event?.target?.closest?.('.data-table__td--select, .data-table__card-cell--select')
+const onRowClick = (row, index, event) => {
+  if (props.interactive && !fromSelectCell(event)) emit('row-click', row, index, event)
 }
 const onRowKeydown = (row, index, event) => {
+  if (fromSelectCell(event)) return
   if (props.interactive && (event.key === 'Enter' || event.key === ' ')) {
     event.preventDefault()
     emit('row-click', row, index, event)
@@ -963,8 +971,6 @@ const tableStyle = computed(() => {
                   :style="cellStyle(col)"
                   :title="(col.truncate || yields(col)) && !cardMode ? titleFor(col, row) : undefined"
                   :role="cardMode ? 'cell' : undefined"
-                  @click="stopAtSelect(col, $event)"
-                  @keydown="stopAtSelect(col, $event)"
                 >
                   <!-- A secondary cell in a card is a label-value pair; the label
                        is the column label, since the header row is hidden. -->

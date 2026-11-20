@@ -6,6 +6,14 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **AspDataTable: a row with a `select` column opens again on a click
+  elsewhere** (system_3 #11747, a fix to its own entry below). The select
+  cell's own click and key listeners, added with the `select` role, kept an
+  `interactive` table's row click from running in a consumer's build: in
+  aspirant-client's Invoices list a click on a row no longer opened the
+  invoice, even in a table with no `select` column. The cell now holds no
+  listener; the row's click and key handlers ignore an event from inside the
+  select cell instead, so a tick still opens nothing.
 - **AspDataTable: a `select` column leads the card, before the identity**
   (system_3 #11747, design_conventions §3.132 Decision 6). A column may declare
   `role: 'select'` for the row's checkbox: at most one, and it must be the

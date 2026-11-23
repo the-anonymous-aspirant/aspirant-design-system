@@ -1,6 +1,6 @@
-// The five console nav names registered for system_3 #8018, rendered through
-// AspSidebarLink inside an AspAppShell sidebar, plus the registry reads the
-// spec pins.
+// The console nav names registered for system_3 #8018 (and `prs`, #12230),
+// rendered through AspSidebarLink inside an AspAppShell sidebar, plus the
+// registry reads the spec pins.
 //   ?collapsed=1   start in the 60px rail
 //   ?theme=dark    dark tokens
 //
@@ -12,7 +12,7 @@ import '../../../build/tokens.css'
 import assetMap from '../../../src/icons/asset_map.json'
 import { AspAppShell, AspIcon, AspSidebarLink, registryAsset, registryFallback } from '../../../src/index.js'
 
-const NAV = ['agents', 'tasks', 'processes', 'corpus', 'artifacts']
+const NAV = ['agents', 'tasks', 'prs', 'processes', 'corpus', 'artifacts']
 // The agent page's subpage names (#9412), rendered the same way, and once
 // more at sm and md for the size check.
 const SUBPAGES = ['responsibilities', 'improvement', 'owns', 'activity']

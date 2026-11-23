@@ -67,3 +67,10 @@ test('the four names #11420 fixed carry the glyphs design ruled', () => {
   expect(iconRegistry.attach.glyph).toBe('+')
   expect(iconRegistry.responsibilities.glyph).toBe('⊜')
 })
+
+test('prs carries the glyph design ruled for the console PR list', () => {
+  // system_3 #12230, design ack c75887 on #12076: ⇄ (U+21C4), used by no other name.
+  expect(iconRegistry.prs.glyph).toBe('\u21C4')
+  const users = Object.entries(iconRegistry).filter(([, { glyph }]) => glyph === '\u21C4').map(([n]) => n)
+  expect(users).toEqual(['prs'])
+})

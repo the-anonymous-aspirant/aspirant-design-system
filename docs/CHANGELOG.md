@@ -6,6 +6,13 @@ newest first. Each entry names the design ruling it implements.
 
 ## Unreleased
 
+- **Icon registry: `prs`, the console's PR list** (system_3 #12230, design
+  ack c75887 on system_3 #12076, design_conventions §3.171). A glyph-only name,
+  `⇄` (U+21C4), in the console nav set after `tasks`. It is in Iosevka 400
+  latin and no other name uses it. Nothing renders it yet: the console's `PRs`
+  sidebar entry and the agent page's `PRs` link will name it. Like the other
+  glyph-only names, it upgrades silently once the SVG pipeline serves
+  `prs.svg`.
 - **AspDataTable: a row with a `select` column opens again on a click
   elsewhere** (system_3 #11747, a fix to its own entry below). The select
   cell's own click and key listeners, added with the `select` role, kept an

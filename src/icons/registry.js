@@ -77,6 +77,10 @@ export const iconRegistry = {
   // the `${name}.svg` arm can ever upgrade them.
   agents: { glyph: '◉', asset: null },
   tasks: { glyph: '☑', asset: null },
+  // The console's full PR list, `/prs`, directly after Tasks in its sidebar.
+  // ⇄ (U+21C4) is in Iosevka 400 latin, and no other name uses it
+  // (system_3 #12230; design ack c75887 on #12076, §3.171).
+  prs: { glyph: '⇄', asset: null },
   // ↻ (U+21BB), not ⟳: ⟳ is outside the house typeface (system_3 #11151;
   // design c68713 on #10973).
   processes: { glyph: '↻', asset: null },

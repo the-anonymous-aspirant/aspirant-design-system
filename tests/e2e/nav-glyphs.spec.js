@@ -1,14 +1,16 @@
 import { expect, test } from '@playwright/test'
 
-// The system_3 console's five nav names (#8018): registered glyph-only, so
-// AspSidebarLink renders them through AspIcon rather than verbatim, and they
-// take the §1.4 hand-drawn upgrade once the SVG pipeline serves them.
+// The system_3 console's nav names (#8018, and `prs` since #12230): registered
+// glyph-only, so AspSidebarLink renders them through AspIcon rather than
+// verbatim, and they take the §1.4 hand-drawn upgrade once the SVG pipeline serves them.
 
 const FIXTURE = '/tests/e2e/fixtures/nav-glyphs.html'
 
 const GLYPHS = {
   agents: '◉',
   tasks: '☑',
+  // The full PR list (system_3 #12230, design ack c75887 on #12076).
+  prs: '⇄',
   processes: '↻',
   corpus: '§',
   artifacts: '▤',
